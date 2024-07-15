@@ -35,9 +35,6 @@ struct EntryData
 	QColor backgroundColor;
 	QString overrideUrl;
 	QString tags;
-	bool autoTypeEnabled;
-	int autoTypeObfuscation;
-	QString defaultAutoTypeSequence;
 	TimeInfo timeInfo;
 };
 
@@ -57,9 +54,6 @@ class Entry final:public QObject
 	QString getOverrideURL() const;
 	QString getTags() const;
 	TimeInfo getTimeInfo() const;
-	bool isAutoTypeEnabled() const;
-	int getAutoTypeObfuscation() const;
-	QString defaultAutoTypeSequence() const;
 	QString getTitle() const;
 	QString getURL() const;
 	QString getUsername() const;
@@ -94,15 +88,6 @@ class Entry final:public QObject
 	);
 	void setTimeInfo(
 		const TimeInfo &timeInfo
-	);
-	void setAutoTypeEnabled(
-		bool enable
-	);
-	void setAutoTypeObfuscation(
-		int obfuscation
-	);
-	void setDefaultAutoTypeSequence(
-		const QString &sequence
 	);
 	void setTitle(
 		const QString &title

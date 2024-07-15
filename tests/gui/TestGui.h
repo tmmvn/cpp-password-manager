@@ -61,7 +61,7 @@ private:
 		const QModelIndex &index,
 		QAbstractItemView* view,
 		Qt::MouseButton button,
-		Qt::KeyboardModifiers stateKey = 0
+        Qt::KeyboardModifiers stateKey = Qt::NoModifier
 	);
 	MainWindow* m_mainWindow;
 	DatabaseTabWidget* m_tabWidget;

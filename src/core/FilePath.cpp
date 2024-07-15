@@ -42,7 +42,7 @@ QString FilePath::getPluginPath(
 )
 {
 	QStringList pluginPaths_;
-	const QDir buildDir_(
+    /*const QDir buildDir_(
 		QCoreApplication::applicationDirPath() + "/autotype"
 	);
 	const QStringList buildDirEntryList_ = buildDir_.entryList(
@@ -55,7 +55,7 @@ QString FilePath::getPluginPath(
 	}
 	// for TestAutoType
 	pluginPaths_ << QCoreApplication::applicationDirPath() +
-		"/../src/autotype/test";
+        "/../src/autotype/test";*/
 	pluginPaths_ << QCoreApplication::applicationDirPath();
 	if(QString configuredPluginDir_ = KEEPASSX_PLUGIN_DIR;
 		configuredPluginDir_ != ".")

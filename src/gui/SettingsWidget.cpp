@@ -206,11 +206,6 @@ void SettingsWidget::loadSettings()
 			"security/passwordscleartext"
 		).toBool()
 	);
-	this->secUi->autoTypeAskCheckBox->setChecked(
-		Config::getInstance()->get(
-			"security/autotypeask"
-		).toBool()
-	);
 	this->setCurrentRow(
 		0
 	);
@@ -281,10 +276,6 @@ void SettingsWidget::do_saveSettings()
 	Config::getInstance()->set(
 		"security/passwordscleartext",
 		this->secUi->passwordCleartextCheckBox->isChecked()
-	);
-	Config::getInstance()->set(
-		"security/autotypeask",
-		this->secUi->autoTypeAskCheckBox->isChecked()
 	);
 	this->sig_editFinished(
 		true

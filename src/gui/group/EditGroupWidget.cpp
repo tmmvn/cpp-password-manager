@@ -73,12 +73,6 @@ EditGroupWidget::EditGroupWidget(
 		&QDateTimeEdit::setEnabled
 	);
 	this->connect(
-		this->mainUi->autoTypeSequenceCustomRadio,
-		&QRadioButton::toggled,
-		this->mainUi->autoTypeSequenceCustomEdit,
-		&QLineEdit::setEnabled
-	);
-	this->connect(
 		this,
 		&EditGroupWidget::sig_accepted,
 		this,
@@ -126,19 +120,11 @@ void EditGroupWidget::loadGroup(
 			this->mainUi->searchComboBox,
 			this->group->getParentGroup()->isResolveSearchingEnabled()
 		);
-		this->addTriStateItems(
-			this->mainUi->autotypeComboBox,
-			this->group->getParentGroup()->isResolveAutoTypeEnabled()
-		);
 	}
 	else
 	{
 		this->addTriStateItems(
 			this->mainUi->searchComboBox,
-			true
-		);
-		this->addTriStateItems(
-			this->mainUi->autotypeComboBox,
 			true
 		);
 	}
@@ -158,26 +144,6 @@ void EditGroupWidget::loadGroup(
 		this->indexFromTriState(
 			this->group->isSearchingEnabled()
 		)
-	);
-	this->mainUi->autotypeComboBox->setCurrentIndex(
-		this->indexFromTriState(
-			this->group->isAutoTypeEnabled()
-		)
-	);
-	if(group->getDefaultAutoTypeSequence().isEmpty())
-	{
-		this->mainUi->autoTypeSequenceInherit->setChecked(
-			true
-		);
-	}
-	else
-	{
-		this->mainUi->autoTypeSequenceCustomRadio->setChecked(
-			true
-		);
-	}
-	this->mainUi->autoTypeSequenceCustomEdit->setText(
-		this->group->getDefaultAutoTypeSequence()
 	);
 	IconStruct iconStruct_;
 	iconStruct_.uuid = this->group->getIconUUID();
@@ -216,23 +182,6 @@ void EditGroupWidget::do_save()
 			this->mainUi->searchComboBox->currentIndex()
 		)
 	);
-	this->group->setAutoTypeEnabled(
-		this->triStateFromIndex(
-			this->mainUi->autotypeComboBox->currentIndex()
-		)
-	);
-	if(this->mainUi->autoTypeSequenceInherit->isChecked())
-	{
-		this->group->setDefaultAutoTypeSequence(
-			QString()
-		);
-	}
-	else
-	{
-		this->group->setDefaultAutoTypeSequence(
-			this->mainUi->autoTypeSequenceCustomEdit->text()
-		);
-	}
 	if(const IconStruct iconStruct_ = this->editGroupWidgetIcons->state();
 		iconStruct_.number < 0)
 	{

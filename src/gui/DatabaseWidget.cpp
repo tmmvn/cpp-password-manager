@@ -798,15 +798,6 @@ void DatabaseWidget::setClipboardTextAndMinimize(
 	}
 }
 
-void DatabaseWidget::do_performAutoType() const
-{
-	if(const Entry* currentEntry_ = this->entryView->getCurrentEntry();
-		!currentEntry_)
-	{
-		return;
-	}
-}
-
 void DatabaseWidget::do_openUrl() const
 {
 	const Entry* currentEntry_ = this->entryView->getCurrentEntry();

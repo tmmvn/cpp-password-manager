@@ -41,8 +41,6 @@ class Group final:public QObject
 		UUID customIcon;
 		TimeInfo timeInfo;
 		bool isExpanded;
-		QString defaultAutoTypeSequence;
-		Group::TriState autoTypeEnabled;
 		Group::TriState searchingEnabled;
 	};
 
@@ -59,11 +57,8 @@ class Group final:public QObject
 	UUID getIconUUID() const;
 	TimeInfo getTimeInfo() const;
 	bool isExpanded() const;
-	QString getDefaultAutoTypeSequence() const;
-	TriState isAutoTypeEnabled() const;
-	TriState isSearchingEnabled() const;
+    TriState isSearchingEnabled() const;
 	bool isResolveSearchingEnabled() const;
-	bool isResolveAutoTypeEnabled() const;
 	Entry* getLastTopVisibleEntry() const;
 	bool isExpired() const;
 	static const int DefaultIconNumber;
@@ -88,12 +83,6 @@ class Group final:public QObject
 	);
 	void setExpanded(
 		bool expanded
-	);
-	void setDefaultAutoTypeSequence(
-		const QString &sequence
-	);
-	void setAutoTypeEnabled(
-		TriState enable
 	);
 	void setSearchingEnabled(
 		TriState enable

@@ -27,7 +27,6 @@ class TestEntryModel:public QObject
 	void testAttributesModel();
 	void testDefaultIconModel();
 	void testCustomIconModel();
-	void testAutoTypeAssociationsModel();
 	void testProxyModel();
 	void testDatabaseDelete();
 };

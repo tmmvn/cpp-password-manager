@@ -1530,14 +1530,6 @@ void MainWindow::do_copyAttribute(
 	}
 }
 
-void MainWindow::do_performAutoType() const
-{
-	if(this->currentDatabaseWidget)
-	{
-		this->currentDatabaseWidget->do_performAutoType();
-	}
-}
-
 void MainWindow::do_openUrl() const
 {
 	if(this->currentDatabaseWidget)

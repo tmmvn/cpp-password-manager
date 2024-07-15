@@ -98,7 +98,6 @@ private Q_SLOTS:
 	void do_copyAttribute(
 		const QAction* action
 	) const;
-	void do_performAutoType() const;
 	void do_openUrl() const;
 	void do_createGroup() const;
 	void do_switchToGroupEdit() const;

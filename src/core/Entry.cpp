@@ -43,8 +43,6 @@ Entry::Entry()
 	)
 {
 	this->data.iconNumber = this->DefaultIconNumber;
-	this->data.autoTypeEnabled = true;
-	this->data.autoTypeObfuscation = 0;
 	this->connect(
 		this->attributes,
 		&EntryAttributes::sig_modified,
@@ -230,21 +228,6 @@ TimeInfo Entry::getTimeInfo() const
 	return this->data.timeInfo;
 }
 
-bool Entry::isAutoTypeEnabled() const
-{
-	return this->data.autoTypeEnabled;
-}
-
-int Entry::getAutoTypeObfuscation() const
-{
-	return this->data.autoTypeObfuscation;
-}
-
-QString Entry::defaultAutoTypeSequence() const
-{
-	return this->data.defaultAutoTypeSequence;
-}
-
 QString Entry::getTitle() const
 {
 	return this->attributes->getValue(
@@ -399,36 +382,6 @@ void Entry::setTimeInfo(
 )
 {
 	this->data.timeInfo = timeInfo;
-}
-
-void Entry::setAutoTypeEnabled(
-	const bool enable
-)
-{
-	this->set(
-		this->data.autoTypeEnabled,
-		enable
-	);
-}
-
-void Entry::setAutoTypeObfuscation(
-	const int obfuscation
-)
-{
-	this->set(
-		this->data.autoTypeObfuscation,
-		obfuscation
-	);
-}
-
-void Entry::setDefaultAutoTypeSequence(
-	const QString &sequence
-)
-{
-	this->set(
-		this->data.defaultAutoTypeSequence,
-		sequence
-	);
 }
 
 void Entry::setTitle(

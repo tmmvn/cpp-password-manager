@@ -520,9 +520,6 @@ void TestModified::testEntrySets()
 		spyModified.count(),
 		spyCount
 	);
-	entry->setAutoTypeEnabled(
-		false
-	);
 	QCOMPARE(
 		spyModified.count(),
 		++spyCount

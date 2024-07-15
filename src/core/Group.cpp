@@ -29,7 +29,6 @@ Group::Group()
 {
 	this->data.iconNumber = this->DefaultIconNumber;
 	this->data.isExpanded = true;
-	this->data.autoTypeEnabled = this->Inherit;
 	this->data.searchingEnabled = this->Inherit;
 }
 
@@ -74,9 +73,6 @@ Group* Group::createRecycleBin()
 		RecycleBinIconNumber
 	);
 	recycleBin_->setSearchingEnabled(
-		Disable
-	);
-	recycleBin_->setAutoTypeEnabled(
 		Disable
 	);
 	return recycleBin_;
@@ -216,16 +212,6 @@ bool Group::isExpanded() const
 	return this->data.isExpanded;
 }
 
-QString Group::getDefaultAutoTypeSequence() const
-{
-	return this->data.defaultAutoTypeSequence;
-}
-
-Group::TriState Group::isAutoTypeEnabled() const
-{
-	return this->data.autoTypeEnabled;
-}
-
 Group::TriState Group::isSearchingEnabled() const
 {
 	return this->data.searchingEnabled;
@@ -334,26 +320,6 @@ void Group::setExpanded(
 		this->getUpdateTimeinfo();
 		sig_modified();
 	}
-}
-
-void Group::setDefaultAutoTypeSequence(
-	const QString &sequence
-)
-{
-	this->set(
-		this->data.defaultAutoTypeSequence,
-		sequence
-	);
-}
-
-void Group::setAutoTypeEnabled(
-	const TriState enable
-)
-{
-	this->set(
-		this->data.autoTypeEnabled,
-		enable
-	);
 }
 
 void Group::setSearchingEnabled(
@@ -1002,25 +968,6 @@ bool Group::isResolveSearchingEnabled() const
 				return true;
 			}
 			return this->parent->isResolveSearchingEnabled();
-		case Enable:
-			return true;
-		case Disable:
-			return false;
-		default:
-			return false;
-	}
-}
-
-bool Group::isResolveAutoTypeEnabled() const
-{
-	switch(this->data.autoTypeEnabled)
-	{
-		case Inherit:
-			if(!this->parent)
-			{
-				return true;
-			}
-			return this->parent->isResolveAutoTypeEnabled();
 		case Enable:
 			return true;
 		case Disable:

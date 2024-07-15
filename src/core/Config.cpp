@@ -158,10 +158,6 @@ void Config::init(
 		false
 	);
 	this->defaults.insert(
-		"AutoTypeEntryTitleMatch",
-		true
-	);
-	this->defaults.insert(
 		"security/clearclipboard",
 		true
 	);
@@ -180,10 +176,6 @@ void Config::init(
 	this->defaults.insert(
 		"security/passwordscleartext",
 		false
-	);
-	this->defaults.insert(
-		"security/autotypeask",
-		true
 	);
 	this->defaults.insert(
 		"GUI/Language",
