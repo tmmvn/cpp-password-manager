@@ -14,251 +14,408 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "EntryAttributes.h"
-
 const QString EntryAttributes::TitleKey = "Title";
 const QString EntryAttributes::UserNameKey = "UserName";
 const QString EntryAttributes::PasswordKey = "Password";
 const QString EntryAttributes::URLKey = "URL";
 const QString EntryAttributes::NotesKey = "Notes";
-const QStringList EntryAttributes::DefaultAttributes(QStringList() << TitleKey << UserNameKey
-                                                     << PasswordKey << URLKey << NotesKey);
+const QStringList EntryAttributes::DefaultAttributes(
+	QStringList() << TitleKey << UserNameKey << PasswordKey << URLKey <<
+	NotesKey
+);
 
-EntryAttributes::EntryAttributes(QObject* parent)
-    : QObject(parent)
+EntryAttributes::EntryAttributes(
+	QObject* parent
+)
+	: QObject(
+		parent
+	)
 {
-    clear();
+	this->clear();
 }
 
-QList<QString> EntryAttributes::keys() const
+QList<QString> EntryAttributes::getKeys() const
 {
-    return m_attributes.keys();
+	return this->attributes.keys();
 }
 
-bool EntryAttributes::hasKey(const QString& key) const
+bool EntryAttributes::hasKey(
+	const QString &key
+) const
 {
-    return m_attributes.keys().contains(key);
+	return this->attributes.keys().contains(
+		key
+	);
 }
 
-QList<QString> EntryAttributes::customKeys()
+QList<QString> EntryAttributes::getCustomKeys() const
 {
-    QList<QString> customKeys;
-    const QList<QString> keyList = keys();
-    for (const QString& key : keyList) {
-        if (!isDefaultAttribute(key)) {
-            customKeys.append(key);
-        }
-    }
-    return customKeys;
+	QList<QString> customKeys_;
+	const QList<QString> keyList_ = this->getKeys();
+	for(const QString &key_: keyList_)
+	{
+		if(!this->isDefaultAttribute(
+			key_
+		))
+		{
+			customKeys_.append(
+				key_
+			);
+		}
+	}
+	return customKeys_;
 }
 
-QString EntryAttributes::value(const QString& key) const
+QString EntryAttributes::getValue(
+	const QString &key
+) const
 {
-    return m_attributes.value(key);
+	return this->attributes.value(
+		key
+	);
 }
 
-bool EntryAttributes::isProtected(const QString& key) const
+bool EntryAttributes::isProtected(
+	const QString &key
+) const
 {
-    return m_protectedAttributes.contains(key);
+	return this->protectedAttributes.contains(
+		key
+	);
 }
 
-void EntryAttributes::set(const QString& key, const QString& value, bool protect)
+void EntryAttributes::set(
+	const QString &key,
+	const QString &value,
+	const bool protect
+)
 {
-    bool emitModified = false;
-
-    bool addAttribute = !m_attributes.contains(key);
-    bool changeValue = !addAttribute && (m_attributes.value(key) != value);
-    bool defaultAttribute = isDefaultAttribute(key);
-
-    if (addAttribute && !defaultAttribute) {
-        Q_EMIT aboutToBeAdded(key);
-    }
-
-    if (addAttribute || changeValue) {
-        m_attributes.insert(key, value);
-        emitModified = true;
-    }
-
-    if (protect) {
-        if (!m_protectedAttributes.contains(key)) {
-            emitModified = true;
-        }
-        m_protectedAttributes.insert(key);
-    }
-    else if (m_protectedAttributes.remove(key)) {
-        emitModified = true;
-    }
-
-    if (emitModified) {
-        Q_EMIT modified();
-    }
-
-    if (defaultAttribute && changeValue) {
-        Q_EMIT defaultKeyModified();
-    }
-    else if (addAttribute) {
-        Q_EMIT added(key);
-    }
-    else if (emitModified) {
-        Q_EMIT customKeyModified(key);
-    }
+	auto emitModified_ = false;
+	const bool addAttribute_ = !this->attributes.contains(
+		key
+	);
+	const bool changeValue_ = !addAttribute_ && (this->attributes.value(
+		key
+	) != value);
+	const bool defaultAttribute_ = this->isDefaultAttribute(
+		key
+	);
+	if(addAttribute_ && !defaultAttribute_)
+	{
+		sig_aboutToBeAdded(
+			key
+		);
+	}
+	if(addAttribute_ || changeValue_)
+	{
+		this->attributes.insert(
+			key,
+			value
+		);
+		emitModified_ = true;
+	}
+	if(protect)
+	{
+		if(!this->protectedAttributes.contains(
+			key
+		))
+		{
+			emitModified_ = true;
+		}
+		this->protectedAttributes.insert(
+			key
+		);
+	}
+	else if(this->protectedAttributes.remove(
+		key
+	))
+	{
+		emitModified_ = true;
+	}
+	if(emitModified_)
+	{
+		sig_modified();
+	}
+	if(defaultAttribute_ && changeValue_)
+	{
+		sig_defaultKeyModified();
+	}
+	else if(addAttribute_)
+	{
+		sig_added(
+			key
+		);
+	}
+	else if(emitModified_)
+	{
+		sig_customKeyModified(
+			key
+		);
+	}
 }
 
-void EntryAttributes::remove(const QString& key)
+void EntryAttributes::remove(
+	const QString &key
+)
 {
-    Q_ASSERT(!isDefaultAttribute(key));
-
-    if (!m_attributes.contains(key)) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    Q_EMIT aboutToBeRemoved(key);
-
-    m_attributes.remove(key);
-    m_protectedAttributes.remove(key);
-
-    Q_EMIT removed(key);
-    Q_EMIT modified();
+	if(this->isDefaultAttribute(
+		key
+	))
+	{
+		return;
+	};
+	if(!this->attributes.contains(
+		key
+	))
+	{
+		return;
+	}
+	sig_aboutToBeRemoved(
+		key
+	);
+	this->attributes.remove(
+		key
+	);
+	this->protectedAttributes.remove(
+		key
+	);
+	sig_removed(
+		key
+	);
+	sig_modified();
 }
 
-void EntryAttributes::rename(const QString& oldKey, const QString& newKey)
+void EntryAttributes::rename(
+	const QString &oldKey,
+	const QString &newKey
+)
 {
-    Q_ASSERT(!isDefaultAttribute(oldKey));
-    Q_ASSERT(!isDefaultAttribute(newKey));
-
-    if (!m_attributes.contains(oldKey)) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    if (m_attributes.contains(newKey)) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    QString data = value(oldKey);
-    bool protect = isProtected(oldKey);
-
-    Q_EMIT aboutToRename(oldKey, newKey);
-
-    m_attributes.remove(oldKey);
-    m_attributes.insert(newKey, data);
-    if (protect) {
-        m_protectedAttributes.remove(oldKey);
-        m_protectedAttributes.insert(newKey);
-    }
-
-    Q_EMIT modified();
-    Q_EMIT renamed(oldKey, newKey);
+	if(this->isDefaultAttribute(
+		oldKey
+	))
+	{
+		return;
+	};
+	if(this->isDefaultAttribute(
+		newKey
+	))
+	{
+		return;
+	};
+	if(this->attributes.contains(
+		oldKey
+	))
+	{
+		return;
+	};
+	if(!this->attributes.contains(
+		oldKey
+	))
+	{
+		return;
+	}
+	if(!this->attributes.contains(
+		newKey
+	))
+	{
+		return;
+	};
+	if(this->attributes.contains(
+		newKey
+	))
+	{
+		return;
+	}
+	const QString data_ = this->getValue(
+		oldKey
+	);
+	const bool protect_ = this->isProtected(
+		oldKey
+	);
+	sig_aboutToRename(
+		oldKey,
+		newKey
+	);
+	this->attributes.remove(
+		oldKey
+	);
+	this->attributes.insert(
+		newKey,
+		data_
+	);
+	if(protect_)
+	{
+		this->protectedAttributes.remove(
+			oldKey
+		);
+		this->protectedAttributes.insert(
+			newKey
+		);
+	}
+	sig_modified();
+	sig_renamed(
+		oldKey,
+		newKey
+	);
 }
 
-void EntryAttributes::copyCustomKeysFrom(const EntryAttributes* other)
+void EntryAttributes::copyCustomKeysFrom(
+	const EntryAttributes* other
+)
 {
-    if (!areCustomKeysDifferent(other)) {
-        return;
-    }
-
-    Q_EMIT aboutToBeReset();
-
-    // remove all non-default keys
-    const QList<QString> keyList = keys();
-    for (const QString& key : keyList) {
-        if (!isDefaultAttribute(key)) {
-            m_attributes.remove(key);
-            m_protectedAttributes.remove(key);
-        }
-    }
-
-    const QList<QString> otherKeyList = other->keys();
-    for (const QString& key : otherKeyList) {
-        if (!isDefaultAttribute(key)) {
-            m_attributes.insert(key, other->value(key));
-            if (other->isProtected(key)) {
-                m_protectedAttributes.insert(key);
-            }
-        }
-    }
-
-    Q_EMIT reset();
-    Q_EMIT modified();
+	if(!this->areCustomKeysDifferent(
+		other
+	))
+	{
+		return;
+	}
+	sig_aboutToBeReset();
+	// remove all non-default keys
+	const QList<QString> keyList_ = this->getKeys();
+	for(const QString &key_: keyList_)
+	{
+		if(!this->isDefaultAttribute(
+			key_
+		))
+		{
+			this->attributes.remove(
+				key_
+			);
+			this->protectedAttributes.remove(
+				key_
+			);
+		}
+	}
+	const QList<QString> otherKeyList_ = other->getKeys();
+	for(const QString &key_: otherKeyList_)
+	{
+		if(!this->isDefaultAttribute(
+			key_
+		))
+		{
+			this->attributes.insert(
+				key_,
+				other->getValue(
+					key_
+				)
+			);
+			if(other->isProtected(
+				key_
+			))
+			{
+				this->protectedAttributes.insert(
+					key_
+				);
+			}
+		}
+	}
+	sig_reset();
+	sig_modified();
 }
 
-bool EntryAttributes::areCustomKeysDifferent(const EntryAttributes* other)
+bool EntryAttributes::areCustomKeysDifferent(
+	const EntryAttributes* other
+) const
 {
-    // check if they are equal ignoring the order of the keys
-    if (keys().toSet() != other->keys().toSet()) {
-        return true;
-    }
-
-    const QList<QString> keyList = keys();
-    for (const QString& key : keyList) {
-        if (isDefaultAttribute(key)) {
-            continue;
-        }
-
-        if (isProtected(key) != other->isProtected(key) || value(key) != other->value(key)) {
-            return true;
-        }
-    }
-
-    return false;
+	if(other == nullptr)
+	{
+		return true;
+	}
+	if(this->getKeys() != other->getKeys())
+	{
+		return true;
+	}
+	const QList<QString> keyList_ = this->getKeys();
+	for(const QString &key_: keyList_)
+	{
+		if(this->isDefaultAttribute(
+			key_
+		))
+		{
+			continue;
+		}
+		if(this->isProtected(
+			key_
+		) != other->isProtected(
+			key_
+		) || this->getValue(
+			key_
+		) != other->getValue(
+			key_
+		))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
-void EntryAttributes::copyDataFrom(const EntryAttributes* other)
+void EntryAttributes::copyDataFrom(
+	const EntryAttributes* other
+)
 {
-    if (*this != *other) {
-        Q_EMIT aboutToBeReset();
-
-        m_attributes = other->m_attributes;
-        m_protectedAttributes = other->m_protectedAttributes;
-
-        Q_EMIT reset();
-        Q_EMIT modified();
-    }
+	if(*this != *other)
+	{
+		sig_aboutToBeReset();
+		this->attributes = other->attributes;
+		this->protectedAttributes = other->protectedAttributes;
+		sig_reset();
+		sig_modified();
+	}
 }
 
-bool EntryAttributes::operator==(const EntryAttributes& other) const
+bool EntryAttributes::operator==(
+	const EntryAttributes &other
+) const
 {
-    return (m_attributes == other.m_attributes
-            && m_protectedAttributes == other.m_protectedAttributes);
+	return (this->attributes == other.attributes && this->protectedAttributes ==
+		other.protectedAttributes);
 }
 
-bool EntryAttributes::operator!=(const EntryAttributes& other) const
+bool EntryAttributes::operator!=(
+	const EntryAttributes &other
+) const
 {
-    return (m_attributes != other.m_attributes
-            || m_protectedAttributes != other.m_protectedAttributes);
+	return (this->attributes != other.attributes || this->protectedAttributes !=
+		other.protectedAttributes);
 }
 
 void EntryAttributes::clear()
 {
-    Q_EMIT aboutToBeReset();
-
-    m_attributes.clear();
-    m_protectedAttributes.clear();
-
-    for (const QString& key : DefaultAttributes) {
-        m_attributes.insert(key, "");
-    }
-
-    Q_EMIT reset();
-    Q_EMIT modified();
+	sig_aboutToBeReset();
+	this->attributes.clear();
+	this->protectedAttributes.clear();
+	for(const QString &key_: this->DefaultAttributes)
+	{
+		this->attributes.insert(
+			key_,
+			""
+		);
+	}
+	sig_reset();
+	sig_modified();
 }
 
-int EntryAttributes::attributesSize()
+int EntryAttributes::getAttributesSize() const
 {
-    int size = 0;
-
-    QMapIterator<QString, QString> i(m_attributes);
-    while (i.hasNext()) {
-        i.next();
-        size += i.value().toUtf8().size();
-    }
-    return size;
+	auto size_ = 0;
+	QMapIterator i_(
+		this->attributes
+	);
+	while(i_.hasNext())
+	{
+		i_.next();
+		size_ += static_cast<int>(i_.value().toUtf8().size());
+	}
+	return size_;
 }
 
-bool EntryAttributes::isDefaultAttribute(const QString& key)
+bool EntryAttributes::isDefaultAttribute(
+	const QString &key
+)
 {
-    return DefaultAttributes.contains(key);
+	return DefaultAttributes.contains(
+		key
+	);
 }

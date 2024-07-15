@@ -14,245 +14,333 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "HashedBlockStream.h"
-
 #include <cstring>
-
 #include "core/Endian.h"
 #include "crypto/CryptoHash.h"
-
 const QSysInfo::Endian HashedBlockStream::ByteOrder = QSysInfo::LittleEndian;
 
-HashedBlockStream::HashedBlockStream(QIODevice* baseDevice)
-    : LayeredStream(baseDevice)
-    , m_blockSize(1024*1024)
+HashedBlockStream::HashedBlockStream(
+	QIODevice* baseDevice
+)
+	: LayeredStream(
+		baseDevice
+	),
+	blockSize(
+		1024 * 1024
+	),
+	bufferPos(),
+	blockIndex(),
+	eof(),
+	error()
 {
-    init();
+	this->init();
 }
 
-HashedBlockStream::HashedBlockStream(QIODevice* baseDevice, qint32 blockSize)
-    : LayeredStream(baseDevice)
-    , m_blockSize(blockSize)
+HashedBlockStream::HashedBlockStream(
+	QIODevice* baseDevice,
+	const qint32 blockSize
+)
+	: LayeredStream(
+		baseDevice
+	),
+	blockSize(
+		blockSize
+	),
+	bufferPos(),
+	blockIndex(),
+	eof(),
+	error()
 {
-    init();
+	this->init();
 }
 
 HashedBlockStream::~HashedBlockStream()
 {
-    close();
+	this->close();
 }
 
 void HashedBlockStream::init()
 {
-    m_buffer.clear();
-    m_bufferPos = 0;
-    m_blockIndex = 0;
-    m_eof = false;
-    m_error = false;
+	this->buffer.clear();
+	this->bufferPos = 0;
+	this->blockIndex = 0;
+	this->eof = false;
+	this->error = false;
 }
 
 bool HashedBlockStream::reset()
 {
-    // Write final block(s) only if device is writable and we haven't
-    // already written a final block.
-    if (isWritable() && (!m_buffer.isEmpty() || m_blockIndex != 0)) {
-        if (!m_buffer.isEmpty()) {
-            if (!writeHashedBlock()) {
-                return false;
-            }
-        }
-
-        // write empty final block
-        if (!writeHashedBlock()) {
-            return false;
-        }
-    }
-
-    init();
-
-    return true;
+	// Write final block(s) only if device is writable and we haven't
+	// already written a final block.
+	if(this->isWritable() && (!this->buffer.isEmpty() || this->blockIndex != 0))
+	{
+		if(!this->buffer.isEmpty())
+		{
+			if(!this->writeHashedBlock())
+			{
+				return false;
+			}
+		}
+		// write empty final block
+		if(!this->writeHashedBlock())
+		{
+			return false;
+		}
+	}
+	this->init();
+	return true;
 }
 
 void HashedBlockStream::close()
 {
-    // Write final block(s) only if device is writable and we haven't
-    // already written a final block.
-    if (isWritable() && (!m_buffer.isEmpty() || m_blockIndex != 0)) {
-        if (!m_buffer.isEmpty()) {
-            writeHashedBlock();
-        }
-
-        // write empty final block
-        writeHashedBlock();
-    }
-
-    LayeredStream::close();
+	// Write final block(s) only if device is writable and we haven't
+	// already written a final block.
+	if(this->isWritable() && (!this->buffer.isEmpty() || this->blockIndex != 0))
+	{
+		if(!this->buffer.isEmpty())
+		{
+			this->writeHashedBlock();
+		}
+		// write empty final block
+		this->writeHashedBlock();
+	}
+	LayeredStream::close();
 }
 
-qint64 HashedBlockStream::readData(char* data, qint64 maxSize)
+qint64 HashedBlockStream::readData(
+	char* data,
+	const qint64 maxSize
+)
 {
-    if (m_error) {
-        return -1;
-    }
-    else if (m_eof) {
-        return 0;
-    }
-
-    qint64 bytesRemaining = maxSize;
-    qint64 offset = 0;
-
-    while (bytesRemaining > 0) {
-        if (m_bufferPos == m_buffer.size()) {
-            if (!readHashedBlock()) {
-                if (m_error) {
-                    return -1;
-                }
-                else {
-                    return maxSize - bytesRemaining;
-                }
-            }
-        }
-
-        int bytesToCopy = qMin(bytesRemaining, static_cast<qint64>(m_buffer.size() - m_bufferPos));
-
-        memcpy(data + offset, m_buffer.constData() + m_bufferPos, bytesToCopy);
-
-        offset += bytesToCopy;
-        m_bufferPos += bytesToCopy;
-        bytesRemaining -= bytesToCopy;
-    }
-
-    return maxSize;
+	if(this->error)
+	{
+		return -1;
+	}
+	if(this->eof)
+	{
+		return 0;
+	}
+	auto bytesRemaining_ = static_cast<qint32>(maxSize);
+	auto offset_ = 0;
+	while(bytesRemaining_ > 0)
+	{
+		if(this->bufferPos == this->buffer.size())
+		{
+			if(!this->readHashedBlock())
+			{
+				if(this->error)
+				{
+					return -1;
+				}
+				return maxSize - bytesRemaining_;
+			}
+		}
+		const qint32 bytesToCopy_ = qMin(
+			bytesRemaining_,
+			static_cast<qint32>(this->buffer.size()) - this->bufferPos
+		);
+		memcpy(
+			data + offset_,
+			this->buffer.constData() + this->bufferPos,
+			bytesToCopy_
+		);
+		offset_ += bytesToCopy_;
+		this->bufferPos += bytesToCopy_;
+		bytesRemaining_ -= bytesToCopy_;
+	}
+	return maxSize;
 }
 
 bool HashedBlockStream::readHashedBlock()
 {
-    bool ok;
-
-    quint32 index = Endian::readUInt32(m_baseDevice, ByteOrder, &ok);
-    if (!ok || index != m_blockIndex) {
-        m_error = true;
-        setErrorString("Invalid block index.");
-        return false;
-    }
-
-    QByteArray hash = m_baseDevice->read(32);
-    if (hash.size() != 32) {
-        m_error = true;
-        setErrorString("Invalid hash size.");
-        return false;
-    }
-
-    m_blockSize = Endian::readInt32(m_baseDevice, ByteOrder, &ok);
-    if (!ok || m_blockSize < 0) {
-        m_error = true;
-        setErrorString("Invalid block size.");
-        return false;
-    }
-
-    if (m_blockSize == 0) {
-        if (hash.count('\0') != 32) {
-            m_error = true;
-            setErrorString("Invalid hash of final block.");
-            return false;
-        }
-
-        m_eof = true;
-        return false;
-    }
-
-    m_buffer = m_baseDevice->read(m_blockSize);
-    if (m_buffer.size() != m_blockSize) {
-        m_error = true;
-        setErrorString("Block too short.");
-        return false;
-    }
-
-    if (hash != CryptoHash::hash(m_buffer, CryptoHash::Sha256)) {
-        m_error = true;
-        setErrorString("Mismatch between hash and data.");
-        return false;
-    }
-
-    m_bufferPos = 0;
-    m_blockIndex++;
-
-    return true;
+	bool ok_;
+	if(const qint32 index_ = Endian::readInt32(
+			this->getBaseDevice(),
+			this->ByteOrder,
+			&ok_
+		);
+		!ok_ || index_ != this->blockIndex)
+	{
+		this->error = true;
+		this->setErrorString(
+			"Invalid block index."
+		);
+		return false;
+	}
+	const QByteArray hash_ = this->getBaseDevice()->read(
+		32
+	);
+	if(hash_.size() != 32)
+	{
+		this->error = true;
+		this->setErrorString(
+			"Invalid hash size."
+		);
+		return false;
+	}
+	this->blockSize = Endian::readInt32(
+		this->getBaseDevice(),
+		this->ByteOrder,
+		&ok_
+	);
+	if(!ok_ || this->blockSize < 0)
+	{
+		this->error = true;
+		this->setErrorString(
+			"Invalid block size."
+		);
+		return false;
+	}
+	if(this->blockSize == 0)
+	{
+		if(hash_.count(
+			'\0'
+		) != 32)
+		{
+			this->error = true;
+			this->setErrorString(
+				"Invalid hash of final block."
+			);
+			return false;
+		}
+		this->eof = true;
+		return false;
+	}
+	this->buffer = this->getBaseDevice()->read(
+		this->blockSize
+	);
+	if(this->buffer.size() != this->blockSize)
+	{
+		this->error = true;
+		this->setErrorString(
+			"Block too short."
+		);
+		return false;
+	}
+	if(hash_ != CryptoHash::hash(
+		this->buffer,
+		CryptoHash::Sha256
+	))
+	{
+		this->error = true;
+		this->setErrorString(
+			"Mismatch between hash and data."
+		);
+		return false;
+	}
+	this->bufferPos = 0;
+	this->blockIndex++;
+	return true;
 }
 
-qint64 HashedBlockStream::writeData(const char* data, qint64 maxSize)
+qint64 HashedBlockStream::writeData(
+	const char* data,
+	const qint64 maxSize
+)
 {
-    Q_ASSERT(maxSize >= 0);
-
-    if (m_error) {
-        return 0;
-    }
-
-    qint64 bytesRemaining = maxSize;
-    qint64 offset = 0;
-
-    while (bytesRemaining > 0) {
-        int bytesToCopy = qMin(bytesRemaining, static_cast<qint64>(m_blockSize - m_buffer.size()));
-
-        m_buffer.append(data + offset, bytesToCopy);
-
-        offset += bytesToCopy;
-        bytesRemaining -= bytesToCopy;
-
-        if (m_buffer.size() == m_blockSize) {
-            if (!writeHashedBlock()) {
-                if (m_error) {
-                    return -1;
-                }
-                else {
-                    return maxSize - bytesRemaining;
-                }
-            }
-        }
-    }
-
-    return maxSize;
+	if(maxSize <= 0)
+	{
+		return 0;
+	}
+	if(this->error)
+	{
+		return -1;
+	}
+	auto bytesRemaining_ = static_cast<qint32>(maxSize);
+	auto offset_ = 0;
+	while(bytesRemaining_ > 0)
+	{
+		const qint32 bytesToCopy_ = qMin(
+			bytesRemaining_,
+			this->blockSize - static_cast<qint32>(this->buffer.size())
+		);
+		this->buffer.append(
+			data + offset_,
+			bytesToCopy_
+		);
+		offset_ += bytesToCopy_;
+		bytesRemaining_ -= bytesToCopy_;
+		if(this->buffer.size() == this->blockSize)
+		{
+			if(!this->writeHashedBlock())
+			{
+				if(this->error)
+				{
+					return -1;
+				}
+				return maxSize - bytesRemaining_;
+			}
+		}
+	}
+	return maxSize;
 }
 
 bool HashedBlockStream::writeHashedBlock()
 {
-    if (!Endian::writeInt32(m_blockIndex, m_baseDevice, ByteOrder)) {
-        m_error = true;
-        setErrorString(m_baseDevice->errorString());
-        return false;
-    }
-    m_blockIndex++;
-
-    QByteArray hash;
-    if (!m_buffer.isEmpty()) {
-        hash = CryptoHash::hash(m_buffer, CryptoHash::Sha256);
-    }
-    else {
-        hash.fill(0, 32);
-    }
-
-    if (m_baseDevice->write(hash) != hash.size()) {
-        m_error = true;
-        setErrorString(m_baseDevice->errorString());
-        return false;
-    }
-
-    if (!Endian::writeInt32(m_buffer.size(), m_baseDevice, ByteOrder)) {
-        m_error = true;
-        setErrorString(m_baseDevice->errorString());
-        return false;
-    }
-
-    if (!m_buffer.isEmpty()) {
-        if (m_baseDevice->write(m_buffer) != m_buffer.size()) {
-            m_error = true;
-            setErrorString(m_baseDevice->errorString());
-            return false;
-        }
-
-        m_buffer.clear();
-    }
-
-    return true;
+	if(!Endian::writeInt32(
+		static_cast<qint32>(this->blockIndex),
+		this->getBaseDevice(),
+		this->ByteOrder
+	))
+	{
+		this->error = true;
+		this->setErrorString(
+			this->getBaseDevice()->errorString()
+		);
+		return false;
+	}
+	this->blockIndex++;
+	QByteArray hash_;
+	if(!this->buffer.isEmpty())
+	{
+		hash_ = CryptoHash::hash(
+			this->buffer,
+			CryptoHash::Sha256
+		);
+	}
+	else
+	{
+		hash_.fill(
+			0,
+			32
+		);
+	}
+	if(this->getBaseDevice()->write(
+		hash_
+	) != hash_.size())
+	{
+		this->error = true;
+		this->setErrorString(
+			this->getBaseDevice()->errorString()
+		);
+		return false;
+	}
+	if(!Endian::writeInt32(
+		static_cast<qint32>(this->buffer.size()),
+		this->getBaseDevice(),
+		this->ByteOrder
+	))
+	{
+		this->error = true;
+		this->setErrorString(
+			this->getBaseDevice()->errorString()
+		);
+		return false;
+	}
+	if(!this->buffer.isEmpty())
+	{
+		if(this->getBaseDevice()->write(
+			this->buffer
+		) != this->buffer.size())
+		{
+			this->error = true;
+			this->setErrorString(
+				this->getBaseDevice()->errorString()
+			);
+			return false;
+		}
+		this->buffer.clear();
+	}
+	return true;
 }

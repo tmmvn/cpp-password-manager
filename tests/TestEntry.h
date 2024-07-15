@@ -14,23 +14,17 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTENTRY_H
 #define KEEPASSX_TESTENTRY_H
-
 #include <QObject>
-
 class Entry;
 
-class TestEntry : public QObject
+class TestEntry:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testHistoryItemDeletion();
-    void testCopyDataFrom();
-    void testClone();
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testHistoryItemDeletion();
+	void testCopyDataFrom();
+	void testClone();
 };
-
 #endif // KEEPASSX_TESTENTRY_H

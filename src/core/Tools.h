@@ -14,47 +14,65 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TOOLS_H
 #define KEEPASSX_TOOLS_H
-
-#include "core/Global.h"
-
+#include <algorithm>
 #include <QDateTime>
 #include <QObject>
 #include <QString>
-
-#include <algorithm>
-
 class QIODevice;
 
-namespace Tools {
-
-QString humanReadableFileSize(qint64 bytes);
-bool hasChild(const QObject* parent, const QObject* child);
-bool readFromDevice(QIODevice* device, QByteArray& data, int size = 16384);
-bool readAllFromDevice(QIODevice* device, QByteArray& data);
-QString imageReaderFilter();
-bool isHex(const QByteArray& ba);
-bool isBase64(const QByteArray& ba);
-void sleep(int ms);
-void wait(int ms);
-void disableCoreDumps();
-void setupSearchPaths();
-
-template <typename RandomAccessIterator, typename T>
-RandomAccessIterator binaryFind(RandomAccessIterator begin, RandomAccessIterator end, const T& value)
+namespace Tools
 {
-    RandomAccessIterator it = std::lower_bound(begin, end, value);
+	QString humanReadableFileSize(
+		qint64 bytes
+	);
+	bool hasChild(
+		const QObject* parent,
+		const QObject* child
+	);
+	bool readFromDevice(
+		QIODevice* device,
+		QByteArray &data,
+		int size = 16384
+	);
+	bool readAllFromDevice(
+		QIODevice* device,
+		QByteArray &data
+	);
+	QString getImageReaderFilter();
+	bool isHex(
+		const QByteArray &ba
+	);
+	bool isBase64(
+		const QByteArray &ba
+	);
+	void sleep(
+		int ms
+	);
+	void wait(
+		int ms
+	);
+	void disableCoreDumps();
+	void setupSearchPaths();
 
-    if ((it == end) || (value < *it)) {
-        return end;
-    }
-    else {
-        return it;
-    }
-}
-
+	template<typename RandomAccessIterator, typename T> RandomAccessIterator
+	binaryFind(
+		RandomAccessIterator begin,
+		RandomAccessIterator end,
+		const T &value
+	)
+	{
+		RandomAccessIterator it_ = std::lower_bound(
+			begin,
+			end,
+			value
+		);
+		if((it_ == end) || (value < *it_))
+		{
+			return end;
+		}
+		return it_;
+	}
 } // namespace Tools
-
 #endif // KEEPASSX_TOOLS_H

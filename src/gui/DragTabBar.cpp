@@ -14,88 +14,143 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "DragTabBar.h"
-
 #include <QApplication>
 #include <QDragEnterEvent>
 #include <QTimer>
 
-DragTabBar::DragTabBar(QWidget* parent)
-    : QTabBar(parent)
-    , m_tabSwitchTimer(new QTimer(this))
-    , m_tabSwitchIndex(-1)
+DragTabBar::DragTabBar(
+	QWidget* parent
+)
+	: QTabBar(
+		parent
+	),
+	tabSwitchTimer(
+		new QTimer(
+			this
+		)
+	),
+	tabSwitchIndex(
+		-1
+	)
 {
-    m_tabSwitchTimer->setSingleShot(true);
-    connect(m_tabSwitchTimer, SIGNAL(timeout()), SLOT(dragSwitchTab()));
-
-    setAcceptDrops(true);
+	this->tabSwitchTimer->setSingleShot(
+		true
+	);
+	this->connect(
+		this->tabSwitchTimer,
+		&QTimer::timeout,
+		this,
+		&DragTabBar::do_dragSwitchTab
+	);
+	this->setAcceptDrops(
+		true
+	);
 }
 
-void DragTabBar::dragEnterEvent(QDragEnterEvent* event)
+void DragTabBar::dragEnterEvent(
+	QDragEnterEvent* event
+)
 {
-    int tab = tabAt(event->pos());
-
-    if (tab != -1) {
-        if (tab != currentIndex()) {
-            m_tabSwitchIndex = tab;
-            m_tabSwitchTimer->start(QApplication::doubleClickInterval() * 2);
-        }
-        event->setAccepted(true);
-    }
-    else {
-        QTabBar::dragEnterEvent(event);
-    }
+	if(const int tab_ = this->tabAt(
+			event->position().toPoint()
+		);
+		tab_ != -1)
+	{
+		if(tab_ != this->currentIndex())
+		{
+			this->tabSwitchIndex = tab_;
+			this->tabSwitchTimer->start(
+				QApplication::doubleClickInterval() * 2
+			);
+		}
+		event->setAccepted(
+			true
+		);
+	}
+	else
+	{
+		QTabBar::dragEnterEvent(
+			event
+		);
+	}
 }
 
-void DragTabBar::dragMoveEvent(QDragMoveEvent* event)
+void DragTabBar::dragMoveEvent(
+	QDragMoveEvent* event
+)
 {
-    int tab = tabAt(event->pos());
-
-    if (tab != -1) {
-        if (tab == currentIndex()) {
-            m_tabSwitchTimer->stop();
-        }
-        else if (tab != m_tabSwitchIndex) {
-            m_tabSwitchIndex = tab;
-            m_tabSwitchTimer->start(QApplication::doubleClickInterval() * 2);
-        }
-        event->setAccepted(true);
-    }
-    else {
-        m_tabSwitchIndex = -1;
-        m_tabSwitchTimer->stop();
-        QTabBar::dragMoveEvent(event);
-    }
+	if(const int tab_ = this->tabAt(
+			event->position().toPoint()
+		);
+		tab_ != -1)
+	{
+		if(tab_ == this->currentIndex())
+		{
+			this->tabSwitchTimer->stop();
+		}
+		else if(tab_ != this->tabSwitchIndex)
+		{
+			this->tabSwitchIndex = tab_;
+			this->tabSwitchTimer->start(
+				QApplication::doubleClickInterval() * 2
+			);
+		}
+		event->setAccepted(
+			true
+		);
+	}
+	else
+	{
+		this->tabSwitchIndex = -1;
+		this->tabSwitchTimer->stop();
+		QTabBar::dragMoveEvent(
+			event
+		);
+	}
 }
 
-void DragTabBar::dragLeaveEvent(QDragLeaveEvent* event)
+void DragTabBar::dragLeaveEvent(
+	QDragLeaveEvent* event
+)
 {
-    m_tabSwitchIndex = -1;
-    m_tabSwitchTimer->stop();
-    QTabBar::dragLeaveEvent(event);
+	this->tabSwitchIndex = -1;
+	this->tabSwitchTimer->stop();
+	QTabBar::dragLeaveEvent(
+		event
+	);
 }
 
-void DragTabBar::dropEvent(QDropEvent* event)
+void DragTabBar::dropEvent(
+	QDropEvent* event
+)
 {
-    m_tabSwitchIndex = -1;
-    m_tabSwitchTimer->stop();
-    QTabBar::dropEvent(event);
+	this->tabSwitchIndex = -1;
+	this->tabSwitchTimer->stop();
+	QTabBar::dropEvent(
+		event
+	);
 }
 
 void DragTabBar::tabLayoutChange()
 {
-    m_tabSwitchIndex = -1;
-    m_tabSwitchTimer->stop();
-    QTabBar::tabLayoutChange();
+	this->tabSwitchIndex = -1;
+	this->tabSwitchTimer->stop();
+	QTabBar::tabLayoutChange();
 }
 
-void DragTabBar::dragSwitchTab()
+void DragTabBar::do_dragSwitchTab()
 {
-    int tab = tabAt(mapFromGlobal(QCursor::pos()));
-
-    if (tab != -1 && tab == m_tabSwitchIndex) {
-        m_tabSwitchIndex = -1;
-        setCurrentIndex(tab);
-    }
+	if(const int tab_ = this->tabAt(
+			this->mapFromGlobal(
+				QCursor::pos()
+			)
+		);
+		tab_ != -1 && tab_ == this->tabSwitchIndex)
+	{
+		this->tabSwitchIndex = -1;
+		this->setCurrentIndex(
+			tab_
+		);
+	}
 }

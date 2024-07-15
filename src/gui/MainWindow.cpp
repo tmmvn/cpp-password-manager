@@ -14,641 +14,1566 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "MainWindow.h"
-#include "ui_MainWindow.h"
-
 #include <QCloseEvent>
 #include <QShortcut>
 #include <QTimer>
-
-#include "autotype/AutoType.h"
+#include "ui_MainWindow.h"
 #include "core/Config.h"
 #include "core/FilePath.h"
 #include "core/InactivityTimer.h"
-#include "core/Metadata.h"
 #include "format/KeePass2Writer.h"
 #include "gui/AboutDialog.h"
-#include "gui/DatabaseWidget.h"
 #include "gui/DatabaseRepairWidget.h"
+#include "gui/DatabaseWidget.h"
 #include "gui/FileDialog.h"
 #include "gui/MessageBox.h"
-
 const QString MainWindow::BaseWindowTitle = "KeePassX";
 
 MainWindow::MainWindow()
-    : m_ui(new Ui::MainWindow())
-    , m_trayIcon(nullptr)
+	: ui(
+		new Ui::MainWindow()
+	),
+	trayIcon(
+		nullptr
+	)
 {
-    m_ui->setupUi(this);
-
-    m_countDefaultAttributes = m_ui->menuEntryCopyAttribute->actions().size();
-
-    restoreGeometry(config()->get("GUI/MainWindowGeometry").toByteArray());
-
-    setWindowIcon(filePath()->applicationIcon());
-    QAction* toggleViewAction = m_ui->toolBar->toggleViewAction();
-    toggleViewAction->setText(tr("Show toolbar"));
-    m_ui->menuView->addAction(toggleViewAction);
-    bool showToolbar = config()->get("ShowToolbar").toBool();
-    m_ui->toolBar->setVisible(showToolbar);
-    connect(m_ui->toolBar, SIGNAL(visibilityChanged(bool)), this, SLOT(saveToolbarState(bool)));
-
-    m_clearHistoryAction = new QAction("Clear history", m_ui->menuFile);
-    m_lastDatabasesActions = new QActionGroup(m_ui->menuRecentDatabases);
-    connect(m_clearHistoryAction, SIGNAL(triggered()), this, SLOT(clearLastDatabases()));
-    connect(m_lastDatabasesActions, SIGNAL(triggered(QAction*)), this, SLOT(openRecentDatabase(QAction*)));
-    connect(m_ui->menuRecentDatabases, SIGNAL(aboutToShow()), this, SLOT(updateLastDatabasesMenu()));
-
-    m_copyAdditionalAttributeActions = new QActionGroup(m_ui->menuEntryCopyAttribute);
-    m_actionMultiplexer.connect(m_copyAdditionalAttributeActions, SIGNAL(triggered(QAction*)),
-                                SLOT(copyAttribute(QAction*)));
-    connect(m_ui->menuEntryCopyAttribute, SIGNAL(aboutToShow()),
-            this, SLOT(updateCopyAttributesMenu()));
-
-    Qt::Key globalAutoTypeKey = static_cast<Qt::Key>(config()->get("GlobalAutoTypeKey").toInt());
-    Qt::KeyboardModifiers globalAutoTypeModifiers = static_cast<Qt::KeyboardModifiers>(
-                config()->get("GlobalAutoTypeModifiers").toInt());
-    if (globalAutoTypeKey > 0 && globalAutoTypeModifiers > 0) {
-        autoType()->registerGlobalShortcut(globalAutoTypeKey, globalAutoTypeModifiers);
-    }
-
-    m_ui->actionEntryAutoType->setVisible(autoType()->isAvailable());
-
-    m_inactivityTimer = new InactivityTimer(this);
-    connect(m_inactivityTimer, SIGNAL(inactivityDetected()),
-            this, SLOT(lockDatabasesAfterInactivity()));
-    applySettingsChanges();
-
-    setShortcut(m_ui->actionDatabaseOpen, QKeySequence::Open, Qt::CTRL + Qt::Key_O);
-    setShortcut(m_ui->actionDatabaseSave, QKeySequence::Save, Qt::CTRL + Qt::Key_S);
-    setShortcut(m_ui->actionDatabaseSaveAs, QKeySequence::SaveAs);
-    setShortcut(m_ui->actionDatabaseClose, QKeySequence::Close, Qt::CTRL + Qt::Key_W);
-    m_ui->actionLockDatabases->setShortcut(Qt::CTRL + Qt::Key_L);
-    setShortcut(m_ui->actionQuit, QKeySequence::Quit, Qt::CTRL + Qt::Key_Q);
-    setShortcut(m_ui->actionSearch, QKeySequence::Find, Qt::CTRL + Qt::Key_F);
-    m_ui->actionEntryNew->setShortcut(Qt::CTRL + Qt::Key_N);
-    m_ui->actionEntryEdit->setShortcut(Qt::CTRL + Qt::Key_E);
-    m_ui->actionEntryDelete->setShortcut(Qt::CTRL + Qt::Key_D);
-    m_ui->actionEntryClone->setShortcut(Qt::CTRL + Qt::Key_K);
-    m_ui->actionEntryCopyUsername->setShortcut(Qt::CTRL + Qt::Key_B);
-    m_ui->actionEntryCopyPassword->setShortcut(Qt::CTRL + Qt::Key_C);
-    setShortcut(m_ui->actionEntryAutoType, QKeySequence::Paste, Qt::CTRL + Qt::Key_V);
-    m_ui->actionEntryOpenUrl->setShortcut(Qt::CTRL + Qt::Key_U);
-    m_ui->actionEntryCopyURL->setShortcut(Qt::CTRL + Qt::ALT + Qt::Key_U);
-
-    new QShortcut(Qt::CTRL + Qt::Key_M, this, SLOT(showMinimized()));
-
-    m_ui->actionDatabaseNew->setIcon(filePath()->icon("actions", "document-new"));
-    m_ui->actionDatabaseOpen->setIcon(filePath()->icon("actions", "document-open"));
-    m_ui->actionDatabaseSave->setIcon(filePath()->icon("actions", "document-save"));
-    m_ui->actionDatabaseSaveAs->setIcon(filePath()->icon("actions", "document-save-as"));
-    m_ui->actionDatabaseClose->setIcon(filePath()->icon("actions", "document-close"));
-    m_ui->actionChangeDatabaseSettings->setIcon(filePath()->icon("actions", "document-edit"));
-    m_ui->actionChangeMasterKey->setIcon(filePath()->icon("actions", "database-change-key", false));
-    m_ui->actionLockDatabases->setIcon(filePath()->icon("actions", "document-encrypt", false));
-    m_ui->actionQuit->setIcon(filePath()->icon("actions", "application-exit"));
-
-    m_ui->actionEntryNew->setIcon(filePath()->icon("actions", "entry-new", false));
-    m_ui->actionEntryClone->setIcon(filePath()->icon("actions", "entry-clone", false));
-    m_ui->actionEntryEdit->setIcon(filePath()->icon("actions", "entry-edit", false));
-    m_ui->actionEntryDelete->setIcon(filePath()->icon("actions", "entry-delete", false));
-    m_ui->actionEntryAutoType->setIcon(filePath()->icon("actions", "auto-type", false));
-    m_ui->actionEntryCopyUsername->setIcon(filePath()->icon("actions", "username-copy", false));
-    m_ui->actionEntryCopyPassword->setIcon(filePath()->icon("actions", "password-copy", false));
-
-    m_ui->actionGroupNew->setIcon(filePath()->icon("actions", "group-new", false));
-    m_ui->actionGroupEdit->setIcon(filePath()->icon("actions", "group-edit", false));
-    m_ui->actionGroupDelete->setIcon(filePath()->icon("actions", "group-delete", false));
-
-    m_ui->actionSettings->setIcon(filePath()->icon("actions", "configure"));
-
-    m_ui->actionAbout->setIcon(filePath()->icon("actions", "help-about"));
-
-    m_ui->actionSearch->setIcon(filePath()->icon("actions", "system-search"));
-
-    m_actionMultiplexer.connect(SIGNAL(currentModeChanged(DatabaseWidget::Mode)),
-                                this, SLOT(setMenuActionState(DatabaseWidget::Mode)));
-    m_actionMultiplexer.connect(SIGNAL(groupChanged()),
-                                this, SLOT(setMenuActionState()));
-    m_actionMultiplexer.connect(SIGNAL(entrySelectionChanged()),
-                                this, SLOT(setMenuActionState()));
-    m_actionMultiplexer.connect(SIGNAL(groupContextMenuRequested(QPoint)),
-                                this, SLOT(showGroupContextMenu(QPoint)));
-    m_actionMultiplexer.connect(SIGNAL(entryContextMenuRequested(QPoint)),
-                                this, SLOT(showEntryContextMenu(QPoint)));
-
-    connect(m_ui->tabWidget, SIGNAL(tabNameChanged()),
-            SLOT(updateWindowTitle()));
-    connect(m_ui->tabWidget, SIGNAL(currentChanged(int)),
-            SLOT(updateWindowTitle()));
-    connect(m_ui->tabWidget, SIGNAL(currentChanged(int)),
-            SLOT(databaseTabChanged(int)));
-    connect(m_ui->tabWidget, SIGNAL(currentChanged(int)),
-            SLOT(setMenuActionState()));
-    connect(m_ui->stackedWidget, SIGNAL(currentChanged(int)), SLOT(setMenuActionState()));
-    connect(m_ui->stackedWidget, SIGNAL(currentChanged(int)), SLOT(updateWindowTitle()));
-    connect(m_ui->settingsWidget, SIGNAL(editFinished(bool)), SLOT(switchToDatabases()));
-    connect(m_ui->settingsWidget, SIGNAL(accepted()), SLOT(applySettingsChanges()));
-
-    connect(m_ui->actionDatabaseNew, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(newDatabase()));
-    connect(m_ui->actionDatabaseOpen, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(openDatabase()));
-    connect(m_ui->actionDatabaseSave, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(saveDatabase()));
-    connect(m_ui->actionDatabaseSaveAs, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(saveDatabaseAs()));
-    connect(m_ui->actionDatabaseClose, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(closeDatabase()));
-    connect(m_ui->actionChangeMasterKey, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(changeMasterKey()));
-    connect(m_ui->actionChangeDatabaseSettings, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(changeDatabaseSettings()));
-    connect(m_ui->actionImportKeePass1, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(importKeePass1Database()));
-    connect(m_ui->actionRepairDatabase, SIGNAL(triggered()), this,
-            SLOT(repairDatabase()));
-    connect(m_ui->actionExportCsv, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(exportToCsv()));
-    connect(m_ui->actionLockDatabases, SIGNAL(triggered()), m_ui->tabWidget,
-            SLOT(lockDatabases()));
-    connect(m_ui->actionQuit, SIGNAL(triggered()), SLOT(close()));
-
-    m_actionMultiplexer.connect(m_ui->actionEntryNew, SIGNAL(triggered()),
-            SLOT(createEntry()));
-    m_actionMultiplexer.connect(m_ui->actionEntryClone, SIGNAL(triggered()),
-            SLOT(cloneEntry()));
-    m_actionMultiplexer.connect(m_ui->actionEntryEdit, SIGNAL(triggered()),
-            SLOT(switchToEntryEdit()));
-    m_actionMultiplexer.connect(m_ui->actionEntryDelete, SIGNAL(triggered()),
-            SLOT(deleteEntries()));
-
-    m_actionMultiplexer.connect(m_ui->actionEntryCopyTitle, SIGNAL(triggered()),
-            SLOT(copyTitle()));
-    m_actionMultiplexer.connect(m_ui->actionEntryCopyUsername, SIGNAL(triggered()),
-            SLOT(copyUsername()));
-    m_actionMultiplexer.connect(m_ui->actionEntryCopyPassword, SIGNAL(triggered()),
-            SLOT(copyPassword()));
-    m_actionMultiplexer.connect(m_ui->actionEntryCopyURL, SIGNAL(triggered()),
-            SLOT(copyURL()));
-    m_actionMultiplexer.connect(m_ui->actionEntryCopyNotes, SIGNAL(triggered()),
-            SLOT(copyNotes()));
-    m_actionMultiplexer.connect(m_ui->actionEntryAutoType, SIGNAL(triggered()),
-            SLOT(performAutoType()));
-    m_actionMultiplexer.connect(m_ui->actionEntryOpenUrl, SIGNAL(triggered()),
-            SLOT(openUrl()));
-
-    m_actionMultiplexer.connect(m_ui->actionGroupNew, SIGNAL(triggered()),
-            SLOT(createGroup()));
-    m_actionMultiplexer.connect(m_ui->actionGroupEdit, SIGNAL(triggered()),
-            SLOT(switchToGroupEdit()));
-    m_actionMultiplexer.connect(m_ui->actionGroupDelete, SIGNAL(triggered()),
-            SLOT(deleteGroup()));
-
-    connect(m_ui->actionSettings, SIGNAL(triggered()), SLOT(switchToSettings()));
-
-    connect(m_ui->actionAbout, SIGNAL(triggered()), SLOT(showAboutDialog()));
-
-    m_actionMultiplexer.connect(m_ui->actionSearch, SIGNAL(triggered()),
-                                SLOT(openSearch()));
-
-    updateTrayIcon();
+	this->ui->setupUi(
+		this
+	);
+	this->countDefaultAttributes = static_cast<int>(this->ui->
+		menuEntryCopyAttribute->actions().size());
+	this->restoreGeometry(
+		Config::getInstance()->get(
+			"GUI/MainWindowGeometry"
+		).toByteArray()
+	);
+	this->setWindowIcon(
+		FilePath::getInstance()->getApplicationIcon()
+	);
+	QAction* toggleViewAction_ = this->ui->toolBar->toggleViewAction();
+	toggleViewAction_->setText(
+		this->tr(
+			"Show toolbar"
+		)
+	);
+	this->ui->menuView->addAction(
+		toggleViewAction_
+	);
+	const bool showToolbar_ = Config::getInstance()->get(
+		"ShowToolbar"
+	).toBool();
+	this->ui->toolBar->setVisible(
+		showToolbar_
+	);
+	this->connect(
+		this->ui->toolBar,
+		&QToolBar::visibilityChanged,
+		this,
+		&MainWindow::do_saveToolbarState
+	);
+	this->clearHistoryAction = new QAction(
+		"Clear history",
+		ui->menuFile
+	);
+	this->lastDatabasesActions = new QActionGroup(
+		this->ui->menuRecentDatabases
+	);
+	this->connect(
+		this->clearHistoryAction,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_clearLastDatabases
+	);
+	this->connect(
+		this->lastDatabasesActions,
+		&QActionGroup::triggered,
+		this,
+		&MainWindow::do_openRecentDatabase
+	);
+	this->connect(
+		this->ui->menuRecentDatabases,
+		&QMenu::aboutToShow,
+		this,
+		&MainWindow::do_updateLastDatabasesMenu
+	);
+	this->copyAdditionalAttributeActions = new QActionGroup(
+		this->ui->menuEntryCopyAttribute
+	);
+	this->connect(
+		this->copyAdditionalAttributeActions,
+		&QActionGroup::triggered,
+		this,
+		&MainWindow::do_copyAttribute
+	);
+	this->connect(
+		this->ui->menuEntryCopyAttribute,
+		&QMenu::aboutToShow,
+		this,
+		&MainWindow::do_updateCopyAttributesMenu
+	);
+	this->inactivityTimer = new InactivityTimer(
+		this
+	);
+	this->connect(
+		this->inactivityTimer,
+		&InactivityTimer::sig_inactivityDetected,
+		this,
+		&MainWindow::do_lockDatabasesAfterInactivity
+	);
+	this->do_applySettingsChanges();
+	this->setShortcut(
+		this->ui->actionDatabaseOpen,
+		QKeySequence::Open,
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_O
+		)
+	);
+	this->setShortcut(
+		this->ui->actionDatabaseSave,
+		QKeySequence::Save,
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_S
+		)
+	);
+	this->setShortcut(
+		this->ui->actionDatabaseSaveAs,
+		QKeySequence::SaveAs,
+		QKeyCombination(
+			Qt::CTRL | Qt::SHIFT,
+			Qt::Key_S
+		)
+	);
+	this->setShortcut(
+		this->ui->actionDatabaseClose,
+		QKeySequence::Close,
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_W
+		)
+	);
+	this->ui->actionLockDatabases->setShortcut(
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_L
+		)
+	);
+	this->setShortcut(
+		this->ui->actionQuit,
+		QKeySequence::Quit,
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_Q
+		)
+	);
+	this->setShortcut(
+		this->ui->actionSearch,
+		QKeySequence::Find,
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_F
+		)
+	);
+	this->ui->actionEntryNew->setShortcut(
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_N
+		)
+	);
+	this->ui->actionEntryEdit->setShortcut(
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_E
+		)
+	);
+	this->ui->actionEntryDelete->setShortcut(
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_D
+		)
+	);
+	this->ui->actionEntryClone->setShortcut(
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_K
+		)
+	);
+	this->ui->actionEntryCopyUsername->setShortcut(
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_B
+		)
+	);
+	this->ui->actionEntryCopyPassword->setShortcut(
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_C
+		)
+	);
+	this->ui->actionEntryOpenUrl->setShortcut(
+		QKeyCombination(
+			Qt::CTRL,
+			Qt::Key_U
+		)
+	);
+	this->ui->actionEntryCopyURL->setShortcut(
+		QKeyCombination(
+			Qt::CTRL | Qt::ALT,
+			Qt::Key_U
+		)
+	);
+	// TODO: Figure out how to not use SLOT macro with this
+	/*new QShortcut(
+		Qt::CTRL | Qt::Key_M,
+		this,
+		&MainWindow::showMinimized
+	);*/
+	this->ui->actionDatabaseNew->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"document-new"
+		)
+	);
+	this->ui->actionDatabaseOpen->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"document-open"
+		)
+	);
+	this->ui->actionDatabaseSave->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"document-save"
+		)
+	);
+	this->ui->actionDatabaseSaveAs->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"document-save-as"
+		)
+	);
+	this->ui->actionDatabaseClose->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"document-close"
+		)
+	);
+	this->ui->actionChangeDatabaseSettings->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"document-edit"
+		)
+	);
+	this->ui->actionChangeMasterKey->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"database-change-key",
+			false
+		)
+	);
+	this->ui->actionLockDatabases->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"document-encrypt",
+			false
+		)
+	);
+	this->ui->actionQuit->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"application-exit"
+		)
+	);
+	this->ui->actionEntryNew->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"entry-new",
+			false
+		)
+	);
+	this->ui->actionEntryClone->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"entry-clone",
+			false
+		)
+	);
+	this->ui->actionEntryEdit->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"entry-edit",
+			false
+		)
+	);
+	this->ui->actionEntryDelete->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"entry-delete",
+			false
+		)
+	);
+	this->ui->actionEntryCopyUsername->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"username-copy",
+			false
+		)
+	);
+	this->ui->actionEntryCopyPassword->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"password-copy",
+			false
+		)
+	);
+	this->ui->actionGroupNew->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"group-new",
+			false
+		)
+	);
+	this->ui->actionGroupEdit->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"group-edit",
+			false
+		)
+	);
+	this->ui->actionGroupDelete->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"group-delete",
+			false
+		)
+	);
+	this->ui->actionSettings->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"configure"
+		)
+	);
+	this->ui->actionAbout->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"help-about"
+		)
+	);
+	this->ui->actionSearch->setIcon(
+		FilePath::getInstance()->getIcon(
+			"actions",
+			"system-search"
+		)
+	);
+	// Connect signals directly to the current database widget
+	this->connect(
+		this->ui->tabWidget,
+		&DatabaseTabWidget::sig_activateDatabaseChanged,
+		this,
+		&MainWindow::setCurrentDatabaseWidget
+	);
+	this->connect(
+		this->ui->tabWidget,
+		&DatabaseTabWidget::sig_tabNameChanged,
+		this,
+		&MainWindow::do_updateWindowTitle
+	);
+	this->connect(
+		this->ui->tabWidget,
+		&DatabaseTabWidget::currentChanged,
+		this,
+		&MainWindow::do_updateWindowTitle
+	);
+	this->connect(
+		this->ui->tabWidget,
+		&DatabaseTabWidget::currentChanged,
+		this,
+		&MainWindow::do_databaseTabChanged
+	);
+	this->connect(
+		this->ui->stackedWidget,
+		&QStackedWidget::currentChanged,
+		this,
+		&MainWindow::do_setMenuActionState
+	);
+	this->connect(
+		this->ui->stackedWidget,
+		&QStackedWidget::currentChanged,
+		this,
+		&MainWindow::do_updateWindowTitle
+	);
+	this->connect(
+		this->ui->settingsWidget,
+		&SettingsWidget::sig_editFinished,
+		this,
+		&MainWindow::do_switchToDatabases
+	);
+	this->connect(
+		this->ui->settingsWidget,
+		&SettingsWidget::sig_accepted,
+		this,
+		&MainWindow::do_applySettingsChanges
+	);
+	this->connect(
+		this->ui->actionDatabaseNew,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_newDatabase
+	);
+	this->connect(
+		this->ui->actionDatabaseOpen,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_openDatabase
+	);
+	this->connect(
+		this->ui->actionDatabaseSave,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_saveDatabase
+	);
+	this->connect(
+		this->ui->actionDatabaseSaveAs,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_saveDatabaseAs
+	);
+	this->connect(
+		this->ui->actionDatabaseClose,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_closeDatabase
+	);
+	this->connect(
+		this->ui->actionChangeMasterKey,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_changeMasterKey
+	);
+	this->connect(
+		this->ui->actionChangeDatabaseSettings,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_changeDatabaseSettings
+	);
+	this->connect(
+		this->ui->actionRepairDatabase,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_repairDatabase
+	);
+	this->connect(
+		this->ui->actionExportCsv,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_exportToCsv
+	);
+	this->connect(
+		this->ui->actionLockDatabases,
+		&QAction::triggered,
+		this->ui->tabWidget,
+		&DatabaseTabWidget::do_lockDatabases
+	);
+	this->connect(
+		this->ui->actionQuit,
+		&QAction::triggered,
+		this,
+		&MainWindow::close
+	);
+	this->connect(
+		this->ui->actionEntryNew,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_createEntry
+	);
+	this->connect(
+		this->ui->actionEntryClone,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_cloneEntry
+	);
+	this->connect(
+		this->ui->actionEntryEdit,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_switchToEntryEdit
+	);
+	this->connect(
+		this->ui->actionEntryDelete,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_deleteEntries
+	);
+	this->connect(
+		this->ui->actionEntryCopyTitle,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_copyTitle
+	);
+	this->connect(
+		this->ui->actionEntryCopyUsername,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_copyUsername
+	);
+	this->connect(
+		this->ui->actionEntryCopyPassword,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_copyPassword
+	);
+	this->connect(
+		this->ui->actionEntryCopyURL,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_copyURL
+	);
+	this->connect(
+		this->ui->actionEntryCopyNotes,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_copyNotes
+	);
+	this->connect(
+		this->ui->actionEntryOpenUrl,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_openUrl
+	);
+	this->connect(
+		this->ui->actionGroupNew,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_createGroup
+	);
+	this->connect(
+		this->ui->actionGroupEdit,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_switchToGroupEdit
+	);
+	this->connect(
+		this->ui->actionGroupDelete,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_deleteGroup
+	);
+	this->connect(
+		this->ui->actionSettings,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_switchToSettings
+	);
+	this->connect(
+		this->ui->actionAbout,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_showAboutDialog
+	);
+	this->connect(
+		this->ui->actionSearch,
+		&QAction::triggered,
+		this,
+		&MainWindow::do_openSearch
+	);
+	// Initially set menu action state
+	this->do_setMenuActionState();
 }
 
 MainWindow::~MainWindow()
 {
 }
 
-void MainWindow::updateLastDatabasesMenu()
+void MainWindow::openDatabase(
+	const QString &fileName,
+	const QString &pw,
+	const QString &keyFile
+) const
 {
-    m_ui->menuRecentDatabases->clear();
-
-    const QStringList lastDatabases = config()->get("LastDatabases", QVariant()).toStringList();
-    for (const QString& database : lastDatabases) {
-        QAction* action = m_ui->menuRecentDatabases->addAction(database);
-        action->setData(database);
-        m_lastDatabasesActions->addAction(action);
-    }
-    m_ui->menuRecentDatabases->addSeparator();
-    m_ui->menuRecentDatabases->addAction(m_clearHistoryAction);
+	this->ui->tabWidget->openDatabase(
+		fileName,
+		pw,
+		keyFile
+	);
 }
 
-void MainWindow::updateCopyAttributesMenu()
+void MainWindow::setCurrentDatabaseWidget(
+	DatabaseWidget* widget
+)
 {
-    DatabaseWidget* dbWidget = m_ui->tabWidget->currentDatabaseWidget();
-    if (!dbWidget) {
-        return;
-    }
-
-    if (dbWidget->numberOfSelectedEntries() != 1) {
-        return;
-    }
-
-    QList<QAction*> actions = m_ui->menuEntryCopyAttribute->actions();
-    for (int i = m_countDefaultAttributes; i < actions.size(); i++) {
-        delete actions[i];
-    }
-
-    const QStringList customEntryAttributes = dbWidget->customEntryAttributes();
-    for (const QString& key : customEntryAttributes) {
-        QAction* action = m_ui->menuEntryCopyAttribute->addAction(key);
-        m_copyAdditionalAttributeActions->addAction(action);
-    }
+	if(this->currentDatabaseWidget)
+	{
+		this->disconnect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_currentModeChanged,
+			this,
+			&MainWindow::do_setMenuActionState
+		);
+		this->disconnect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_groupChanged,
+			this,
+			&MainWindow::do_setMenuActionState
+		);
+		this->disconnect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_entrySelectionChanged,
+			this,
+			&MainWindow::do_setMenuActionState
+		);
+		this->disconnect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_groupContextMenuRequested,
+			this,
+			&MainWindow::do_showGroupContextMenu
+		);
+		this->disconnect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_entryContextMenuRequested,
+			this,
+			&MainWindow::do_showEntryContextMenu
+		);
+	}
+	this->currentDatabaseWidget = widget;
+	if(this->currentDatabaseWidget)
+	{
+		this->connect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_currentModeChanged,
+			this,
+			&MainWindow::do_setMenuActionState
+		);
+		this->connect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_groupChanged,
+			this,
+			&MainWindow::do_setMenuActionState
+		);
+		this->connect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_entrySelectionChanged,
+			this,
+			&MainWindow::do_setMenuActionState
+		);
+		this->connect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_groupContextMenuRequested,
+			this,
+			&MainWindow::do_showGroupContextMenu
+		);
+		this->connect(
+			this->currentDatabaseWidget,
+			&DatabaseWidget::sig_entryContextMenuRequested,
+			this,
+			&MainWindow::do_showEntryContextMenu
+		);
+	}
+	this->do_setMenuActionState();
 }
 
-void MainWindow::openRecentDatabase(QAction* action)
+void MainWindow::do_updateLastDatabasesMenu() const
 {
-    openDatabase(action->data().toString());
+	this->ui->menuRecentDatabases->clear();
+	const QStringList lastDatabases_ = Config::getInstance()->get(
+		"LastDatabases",
+		QVariant()
+	).toStringList();
+	for(const QString &database_: lastDatabases_)
+	{
+		QAction* action_ = this->ui->menuRecentDatabases->addAction(
+			database_
+		);
+		action_->setData(
+			database_
+		);
+		this->lastDatabasesActions->addAction(
+			action_
+		);
+	}
+	this->ui->menuRecentDatabases->addSeparator();
+	this->ui->menuRecentDatabases->addAction(
+		this->clearHistoryAction
+	);
 }
 
-void MainWindow::clearLastDatabases()
+void MainWindow::do_updateCopyAttributesMenu() const
 {
-    config()->set("LastDatabases", QVariant());
+	const DatabaseWidget* dbWidget_ = this->ui->tabWidget->
+		getCurrentDatabaseWidget();
+	if(!dbWidget_)
+	{
+		return;
+	}
+	if(dbWidget_->getNumberOfSelectedEntries() != 1)
+	{
+		return;
+	}
+	QList<QAction*> actions_ = this->ui->menuEntryCopyAttribute->actions();
+	for(int i_ = this->countDefaultAttributes; i_ < actions_.size(); i_++)
+	{
+		delete actions_[i_];
+	}
+	const QStringList customEntryAttributes_ = dbWidget_->
+		getCustomEntryAttributes();
+	for(const QString &key_: customEntryAttributes_)
+	{
+		QAction* action_ = this->ui->menuEntryCopyAttribute->addAction(
+			key_
+		);
+		this->copyAdditionalAttributeActions->addAction(
+			action_
+		);
+	}
 }
 
-void MainWindow::openDatabase(const QString& fileName, const QString& pw, const QString& keyFile)
+void MainWindow::do_openRecentDatabase(
+	const QAction* action
+) const
 {
-    m_ui->tabWidget->openDatabase(fileName, pw, keyFile);
+	this->do_openDatabase(
+		action->data().toString()
+	);
 }
 
-void MainWindow::setMenuActionState(DatabaseWidget::Mode mode)
+void MainWindow::do_clearLastDatabases()
 {
-    bool inDatabaseTabWidget = (m_ui->stackedWidget->currentIndex() == 0);
-    bool inWelcomeWidget = (m_ui->stackedWidget->currentIndex() == 2);
-
-    if (inDatabaseTabWidget && m_ui->tabWidget->currentIndex() != -1) {
-        DatabaseWidget* dbWidget = m_ui->tabWidget->currentDatabaseWidget();
-        Q_ASSERT(dbWidget);
-
-        if (mode == DatabaseWidget::None) {
-            mode = dbWidget->currentMode();
-        }
-
-        switch (mode) {
-        case DatabaseWidget::ViewMode: {
-            bool inSearch = dbWidget->isInSearchMode();
-            bool singleEntrySelected = dbWidget->numberOfSelectedEntries() == 1;
-            bool entriesSelected = dbWidget->numberOfSelectedEntries() > 0;
-            bool groupSelected = dbWidget->isGroupSelected();
-
-            m_ui->actionEntryNew->setEnabled(!inSearch);
-            m_ui->actionEntryClone->setEnabled(singleEntrySelected && !inSearch);
-            m_ui->actionEntryEdit->setEnabled(singleEntrySelected);
-            m_ui->actionEntryDelete->setEnabled(entriesSelected);
-            m_ui->actionEntryCopyTitle->setEnabled(singleEntrySelected && dbWidget->currentEntryHasTitle());
-            m_ui->actionEntryCopyUsername->setEnabled(singleEntrySelected && dbWidget->currentEntryHasUsername());
-            m_ui->actionEntryCopyPassword->setEnabled(singleEntrySelected && dbWidget->currentEntryHasPassword());
-            m_ui->actionEntryCopyURL->setEnabled(singleEntrySelected && dbWidget->currentEntryHasUrl());
-            m_ui->actionEntryCopyNotes->setEnabled(singleEntrySelected && dbWidget->currentEntryHasNotes());
-            m_ui->menuEntryCopyAttribute->setEnabled(singleEntrySelected);
-            m_ui->actionEntryAutoType->setEnabled(singleEntrySelected);
-            m_ui->actionEntryOpenUrl->setEnabled(singleEntrySelected && dbWidget->currentEntryHasUrl());
-            m_ui->actionGroupNew->setEnabled(groupSelected);
-            m_ui->actionGroupEdit->setEnabled(groupSelected);
-            m_ui->actionGroupDelete->setEnabled(groupSelected && dbWidget->canDeleteCurrentGroup());
-            // TODO: get checked state from db widget
-            m_ui->actionSearch->setEnabled(true);
-            m_ui->actionChangeMasterKey->setEnabled(true);
-            m_ui->actionChangeDatabaseSettings->setEnabled(true);
-            m_ui->actionDatabaseSave->setEnabled(true);
-            m_ui->actionDatabaseSaveAs->setEnabled(true);
-            m_ui->actionExportCsv->setEnabled(true);
-            break;
-        }
-        case DatabaseWidget::EditMode:
-        case DatabaseWidget::LockedMode: {
-            const QList<QAction*> entryActions = m_ui->menuEntries->actions();
-            for (QAction* action : entryActions) {
-                action->setEnabled(false);
-            }
-
-            const QList<QAction*> groupActions = m_ui->menuGroups->actions();
-            for (QAction* action : groupActions) {
-                action->setEnabled(false);
-            }
-            m_ui->actionEntryCopyTitle->setEnabled(false);
-            m_ui->actionEntryCopyUsername->setEnabled(false);
-            m_ui->actionEntryCopyPassword->setEnabled(false);
-            m_ui->actionEntryCopyURL->setEnabled(false);
-            m_ui->actionEntryCopyNotes->setEnabled(false);
-            m_ui->menuEntryCopyAttribute->setEnabled(false);
-
-            m_ui->actionSearch->setEnabled(false);
-            m_ui->actionChangeMasterKey->setEnabled(false);
-            m_ui->actionChangeDatabaseSettings->setEnabled(false);
-            m_ui->actionDatabaseSave->setEnabled(false);
-            m_ui->actionDatabaseSaveAs->setEnabled(false);
-            m_ui->actionExportCsv->setEnabled(false);
-            break;
-        }
-        default:
-            Q_ASSERT(false);
-        }
-        m_ui->actionDatabaseClose->setEnabled(true);
-    }
-    else {
-        const QList<QAction*> entryActions = m_ui->menuEntries->actions();
-        for (QAction* action : entryActions) {
-            action->setEnabled(false);
-        }
-
-        const QList<QAction*> groupActions = m_ui->menuGroups->actions();
-        for (QAction* action : groupActions) {
-            action->setEnabled(false);
-        }
-        m_ui->actionEntryCopyTitle->setEnabled(false);
-        m_ui->actionEntryCopyUsername->setEnabled(false);
-        m_ui->actionEntryCopyPassword->setEnabled(false);
-        m_ui->actionEntryCopyURL->setEnabled(false);
-        m_ui->actionEntryCopyNotes->setEnabled(false);
-        m_ui->menuEntryCopyAttribute->setEnabled(false);
-
-        m_ui->actionSearch->setEnabled(false);
-        m_ui->actionChangeMasterKey->setEnabled(false);
-        m_ui->actionChangeDatabaseSettings->setEnabled(false);
-        m_ui->actionDatabaseSave->setEnabled(false);
-        m_ui->actionDatabaseSaveAs->setEnabled(false);
-
-        m_ui->actionDatabaseClose->setEnabled(false);
-        m_ui->actionExportCsv->setEnabled(false);
-    }
-
-    bool inDatabaseTabWidgetOrWelcomeWidget = inDatabaseTabWidget || inWelcomeWidget;
-    m_ui->actionDatabaseNew->setEnabled(inDatabaseTabWidgetOrWelcomeWidget);
-    m_ui->actionDatabaseOpen->setEnabled(inDatabaseTabWidgetOrWelcomeWidget);
-    m_ui->menuRecentDatabases->setEnabled(inDatabaseTabWidgetOrWelcomeWidget);
-    m_ui->actionImportKeePass1->setEnabled(inDatabaseTabWidgetOrWelcomeWidget);
-    m_ui->actionRepairDatabase->setEnabled(inDatabaseTabWidgetOrWelcomeWidget);
-
-    m_ui->actionLockDatabases->setEnabled(m_ui->tabWidget->hasLockableDatabases());
+	Config::getInstance()->set(
+		"LastDatabases",
+		QVariant()
+	);
 }
 
-void MainWindow::updateWindowTitle()
+void MainWindow::do_openDatabase(
+	const QString &fileName
+) const
 {
-    QString customWindowTitlePart;
-    int stackedWidgetIndex = m_ui->stackedWidget->currentIndex();
-    int tabWidgetIndex = m_ui->tabWidget->currentIndex();
-    if (stackedWidgetIndex == 0 && tabWidgetIndex != -1) {
-        customWindowTitlePart = m_ui->tabWidget->tabText(tabWidgetIndex);
-        if (m_ui->tabWidget->readOnly(tabWidgetIndex)) {
-            customWindowTitlePart.append(QString(" [%1]").arg(tr("read-only")));
-        }
-    } else if (stackedWidgetIndex == 1) {
-        customWindowTitlePart = tr("Settings");
-    }
-
-    QString windowTitle;
-    if (customWindowTitlePart.isEmpty()) {
-        windowTitle = BaseWindowTitle;
-    } else {
-        windowTitle = QString("%1 - %2").arg(customWindowTitlePart, BaseWindowTitle);
-    }
-
-    setWindowTitle(windowTitle);
+	const auto &pw = QString();
+	const auto &keyFile = QString();
+	this->ui->tabWidget->openDatabase(
+		fileName,
+		pw,
+		keyFile
+	);
 }
 
-void MainWindow::showAboutDialog()
+void MainWindow::do_setMenuActionState() const
 {
-    AboutDialog* aboutDialog = new AboutDialog(this);
-    aboutDialog->show();
+	const bool inDatabaseTabWidget_ = this->ui->stackedWidget->currentIndex() ==
+		0;
+	const bool inWelcomeWidget_ = this->ui->stackedWidget->currentIndex() == 2;
+	if(inDatabaseTabWidget_ && this->ui->tabWidget->currentIndex() != -1)
+	{
+		switch(const DatabaseWidget* dbWidget_ = this->ui->tabWidget->
+			getCurrentDatabaseWidget(); dbWidget_->getCurrentMode())
+		{
+			case DatabaseWidget::ViewMode:
+			{
+				const bool inSearch_ = dbWidget_->isInSearchMode();
+				const bool singleEntrySelected_ = dbWidget_->
+					getNumberOfSelectedEntries() == 1;
+				const bool entriesSelected_ = dbWidget_->
+					getNumberOfSelectedEntries() > 0;
+				const bool groupSelected_ = dbWidget_->isGroupSelected();
+				this->ui->actionEntryNew->setEnabled(
+					!inSearch_
+				);
+				this->ui->actionEntryClone->setEnabled(
+					singleEntrySelected_ && !inSearch_
+				);
+				this->ui->actionEntryEdit->setEnabled(
+					singleEntrySelected_
+				);
+				this->ui->actionEntryDelete->setEnabled(
+					entriesSelected_
+				);
+				this->ui->actionEntryCopyTitle->setEnabled(
+					singleEntrySelected_ && dbWidget_->currentEntryHasTitle()
+				);
+				this->ui->actionEntryCopyUsername->setEnabled(
+					singleEntrySelected_ && dbWidget_->currentEntryHasUsername()
+				);
+				this->ui->actionEntryCopyPassword->setEnabled(
+					singleEntrySelected_ && dbWidget_->currentEntryHasPassword()
+				);
+				this->ui->actionEntryCopyURL->setEnabled(
+					singleEntrySelected_ && dbWidget_->currentEntryHasUrl()
+				);
+				this->ui->actionEntryCopyNotes->setEnabled(
+					singleEntrySelected_ && dbWidget_->currentEntryHasNotes()
+				);
+				this->ui->menuEntryCopyAttribute->setEnabled(
+					singleEntrySelected_
+				);
+				this->ui->actionEntryOpenUrl->setEnabled(
+					singleEntrySelected_ && dbWidget_->currentEntryHasUrl()
+				);
+				this->ui->actionGroupNew->setEnabled(
+					groupSelected_
+				);
+				this->ui->actionGroupEdit->setEnabled(
+					groupSelected_
+				);
+				this->ui->actionGroupDelete->setEnabled(
+					groupSelected_ && dbWidget_->canDeleteCurrentGroup()
+				);
+				// TODO: get checked state from db widget
+				this->ui->actionSearch->setEnabled(
+					true
+				);
+				this->ui->actionChangeMasterKey->setEnabled(
+					true
+				);
+				this->ui->actionChangeDatabaseSettings->setEnabled(
+					true
+				);
+				this->ui->actionDatabaseSave->setEnabled(
+					true
+				);
+				this->ui->actionDatabaseSaveAs->setEnabled(
+					true
+				);
+				this->ui->actionExportCsv->setEnabled(
+					true
+				);
+				break;
+			}
+			case DatabaseWidget::EditMode:
+			case DatabaseWidget::LockedMode:
+			{
+				const QList<QAction*> entryActions_ = this->ui->menuEntries->
+					actions();
+				for(QAction* action_: entryActions_)
+				{
+					action_->setEnabled(
+						false
+					);
+				}
+				const QList<QAction*> groupActions_ = this->ui->menuGroups->
+					actions();
+				for(QAction* action_: groupActions_)
+				{
+					action_->setEnabled(
+						false
+					);
+				}
+				this->ui->actionEntryCopyTitle->setEnabled(
+					false
+				);
+				this->ui->actionEntryCopyUsername->setEnabled(
+					false
+				);
+				this->ui->actionEntryCopyPassword->setEnabled(
+					false
+				);
+				this->ui->actionEntryCopyURL->setEnabled(
+					false
+				);
+				this->ui->actionEntryCopyNotes->setEnabled(
+					false
+				);
+				this->ui->menuEntryCopyAttribute->setEnabled(
+					false
+				);
+				this->ui->actionSearch->setEnabled(
+					false
+				);
+				this->ui->actionChangeMasterKey->setEnabled(
+					false
+				);
+				this->ui->actionChangeDatabaseSettings->setEnabled(
+					false
+				);
+				this->ui->actionDatabaseSave->setEnabled(
+					false
+				);
+				this->ui->actionDatabaseSaveAs->setEnabled(
+					false
+				);
+				this->ui->actionExportCsv->setEnabled(
+					false
+				);
+				break;
+			}
+			default:
+				break;
+		}
+		this->ui->actionDatabaseClose->setEnabled(
+			true
+		);
+	}
+	else
+	{
+		const QList<QAction*> entryActions_ = this->ui->menuEntries->actions();
+		for(QAction* action_: entryActions_)
+		{
+			action_->setEnabled(
+				false
+			);
+		}
+		const QList<QAction*> groupActions_ = this->ui->menuGroups->actions();
+		for(QAction* action_: groupActions_)
+		{
+			action_->setEnabled(
+				false
+			);
+		}
+		this->ui->actionEntryCopyTitle->setEnabled(
+			false
+		);
+		this->ui->actionEntryCopyUsername->setEnabled(
+			false
+		);
+		this->ui->actionEntryCopyPassword->setEnabled(
+			false
+		);
+		this->ui->actionEntryCopyURL->setEnabled(
+			false
+		);
+		this->ui->actionEntryCopyNotes->setEnabled(
+			false
+		);
+		this->ui->menuEntryCopyAttribute->setEnabled(
+			false
+		);
+		this->ui->actionSearch->setEnabled(
+			false
+		);
+		this->ui->actionChangeMasterKey->setEnabled(
+			false
+		);
+		this->ui->actionChangeDatabaseSettings->setEnabled(
+			false
+		);
+		this->ui->actionDatabaseSave->setEnabled(
+			false
+		);
+		this->ui->actionDatabaseSaveAs->setEnabled(
+			false
+		);
+		this->ui->actionDatabaseClose->setEnabled(
+			false
+		);
+		this->ui->actionExportCsv->setEnabled(
+			false
+		);
+	}
+	const bool inDatabaseTabWidgetOrWelcomeWidget_ = inDatabaseTabWidget_ ||
+		inWelcomeWidget_;
+	this->ui->actionDatabaseNew->setEnabled(
+		inDatabaseTabWidgetOrWelcomeWidget_
+	);
+	this->ui->actionDatabaseOpen->setEnabled(
+		inDatabaseTabWidgetOrWelcomeWidget_
+	);
+	this->ui->menuRecentDatabases->setEnabled(
+		inDatabaseTabWidgetOrWelcomeWidget_
+	);
+	this->ui->actionRepairDatabase->setEnabled(
+		inDatabaseTabWidgetOrWelcomeWidget_
+	);
+	this->ui->actionLockDatabases->setEnabled(
+		this->ui->tabWidget->hasLockableDatabases()
+	);
 }
 
-void MainWindow::switchToDatabases()
+void MainWindow::do_updateWindowTitle()
 {
-    if (m_ui->tabWidget->currentIndex() == -1) {
-        m_ui->stackedWidget->setCurrentIndex(2);
-    }
-    else {
-        m_ui->stackedWidget->setCurrentIndex(0);
-    }
+	QString customWindowTitlePart_;
+	const int stackedWidgetIndex_ = this->ui->stackedWidget->currentIndex();
+	if(const int tabWidgetIndex_ = this->ui->tabWidget->currentIndex();
+		stackedWidgetIndex_ == 0 && tabWidgetIndex_ != -1)
+	{
+		customWindowTitlePart_ = this->ui->tabWidget->tabText(
+			tabWidgetIndex_
+		);
+		if(this->ui->tabWidget->do_readOnly(
+			tabWidgetIndex_
+		))
+		{
+			customWindowTitlePart_.append(
+				QString(
+					" [%1]"
+				).arg(
+					this->tr(
+						"read-only"
+					)
+				)
+			);
+		}
+	}
+	else if(stackedWidgetIndex_ == 1)
+	{
+		customWindowTitlePart_ = tr(
+			"Settings"
+		);
+	}
+	QString windowTitle_;
+	if(customWindowTitlePart_.isEmpty())
+	{
+		windowTitle_ = this->BaseWindowTitle;
+	}
+	else
+	{
+		windowTitle_ = QString(
+			"%1 - %2"
+		).arg(
+			customWindowTitlePart_,
+			BaseWindowTitle
+		);
+	}
+	this->setWindowTitle(
+		windowTitle_
+	);
 }
 
-void MainWindow::switchToSettings()
+void MainWindow::do_showAboutDialog()
 {
-    m_ui->settingsWidget->loadSettings();
-    m_ui->stackedWidget->setCurrentIndex(1);
+	const auto aboutDialog_ = new AboutDialog(
+		this
+	);
+	aboutDialog_->show();
 }
 
-void MainWindow::databaseTabChanged(int tabIndex)
+void MainWindow::do_switchToDatabases() const
 {
-    if (tabIndex != -1 && m_ui->stackedWidget->currentIndex() == 2) {
-        m_ui->stackedWidget->setCurrentIndex(0);
-    }
-    else if (tabIndex == -1 && m_ui->stackedWidget->currentIndex() == 0) {
-        m_ui->stackedWidget->setCurrentIndex(2);
-    }
-
-    m_actionMultiplexer.setCurrentObject(m_ui->tabWidget->currentDatabaseWidget());
+	if(this->ui->tabWidget->currentIndex() == -1)
+	{
+		this->ui->stackedWidget->setCurrentIndex(
+			2
+		);
+	}
+	else
+	{
+		this->ui->stackedWidget->setCurrentIndex(
+			0
+		);
+	}
 }
 
-void MainWindow::closeEvent(QCloseEvent* event)
+void MainWindow::do_switchToSettings() const
 {
-    bool accept = saveLastDatabases();
-
-    if (accept) {
-        saveWindowInformation();
-
-        event->accept();
-        QApplication::quit();
-    }
-    else {
-        event->ignore();
-    }
+	this->ui->settingsWidget->loadSettings();
+	this->ui->stackedWidget->setCurrentIndex(
+		1
+	);
 }
 
-void MainWindow::changeEvent(QEvent* event)
+void MainWindow::do_databaseTabChanged(
+	const int tabIndex
+)
 {
-    if ((event->type() == QEvent::WindowStateChange) && isMinimized()
-            && isTrayIconEnabled() && m_trayIcon && m_trayIcon->isVisible()
-            && config()->get("GUI/MinimizeToTray").toBool())
-    {
-        event->ignore();
-        QTimer::singleShot(0, this, SLOT(hide()));
-    }
-    else {
-        QMainWindow::changeEvent(event);
-    }
+	if(tabIndex != -1 && this->ui->stackedWidget->currentIndex() == 2)
+	{
+		this->ui->stackedWidget->setCurrentIndex(
+			0
+		);
+	}
+	else if(tabIndex == -1 && this->ui->stackedWidget->currentIndex() == 0)
+	{
+		this->ui->stackedWidget->setCurrentIndex(
+			2
+		);
+	}
+	// Update the current database widget
+	this->setCurrentDatabaseWidget(
+		this->ui->tabWidget->getCurrentDatabaseWidget()
+	);
 }
 
-void MainWindow::saveWindowInformation()
+void MainWindow::closeEvent(
+	QCloseEvent* event
+)
 {
-    config()->set("GUI/MainWindowGeometry", saveGeometry());
+	if(saveLastDatabases())
+	{
+		this->saveWindowInformation();
+		event->accept();
+		QApplication::quit();
+	}
+	else
+	{
+		event->ignore();
+	}
+}
+
+void MainWindow::changeEvent(
+	QEvent* event
+)
+{
+	if((event->type() == QEvent::WindowStateChange) && this->isMinimized() &&
+		this->isTrayIconEnabled() && this->trayIcon && this->trayIcon->
+		isVisible() && Config::getInstance()->get(
+			"GUI/MinimizeToTray"
+		).toBool())
+	{
+		event->ignore();
+		QTimer::singleShot(
+			0,
+			this,
+			&MainWindow::hide
+		);
+	}
+	else
+	{
+		QMainWindow::changeEvent(
+			event
+		);
+	}
+}
+
+void MainWindow::saveWindowInformation() const
+{
+	Config::getInstance()->set(
+		"GUI/MainWindowGeometry",
+		this->saveGeometry()
+	);
 }
 
 bool MainWindow::saveLastDatabases()
 {
-    bool accept;
-    m_openDatabases.clear();
-    bool openPreviousDatabasesOnStartup = config()->get("OpenPreviousDatabasesOnStartup").toBool();
-
-    if (openPreviousDatabasesOnStartup) {
-        connect(m_ui->tabWidget, SIGNAL(databaseWithFileClosed(QString)),
-                this, SLOT(rememberOpenDatabases(QString)));
-    }
-
-    if (!m_ui->tabWidget->closeAllDatabases()) {
-        accept = false;
-    }
-    else {
-        accept = true;
-    }
-
-    if (openPreviousDatabasesOnStartup) {
-        disconnect(m_ui->tabWidget, SIGNAL(databaseWithFileClosed(QString)),
-                   this, SLOT(rememberOpenDatabases(QString)));
-        config()->set("LastOpenedDatabases", m_openDatabases);
-    }
-
-    return accept;
+	bool accept_;
+	this->openDatabases.clear();
+	const bool openPreviousDatabasesOnStartup_ = Config::getInstance()->get(
+		"OpenPreviousDatabasesOnStartup"
+	).toBool();
+	if(openPreviousDatabasesOnStartup_)
+	{
+		this->connect(
+			this->ui->tabWidget,
+			&DatabaseTabWidget::sig_databaseWithFileClosed,
+			this,
+			&MainWindow::do_rememberOpenDatabases
+		);
+	}
+	if(!this->ui->tabWidget->do_closeAllDatabases())
+	{
+		accept_ = false;
+	}
+	else
+	{
+		accept_ = true;
+	}
+	if(openPreviousDatabasesOnStartup_)
+	{
+		this->disconnect(
+			this->ui->tabWidget,
+			&DatabaseTabWidget::sig_databaseWithFileClosed,
+			this,
+			&MainWindow::do_rememberOpenDatabases
+		);
+		Config::getInstance()->set(
+			"LastOpenedDatabases",
+			this->openDatabases
+		);
+	}
+	return accept_;
 }
 
 void MainWindow::updateTrayIcon()
 {
-    if (isTrayIconEnabled()) {
-        if (!m_trayIcon) {
-            m_trayIcon = new QSystemTrayIcon(filePath()->applicationIcon(), this);
-
-            QMenu* menu = new QMenu(this);
-
-            QAction* actionToggle = new QAction(tr("Toggle window"), menu);
-            menu->addAction(actionToggle);
-
-            menu->addAction(m_ui->actionQuit);
-
-            connect(m_trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
-                    SLOT(trayIconTriggered(QSystemTrayIcon::ActivationReason)));
-            connect(actionToggle, SIGNAL(triggered()), SLOT(toggleWindow()));
-
-            m_trayIcon->setContextMenu(menu);
-            m_trayIcon->show();
-        }
-    }
-    else {
-        if (m_trayIcon) {
-            m_trayIcon->hide();
-            delete m_trayIcon;
-            m_trayIcon = nullptr;
-        }
-    }
+	if(this->isTrayIconEnabled())
+	{
+		if(!this->trayIcon)
+		{
+			this->trayIcon = new QSystemTrayIcon(
+				FilePath::getInstance()->getApplicationIcon(),
+				this
+			);
+			const auto menu_ = new QMenu(
+				this
+			);
+			const auto actionToggle_ = new QAction(
+				tr(
+					"Toggle window"
+				),
+				menu_
+			);
+			menu_->addAction(
+				actionToggle_
+			);
+			menu_->addAction(
+				this->ui->actionQuit
+			);
+			this->connect(
+				this->trayIcon,
+				&QSystemTrayIcon::activated,
+				this,
+				&MainWindow::do_trayIconTriggered
+			);
+			this->connect(
+				actionToggle_,
+				&QAction::triggered,
+				this,
+				&MainWindow::do_toggleWindow
+			);
+			this->trayIcon->setContextMenu(
+				menu_
+			);
+			this->trayIcon->show();
+		}
+	}
+	else
+	{
+		if(this->trayIcon)
+		{
+			this->trayIcon->hide();
+			delete this->trayIcon;
+			this->trayIcon = nullptr;
+		}
+	}
 }
 
-void MainWindow::showEntryContextMenu(const QPoint& globalPos)
+void MainWindow::do_showEntryContextMenu(
+	const QPoint &globalPos
+) const
 {
-    m_ui->menuEntries->popup(globalPos);
+	this->ui->menuEntries->popup(
+		globalPos
+	);
 }
 
-void MainWindow::showGroupContextMenu(const QPoint& globalPos)
+void MainWindow::do_showGroupContextMenu(
+	const QPoint &globalPos
+) const
 {
-    m_ui->menuGroups->popup(globalPos);
+	this->ui->menuGroups->popup(
+		globalPos
+	);
 }
 
-void MainWindow::saveToolbarState(bool value)
+void MainWindow::do_saveToolbarState(
+	const bool value
+)
 {
-    config()->set("ShowToolbar", value);
+	Config::getInstance()->set(
+		"ShowToolbar",
+		value
+	);
 }
 
-void MainWindow::setShortcut(QAction* action, QKeySequence::StandardKey standard, int fallback)
+void MainWindow::setShortcut(
+	QAction* action,
+	const QKeySequence::StandardKey standard,
+	const QKeyCombination fallback
+)
 {
-    if (!QKeySequence::keyBindings(standard).isEmpty()) {
-        action->setShortcuts(standard);
-    }
-    else if (fallback != 0) {
-        action->setShortcut(QKeySequence(fallback));
-    }
+	if(!QKeySequence::keyBindings(
+		standard
+	).isEmpty())
+	{
+		action->setShortcuts(
+			standard
+		);
+	}
+	action->setShortcut(
+		fallback
+	);
 }
 
-void MainWindow::rememberOpenDatabases(const QString& filePath)
+void MainWindow::do_rememberOpenDatabases(
+	const QString &filePath
+)
 {
-    m_openDatabases.append(filePath);
+	this->openDatabases.append(
+		filePath
+	);
 }
 
-void MainWindow::applySettingsChanges()
+void MainWindow::do_applySettingsChanges()
 {
-    int timeout = config()->get("security/lockdatabaseidlesec").toInt() * 1000;
-    if (timeout <= 0) {
-        timeout = 60;
-    }
-
-    m_inactivityTimer->setInactivityTimeout(timeout);
-    if (config()->get("security/lockdatabaseidle").toBool()) {
-        m_inactivityTimer->activate();
-    }
-    else {
-        m_inactivityTimer->deactivate();
-    }
-
-    updateTrayIcon();
+	int timeout = Config::getInstance()->get(
+		"security/lockdatabaseidlesec"
+	).toInt() * 1000;
+	if(timeout <= 0)
+	{
+		timeout = 60;
+	}
+	this->inactivityTimer->setInactivityTimeout(
+		timeout
+	);
+	if(Config::getInstance()->get(
+		"security/lockdatabaseidle"
+	).toBool())
+	{
+		this->inactivityTimer->activate();
+	}
+	else
+	{
+		this->inactivityTimer->deactivate();
+	}
+	this->updateTrayIcon();
 }
 
-void MainWindow::trayIconTriggered(QSystemTrayIcon::ActivationReason reason)
+void MainWindow::do_trayIconTriggered(
+	const QSystemTrayIcon::ActivationReason reason
+)
 {
-    if (reason == QSystemTrayIcon::Trigger) {
-        toggleWindow();
-    }
+	if(reason == QSystemTrayIcon::Trigger)
+	{
+		this->do_toggleWindow();
+	}
 }
 
-void MainWindow::toggleWindow()
+void MainWindow::do_toggleWindow()
 {
-    if ((QApplication::activeWindow() == this) && isVisible() && !isMinimized()) {
-        hide();
-    }
-    else {
-        ensurePolished();
-        setWindowState(windowState() & ~Qt::WindowMinimized);
-        show();
-        raise();
-        activateWindow();
-    }
+	if((QApplication::activeWindow() == this) && this->isVisible() && !this->
+		isMinimized())
+	{
+		this->hide();
+	}
+	else
+	{
+		this->ensurePolished();
+		this->setWindowState(
+			this->windowState() & ~Qt::WindowMinimized
+		);
+		this->show();
+		this->raise();
+		this->activateWindow();
+	}
 }
 
-void MainWindow::lockDatabasesAfterInactivity()
+void MainWindow::do_lockDatabasesAfterInactivity() const
 {
-    // ignore event if a modal dialog is open (such as a message box or file dialog)
-    if (QApplication::activeModalWidget()) {
-        return;
-    }
-
-    m_ui->tabWidget->lockDatabases();
+	// ignore event if a modal dialog is open (such as a message box or file dialog)
+	if(QApplication::activeModalWidget())
+	{
+		return;
+	}
+	this->ui->tabWidget->do_lockDatabases();
 }
 
-void MainWindow::repairDatabase()
+void MainWindow::do_repairDatabase()
 {
-    QString filter = QString("%1 (*.kdbx);;%2 (*)").arg(tr("KeePass 2 Database"), tr("All files"));
-    QString fileName = fileDialog()->getOpenFileName(this, tr("Open database"), QString(),
-                                                     filter);
-    if (fileName.isEmpty()) {
-        return;
-    }
-
-    QScopedPointer<QDialog> dialog(new QDialog(this));
-    DatabaseRepairWidget* dbRepairWidget = new DatabaseRepairWidget(dialog.data());
-    connect(dbRepairWidget, SIGNAL(success()), dialog.data(), SLOT(accept()));
-    connect(dbRepairWidget, SIGNAL(error()), dialog.data(), SLOT(reject()));
-    dbRepairWidget->load(fileName);
-    if (dialog->exec() == QDialog::Accepted && dbRepairWidget->database()) {
-        QString saveFileName = fileDialog()->getSaveFileName(this, tr("Save repaired database"), QString(),
-                                                             tr("KeePass 2 Database").append(" (*.kdbx)"),
-                                                             nullptr, 0, "kdbx");
-
-        if (!saveFileName.isEmpty()) {
-            KeePass2Writer writer;
-            writer.writeDatabase(saveFileName, dbRepairWidget->database());
-            if (writer.hasError()) {
-                MessageBox::critical(this, tr("Error"), tr("Writing the database failed.") + "\n\n"
-                                     + writer.errorString());
-            }
-        }
-    }
+	const QString filter_ = QString(
+		"%1 (*.kdbx);;%2 (*)"
+	).arg(
+		this->tr(
+			"KeePass 2 Database"
+		),
+		this->tr(
+			"All files"
+		)
+	);
+	const QString fileName_ = FileDialog::getInstance()->getOpenFileName(
+		this,
+		this->tr(
+			"Open database"
+		),
+		QString(),
+		filter_
+	);
+	if(fileName_.isEmpty())
+	{
+		return;
+	}
+	const QScopedPointer dialog_(
+		new QDialog(
+			this
+		)
+	);
+	const auto dbRepairWidget_ = new DatabaseRepairWidget(
+		dialog_.data()
+	);
+	this->connect(
+		dbRepairWidget_,
+		&DatabaseRepairWidget::sig_success,
+		dialog_.data(),
+		&QDialog::accept
+	);
+	this->connect(
+		dbRepairWidget_,
+		&DatabaseRepairWidget::sig_error,
+		dialog_.data(),
+		&QDialog::reject
+	);
+	dbRepairWidget_->load(
+		fileName_
+	);
+	Database* db_ = dbRepairWidget_->database();
+	if(dialog_->exec() == QDialog::Accepted && db_ != nullptr)
+	{
+		if(const QString saveFileName_ = FileDialog::getInstance()->
+				getSaveFileName(
+					this,
+					this->tr(
+						"Save repaired database"
+					),
+					QString(),
+					this->tr(
+						"KeePass 2 Database"
+					).append(
+						" (*.kdbx)"
+					),
+					nullptr,
+					"kdbx"
+				);
+			!saveFileName_.isEmpty())
+		{
+			KeePass2Writer writer_;
+			writer_.writeDatabase(
+				saveFileName_,
+				db_
+			);
+			if(writer_.hasError())
+			{
+				MessageBox::critical(
+					this,
+					this->tr(
+						"Error"
+					),
+					this->tr(
+						"Writing the database failed."
+					) + "\n\n" + writer_.getErrorString()
+				);
+			}
+			delete db_;
+		}
+	}
 }
 
-bool MainWindow::isTrayIconEnabled() const
+bool MainWindow::isTrayIconEnabled()
 {
 #ifdef Q_OS_MAC
-    // systray not useful on OS X
-    return false;
+	// systray not useful on OS X
+	return false;
 #else
-    return config()->get("GUI/ShowTrayIcon").toBool()
+    return Config::getInstance()->get("GUI/ShowTrayIcon").toBool()
             && QSystemTrayIcon::isSystemTrayAvailable();
 #endif
+}
+
+// Add new slots for handling actions without signal multiplexer
+void MainWindow::do_createEntry() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_createEntry();
+	}
+}
+
+void MainWindow::do_cloneEntry() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_cloneEntry();
+	}
+}
+
+void MainWindow::do_switchToEntryEdit() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_switchToEntryEdit();
+	}
+}
+
+void MainWindow::do_deleteEntries() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_deleteEntries();
+	}
+}
+
+void MainWindow::do_copyTitle() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_copyTitle();
+	}
+}
+
+void MainWindow::do_copyUsername() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_copyUsername();
+	}
+}
+
+void MainWindow::do_copyPassword() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_copyPassword();
+	}
+}
+
+void MainWindow::do_copyURL() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_copyURL();
+	}
+}
+
+void MainWindow::do_copyNotes() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_copyNotes();
+	}
+}
+
+void MainWindow::do_copyAttribute(
+	const QAction* action
+) const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_copyAttribute(
+			action
+		);
+	}
+}
+
+void MainWindow::do_performAutoType() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_performAutoType();
+	}
+}
+
+void MainWindow::do_openUrl() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_openUrl();
+	}
+}
+
+void MainWindow::do_createGroup() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_createGroup();
+	}
+}
+
+void MainWindow::do_switchToGroupEdit() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_switchToGroupEdit();
+	}
+}
+
+void MainWindow::do_deleteGroup() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_deleteGroup();
+	}
+}
+
+void MainWindow::do_openSearch() const
+{
+	if(this->currentDatabaseWidget)
+	{
+		this->currentDatabaseWidget->do_openSearch();
+	}
 }

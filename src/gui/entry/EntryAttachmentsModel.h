@@ -14,37 +14,48 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_ENTRYATTACHMENTSMODEL_H
 #define KEEPASSX_ENTRYATTACHMENTSMODEL_H
-
 #include <QAbstractListModel>
-
 class EntryAttachments;
 
-class EntryAttachmentsModel : public QAbstractListModel
+class EntryAttachmentsModel final:public QAbstractListModel
 {
-    Q_OBJECT
-
-public:
-    explicit EntryAttachmentsModel(QObject* parent = nullptr);
-    void setEntryAttachments(EntryAttachments* entry);
-    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
-    int columnCount(const QModelIndex& parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
-    QString keyByIndex(const QModelIndex& index) const;
-
+	Q_OBJECT public:
+	explicit EntryAttachmentsModel(
+		QObject* parent = nullptr
+	);
+	void setEntryAttachments(
+		EntryAttachments* entry
+	);
+	virtual int rowCount(
+		const QModelIndex &parent = QModelIndex()
+	) const override;
+	virtual int columnCount(
+		const QModelIndex &parent = QModelIndex()
+	) const override;
+	virtual QVariant data(
+		const QModelIndex &index,
+		int role = Qt::DisplayRole
+	) const override;
+	QString keyByIndex(
+		const QModelIndex &index
+	) const;
 private Q_SLOTS:
-    void attachmentChange(const QString& key);
-    void attachmentAboutToAdd(const QString& key);
-    void attachmentAdd();
-    void attachmentAboutToRemove(const QString& key);
-    void attachmentRemove();
-    void aboutToReset();
-    void reset();
-
+	void do_attachmentChange(
+		const QString &key
+	);
+	void do_attachmentAboutToAdd(
+		const QString &key
+	);
+	void do_attachmentAdd();
+	void do_attachmentAboutToRemove(
+		const QString &key
+	);
+	void do_attachmentRemove();
+	void do_aboutToReset();
+	void do_reset();
 private:
-    EntryAttachments* m_entryAttachments;
+	EntryAttachments* entryAttachments;
 };
-
 #endif // KEEPASSX_ENTRYATTACHMENTSMODEL_H

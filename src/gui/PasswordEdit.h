@@ -14,36 +14,33 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_PASSWORDEDIT_H
 #define KEEPASSX_PASSWORDEDIT_H
-
 #include <QLineEdit>
 
-class PasswordEdit : public QLineEdit
+class PasswordEdit final:public QLineEdit
 {
-    Q_OBJECT
-
-public:
-    static const QColor CorrectSoFarColor;
-    static const QColor ErrorColor;
-
-    explicit PasswordEdit(QWidget* parent = nullptr);
-    void enableVerifyMode(PasswordEdit* baseEdit);
-
+	Q_OBJECT public:
+	static const QColor CorrectSoFarColor;
+	static const QColor ErrorColor;
+	explicit PasswordEdit(
+		QWidget* parent = nullptr
+	);
+	void enableVerifyMode(
+		PasswordEdit* baseEdit
+	);
 public Q_SLOTS:
-    void setShowPassword(bool show);
-
+	void do_setShowPassword(
+		bool show
+	);
 Q_SIGNALS:
-    void showPasswordChanged(bool show);
-
+	void sig_showPasswordChanged(
+		bool show
+	);
 private Q_SLOTS:
-    void updateStylesheet();
-
+	void do_updateStylesheet();
 private:
-    bool passwordsEqual() const;
-
-    PasswordEdit* m_basePasswordEdit;
+	bool passwordsEqual() const;
+	PasswordEdit* basePasswordEdit;
 };
-
 #endif // KEEPASSX_PASSWORDEDIT_H

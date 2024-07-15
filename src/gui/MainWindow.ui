@@ -10,8 +10,16 @@
     <height>600</height>
    </rect>
   </property>
+  <property name="font">
+   <font>
+    <family>B612</family>
+   </font>
+  </property>
   <property name="windowTitle">
    <string notr="true">KeePassX</string>
+  </property>
+  <property name="tabShape">
+   <enum>QTabWidget::Triangular</enum>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -30,7 +38,7 @@
     <item>
      <widget class="QStackedWidget" name="stackedWidget">
       <property name="currentIndex">
-       <number>2</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="pageDatabase">
        <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -97,7 +105,7 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>20</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -119,7 +127,6 @@
     <addaction name="actionChangeMasterKey"/>
     <addaction name="actionChangeDatabaseSettings"/>
     <addaction name="separator"/>
-    <addaction name="actionImportKeePass1"/>
     <addaction name="actionExportCsv"/>
     <addaction name="actionRepairDatabase"/>
     <addaction name="separator"/>
@@ -154,7 +161,6 @@
     <addaction name="actionEntryCopyUsername"/>
     <addaction name="actionEntryCopyPassword"/>
     <addaction name="menuEntryCopyAttribute"/>
-    <addaction name="actionEntryAutoType"/>
     <addaction name="actionEntryOpenUrl"/>
     <addaction name="actionSearch"/>
    </widget>
@@ -319,11 +325,6 @@
     <string>Database settings</string>
    </property>
   </action>
-  <action name="actionImportKeePass1">
-   <property name="text">
-    <string>Import KeePass 1 database</string>
-   </property>
-  </action>
   <action name="actionEntryClone">
    <property name="enabled">
     <bool>false</bool>
@@ -365,14 +366,6 @@
   <action name="actionSettings">
    <property name="text">
     <string>Settings</string>
-   </property>
-  </action>
-  <action name="actionEntryAutoType">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="text">
-    <string>Perform Auto-Type</string>
    </property>
   </action>
   <action name="actionEntryOpenUrl">

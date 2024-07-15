@@ -14,21 +14,24 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef KEEPASSX_DIALOGYWIDGET_H
+#define KEEPASSX_DIALOGYWIDGET_H
+#include <QDialogButtonBox>
+#include <QWidget>
 
-#ifndef KEEPASSX_KEEPASS1OPENWIDGET_H
-#define KEEPASSX_KEEPASS1OPENWIDGET_H
-
-#include "gui/DatabaseOpenWidget.h"
-
-class KeePass1OpenWidget : public DatabaseOpenWidget
+class DialogWidget:public QWidget
 {
-    Q_OBJECT
-
-public:
-    explicit KeePass1OpenWidget(QWidget* parent = nullptr);
-
+	Q_OBJECT public:
+	explicit DialogWidget(
+		QWidget* parent = nullptr
+	);
 protected:
-    void openDatabase() override;
+	virtual void keyPressEvent(
+		QKeyEvent* e
+	) override;
+private:
+	bool clickButton(
+		QDialogButtonBox::StandardButton standardButton
+	) const;
 };
-
-#endif // KEEPASSX_KEEPASS1OPENWIDGET_H
+#endif // KEEPASSX_DIALOGYWIDGET_H

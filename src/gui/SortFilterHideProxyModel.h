@@ -14,27 +14,28 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_SORTFILTERHIDEPROXYMODEL_H
 #define KEEPASSX_SORTFILTERHIDEPROXYMODEL_H
-
 #include <QBitArray>
 #include <QSortFilterProxyModel>
 
-class SortFilterHideProxyModel : public QSortFilterProxyModel
+class SortFilterHideProxyModel final:public QSortFilterProxyModel
 {
-    Q_OBJECT
-
-public:
-    explicit SortFilterHideProxyModel(QObject* parent = nullptr);
-    Qt::DropActions supportedDragActions() const override;
-    void hideColumn(int column, bool hide);
-
+	Q_OBJECT public:
+	explicit SortFilterHideProxyModel(
+		QObject* parent = nullptr
+	);
+	virtual Qt::DropActions supportedDragActions() const override;
+	void hideColumn(
+		int column,
+		bool hide
+	);
 protected:
-    bool filterAcceptsColumn(int sourceColumn, const QModelIndex& sourceParent) const override;
-
+	virtual bool filterAcceptsColumn(
+		int sourceColumn,
+		const QModelIndex &sourceParent
+	) const override;
 private:
-    QBitArray m_hiddenColumns;
+	QBitArray hiddenColumns;
 };
-
 #endif // KEEPASSX_SORTFILTERHIDEPROXYMODEL_H

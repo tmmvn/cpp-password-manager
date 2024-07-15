@@ -14,66 +14,88 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_ENTRYMODEL_H
 #define KEEPASSX_ENTRYMODEL_H
-
 #include <QAbstractTableModel>
-
 class Entry;
 class Group;
 
-class EntryModel : public QAbstractTableModel
+class EntryModel final:public QAbstractTableModel
 {
-    Q_OBJECT
+	Q_OBJECT public:
+	enum ModelColumn: uint8_t
+	{
+		ParentGroup = 0,
+		Title = 1,
+		Username = 2,
+		Url = 3
+	};
 
-public:
-    enum ModelColumn
-    {
-        ParentGroup = 0,
-        Title = 1,
-        Username = 2,
-        Url = 3
-    };
-
-    explicit EntryModel(QObject* parent = nullptr);
-    Entry* entryFromIndex(const QModelIndex& index) const;
-    QModelIndex indexFromEntry(Entry* entry) const;
-
-    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
-    int columnCount(const QModelIndex& parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
-    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
-    Qt::DropActions supportedDropActions() const override;
-    Qt::DropActions supportedDragActions() const override;
-    Qt::ItemFlags flags(const QModelIndex& modelIndex) const override;
-    QStringList mimeTypes() const override;
-    QMimeData* mimeData(const QModelIndexList& indexes) const override;
-
-    void setEntryList(const QList<Entry*>& entries);
-
+	explicit EntryModel(
+		QObject* parent = nullptr
+	);
+	Entry* entryFromIndex(
+		const QModelIndex &index
+	) const;
+	QModelIndex indexFromEntry(
+		Entry* entry
+	) const;
+	virtual int rowCount(
+		const QModelIndex &parent = QModelIndex()
+	) const override;
+	virtual int columnCount(
+		const QModelIndex &parent = QModelIndex()
+	) const override;
+	virtual QVariant data(
+		const QModelIndex &index,
+		int role = Qt::DisplayRole
+	) const override;
+	virtual QVariant headerData(
+		int section,
+		Qt::Orientation orientation,
+		int role = Qt::DisplayRole
+	) const override;
+	virtual Qt::DropActions supportedDropActions() const override;
+	virtual Qt::DropActions supportedDragActions() const override;
+	virtual Qt::ItemFlags flags(
+		const QModelIndex &modelIndex
+	) const override;
+	virtual QStringList mimeTypes() const override;
+	virtual QMimeData* mimeData(
+		const QModelIndexList &indexes
+	) const override;
+	void setEntryList(
+		const QList<Entry*> &entries
+	);
 Q_SIGNALS:
-    void switchedToEntryListMode();
-    void switchedToGroupMode();
-
+	void sig_switchedToEntryListMode();
+	void sig_switchedToGroupMode();
 public Q_SLOTS:
-    void setGroup(Group* group);
-
+	void do_setGroup(
+		Group* group
+	);
 private Q_SLOTS:
-    void entryAboutToAdd(Entry* entry);
-    void entryAdded(Entry* entry);
-    void entryAboutToRemove(Entry* entry);
-    void entryRemoved();
-    void entryDataChanged(Entry* entry);
-
+	void do_entryAboutToAdd(
+		Entry* entry
+	);
+	void do_entryAdded(
+		Entry* entry
+	);
+	void do_entryAboutToRemove(
+		Entry* entry
+	);
+	void do_entryRemoved();
+	void do_entryDataChanged(
+		Entry* entry
+	);
 private:
-    void severConnections();
-    void makeConnections(const Group* group);
-
-    Group* m_group;
-    QList<Entry*> m_entries;
-    QList<Entry*> m_orgEntries;
-    QList<const Group*> m_allGroups;
+	void severConnections();
+	void makeConnections(
+		const Group* group
+	) const;
+	Group* group;
+	QList<Entry*> entries;
+	QList<Entry*> orgEntries;
+	QList<const Group*> allGroups;
 };
-
 #endif // KEEPASSX_ENTRYMODEL_H

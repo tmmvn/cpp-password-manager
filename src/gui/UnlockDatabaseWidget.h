@@ -14,19 +14,16 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_UNLOCKDATABASEWIDGET_H
 #define KEEPASSX_UNLOCKDATABASEWIDGET_H
-
 #include "gui/DatabaseOpenWidget.h"
 
-class UnlockDatabaseWidget : public DatabaseOpenWidget
+class UnlockDatabaseWidget final:public DatabaseOpenWidget
 {
-    Q_OBJECT
-
-public:
-    explicit UnlockDatabaseWidget(QWidget* parent = nullptr);
-    void clearForms();
+	Q_OBJECT public:
+	explicit UnlockDatabaseWidget(
+		QWidget* parent = nullptr
+	);
+	void clearForms();
 };
-
 #endif // KEEPASSX_UNLOCKDATABASEWIDGET_H

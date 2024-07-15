@@ -14,42 +14,62 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_ENTRYATTACHMENTS_H
 #define KEEPASSX_ENTRYATTACHMENTS_H
-
 #include <QMap>
 #include <QObject>
 
-class EntryAttachments : public QObject
+class EntryAttachments final:public QObject
 {
-    Q_OBJECT
-
-public:
-    explicit EntryAttachments(QObject* parent = nullptr);
-    QList<QString> keys() const;
-    bool hasKey(const QString& key) const;
-    QList<QByteArray> values() const;
-    QByteArray value(const QString& key) const;
-    void set(const QString& key, const QByteArray& value);
-    void remove(const QString& key);
-    void clear();
-    void copyDataFrom(const EntryAttachments* other);
-    bool operator==(const EntryAttachments& other) const;
-    bool operator!=(const EntryAttachments& other) const;
-
+	Q_OBJECT public:
+	explicit EntryAttachments(
+		QObject* parent = nullptr
+	);
+	QList<QString> getKeys() const;
+	bool hasKey(
+		const QString &key
+	) const;
+	QList<QByteArray> getValues() const;
+	QByteArray getValue(
+		const QString &key
+	) const;
+	void set(
+		const QString &key,
+		const QByteArray &value
+	);
+	void remove(
+		const QString &key
+	);
+	void clear();
+	void copyDataFrom(
+		const EntryAttachments* other
+	);
+	bool operator==(
+		const EntryAttachments &other
+	) const;
+	bool operator!=(
+		const EntryAttachments &other
+	) const;
 Q_SIGNALS:
-    void modified();
-    void keyModified(const QString& key);
-    void aboutToBeAdded(const QString& key);
-    void added(const QString& key);
-    void aboutToBeRemoved(const QString& key);
-    void removed(const QString& key);
-    void aboutToBeReset();
-    void reset();
-
+	void sig_modified();
+	void sig_keyModified(
+		const QString &key
+	);
+	void sig_aboutToBeAdded(
+		const QString &key
+	);
+	void sig_added(
+		const QString &key
+	);
+	void sig_aboutToBeRemoved(
+		const QString &key
+	);
+	void sig_removed(
+		const QString &key
+	);
+	void sig_aboutToBeReset();
+	void sig_reset();
 private:
-    QMap<QString, QByteArray> m_attachments;
+	QMap<QString, QByteArray> attachments;
 };
-
 #endif // KEEPASSX_ENTRYATTACHMENTS_H

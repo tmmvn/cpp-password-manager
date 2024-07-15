@@ -14,43 +14,44 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTKEEPASS2XMLREADER_H
 #define KEEPASSX_TESTKEEPASS2XMLREADER_H
-
 #include <QDateTime>
 #include <QObject>
-
 class Database;
 
-class TestKeePass2XmlReader : public QObject
+class TestKeePass2XmlReader:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testMetadata();
-    void testCustomIcons();
-    void testCustomData();
-    void testGroupRoot();
-    void testGroup1();
-    void testGroup2();
-    void testEntry1();
-    void testEntry2();
-    void testEntryHistory();
-    void testDeletedObjects();
-    void testBroken();
-    void testBroken_data();
-    void testEmptyUuids();
-    void testInvalidXmlChars();
-    void testRepairUuidHistoryItem();
-    void cleanupTestCase();
-
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testMetadata();
+	void testCustomIcons();
+	void testCustomData();
+	void testGroupRoot();
+	void testGroup1();
+	void testGroup2();
+	void testEntry1();
+	void testEntry2();
+	void testEntryHistory();
+	void testDeletedObjects();
+	void testBroken();
+	void testBroken_data();
+	void testEmptyUuids();
+	void testInvalidXmlChars();
+	void testRepairUuidHistoryItem();
+	void cleanupTestCase();
 private:
-    static QDateTime genDT(int year, int month, int day, int hour, int min, int second);
-    static QByteArray strToBytes(const QString& str);
-
-    Database* m_db;
+	static QDateTime genDT(
+		int year,
+		int month,
+		int day,
+		int hour,
+		int min,
+		int second
+	);
+	static QByteArray strToBytes(
+		const QString &str
+	);
+	Database* m_db;
 };
-
 #endif // KEEPASSX_TESTKEEPASS2XMLREADER_H

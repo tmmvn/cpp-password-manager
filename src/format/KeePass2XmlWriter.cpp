@@ -14,575 +14,1032 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "KeePass2XmlWriter.h"
-
 #include <QBuffer>
 #include <QFile>
-
 #include "core/Metadata.h"
 #include "format/KeePass2RandomStream.h"
 #include "streams/QtIOCompressor"
 
 KeePass2XmlWriter::KeePass2XmlWriter()
-    : m_db(nullptr)
-    , m_meta(nullptr)
-    , m_randomStream(nullptr)
-    , m_error(false)
+	: db(
+		nullptr
+	),
+	meta(
+		nullptr
+	),
+	randomStream(
+		nullptr
+	),
+	error(
+		false
+	)
 {
-    m_xml.setAutoFormatting(true);
-    m_xml.setAutoFormattingIndent(-1); // 1 tab
-    m_xml.setCodec("UTF-8");
+	this->xml.setAutoFormatting(
+		true
+	);
+	this->xml.setAutoFormattingIndent(
+		-1
+	); // 1 tab
 }
 
-void KeePass2XmlWriter::writeDatabase(QIODevice* device, Database* db, KeePass2RandomStream* randomStream,
-                                      const QByteArray& headerHash)
+void KeePass2XmlWriter::writeDatabase(
+	QIODevice* device,
+	Database* db,
+	KeePass2RandomStream* randomStream,
+	const QByteArray &headerHash
+)
 {
-    m_db = db;
-    m_meta = db->metadata();
-    m_randomStream = randomStream;
-    m_headerHash = headerHash;
-
-    generateIdMap();
-
-    m_xml.setDevice(device);
-
-    m_xml.writeStartDocument("1.0", true);
-
-    m_xml.writeStartElement("KeePassFile");
-
-    writeMetadata();
-    writeRoot();
-
-    m_xml.writeEndElement();
-
-    m_xml.writeEndDocument();
-
-    if (m_xml.hasError()) {
-        raiseError(device->errorString());
-    }
+	if(db == nullptr)
+	{
+		qWarning() << "No database";
+		return;
+	}
+	if(device == nullptr)
+	{
+		qWarning() << "No device";
+		return;
+	}
+	this->db = db;
+	this->meta = db->getMetadata();
+	this->randomStream = randomStream;
+	this->headerHash = headerHash;
+	this->generateIdMap();
+	this->xml.setDevice(
+		device
+	);
+	this->xml.writeStartDocument(
+		"1.0",
+		true
+	);
+	this->xml.writeStartElement(
+		"KeePassFile"
+	);
+	this->writeMetadata();
+	this->writeRoot();
+	this->xml.writeEndElement();
+	this->xml.writeEndDocument();
+	if(this->xml.hasError())
+	{
+		this->raiseError(
+			device->errorString()
+		);
+	}
 }
 
-void KeePass2XmlWriter::writeDatabase(const QString& filename, Database* db)
+void KeePass2XmlWriter::writeDatabase(
+	const QString &filename,
+	Database* db
+)
 {
-    QFile file(filename);
-    file.open(QIODevice::WriteOnly|QIODevice::Truncate);
-    writeDatabase(&file, db);
+	QFile file_(
+		filename
+	);
+	file_.open(
+		QIODevice::WriteOnly | QIODevice::Truncate
+	);
+	this->writeDatabase(
+		&file_,
+		db,
+		nullptr,
+		QByteArray()
+	);
 }
 
-bool KeePass2XmlWriter::hasError()
+bool KeePass2XmlWriter::hasError() const
 {
-    return m_error;
+	return this->error;
 }
 
-QString KeePass2XmlWriter::errorString()
+QString KeePass2XmlWriter::getErrorString()
 {
-    return m_errorStr;
+	return this->errorStr;
 }
 
 void KeePass2XmlWriter::generateIdMap()
 {
-    const QList<Entry*> allEntries = m_db->rootGroup()->entriesRecursive(true);
-    int nextId = 0;
-
-    for (Entry* entry : allEntries) {
-        const QList<QString> attachmentKeys = entry->attachments()->keys();
-        for (const QString& key : attachmentKeys) {
-            QByteArray data = entry->attachments()->value(key);
-            if (!m_idMap.contains(data)) {
-                m_idMap.insert(data, nextId++);
-            }
-        }
-    }
+	const QList<Entry*> allEntries_ = this->db->getRootGroup()->
+		getEntriesRecursive(
+			true
+		);
+	auto nextId_ = 0;
+	for(Entry* entry_: allEntries_)
+	{
+		const QList<QString> attachmentKeys_ = entry_->getAttachments()->
+			getKeys();
+		for(const QString &key_: attachmentKeys_)
+		{
+			if(QByteArray data_ = entry_->getAttachments()->getValue(
+					key_
+				);
+				!this->idMap.contains(
+					data_
+				))
+			{
+				this->idMap.insert(
+					data_,
+					nextId_++
+				);
+			}
+		}
+	}
 }
 
 void KeePass2XmlWriter::writeMetadata()
 {
-    m_xml.writeStartElement("Meta");
-
-    writeString("Generator", m_meta->generator());
-    if (!m_headerHash.isEmpty()) {
-        writeBinary("HeaderHash", m_headerHash);
-    }
-    writeString("DatabaseName", m_meta->name());
-    writeDateTime("DatabaseNameChanged", m_meta->nameChanged());
-    writeString("DatabaseDescription", m_meta->description());
-    writeDateTime("DatabaseDescriptionChanged", m_meta->descriptionChanged());
-    writeString("DefaultUserName", m_meta->defaultUserName());
-    writeDateTime("DefaultUserNameChanged", m_meta->defaultUserNameChanged());
-    writeNumber("MaintenanceHistoryDays", m_meta->maintenanceHistoryDays());
-    writeColor("Color", m_meta->color());
-    writeDateTime("MasterKeyChanged", m_meta->masterKeyChanged());
-    writeNumber("MasterKeyChangeRec", m_meta->masterKeyChangeRec());
-    writeNumber("MasterKeyChangeForce", m_meta->masterKeyChangeForce());
-    writeMemoryProtection();
-    writeCustomIcons();
-    writeBool("RecycleBinEnabled", m_meta->recycleBinEnabled());
-    writeUuid("RecycleBinUUID", m_meta->recycleBin());
-    writeDateTime("RecycleBinChanged", m_meta->recycleBinChanged());
-    writeUuid("EntryTemplatesGroup", m_meta->entryTemplatesGroup());
-    writeDateTime("EntryTemplatesGroupChanged", m_meta->entryTemplatesGroupChanged());
-    writeUuid("LastSelectedGroup", m_meta->lastSelectedGroup());
-    writeUuid("LastTopVisibleGroup", m_meta->lastTopVisibleGroup());
-    writeNumber("HistoryMaxItems", m_meta->historyMaxItems());
-    writeNumber("HistoryMaxSize", m_meta->historyMaxSize());
-    writeBinaries();
-    writeCustomData();
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"Meta"
+	);
+	this->writeString(
+		"Generator",
+		this->meta->getGenerator()
+	);
+	if(!this->headerHash.isEmpty())
+	{
+		this->writeBinary(
+			"HeaderHash",
+			this->headerHash
+		);
+	}
+	this->writeString(
+		"DatabaseName",
+		this->meta->getName()
+	);
+	this->writeDateTime(
+		"DatabaseNameChanged",
+		this->meta->getNameChangedTime()
+	);
+	this->writeString(
+		"DatabaseDescription",
+		this->meta->getDescription()
+	);
+	this->writeDateTime(
+		"DatabaseDescriptionChanged",
+		this->meta->getDescriptionTimeChanged()
+	);
+	this->writeString(
+		"DefaultUserName",
+		this->meta->getDefaultUserName()
+	);
+	this->writeDateTime(
+		"DefaultUserNameChanged",
+		this->meta->getDefaultUserNameChanged()
+	);
+	this->writeNumber(
+		"MaintenanceHistoryDays",
+		this->meta->getMaintenanceHistoryDays()
+	);
+	this->writeColor(
+		"Color",
+		this->meta->getColor()
+	);
+	this->writeDateTime(
+		"MasterKeyChanged",
+		this->meta->getMasterKeyChanged()
+	);
+	this->writeNumber(
+		"MasterKeyChangeRec",
+		this->meta->masterKeyChangeRec()
+	);
+	this->writeNumber(
+		"MasterKeyChangeForce",
+		this->meta->masterKeyChangeForce()
+	);
+	this->writeMemoryProtection();
+	this->writeCustomIcons();
+	this->writeBool(
+		"RecycleBinEnabled",
+		this->meta->recycleBinEnabled()
+	);
+	this->writeUUID(
+		"RecycleBinUUID",
+		this->meta->getRecycleBin()
+	);
+	this->writeDateTime(
+		"RecycleBinChanged",
+		this->meta->getRecycleBinChangedTime()
+	);
+	this->writeUUID(
+		"EntryTemplatesGroup",
+		this->meta->getEntryTemplatesGroup()
+	);
+	this->writeDateTime(
+		"EntryTemplatesGroupChanged",
+		this->meta->getEntryTemplatesGroupChangedTime()
+	);
+	this->writeUUID(
+		"LastSelectedGroup",
+		this->meta->getLastSelectedGroup()
+	);
+	this->writeUUID(
+		"LastTopVisibleGroup",
+		this->meta->getLastTopVisibleGroup()
+	);
+	this->writeNumber(
+		"HistoryMaxItems",
+		this->meta->getHistoryMaxItems()
+	);
+	this->writeNumber(
+		"HistoryMaxSize",
+		this->meta->getHistoryMaxSize()
+	);
+	this->writeBinaries();
+	this->writeCustomData();
+	this->xml.writeEndElement();
 }
 
 void KeePass2XmlWriter::writeMemoryProtection()
 {
-    m_xml.writeStartElement("MemoryProtection");
-
-    writeBool("ProtectTitle", m_meta->protectTitle());
-    writeBool("ProtectUserName", m_meta->protectUsername());
-    writeBool("ProtectPassword", m_meta->protectPassword());
-    writeBool("ProtectURL", m_meta->protectUrl());
-    writeBool("ProtectNotes", m_meta->protectNotes());
-    // writeBool("AutoEnableVisualHiding", m_meta->autoEnableVisualHiding());
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"MemoryProtection"
+	);
+	this->writeBool(
+		"ProtectTitle",
+		this->meta->protectTitle()
+	);
+	this->writeBool(
+		"ProtectUserName",
+		this->meta->protectUsername()
+	);
+	this->writeBool(
+		"ProtectPassword",
+		this->meta->protectPassword()
+	);
+	this->writeBool(
+		"ProtectURL",
+		this->meta->protectUrl()
+	);
+	this->writeBool(
+		"ProtectNotes",
+		this->meta->protectNotes()
+	);
+	// writeBool("AutoEnableVisualHiding", m_meta->autoEnableVisualHiding());
+	this->xml.writeEndElement();
 }
 
 void KeePass2XmlWriter::writeCustomIcons()
 {
-    m_xml.writeStartElement("CustomIcons");
-
-    const QList<Uuid> customIconsOrder = m_meta->customIconsOrder();
-    for (const Uuid& uuid : customIconsOrder) {
-        writeIcon(uuid, m_meta->customIcon(uuid));
-    }
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"CustomIcons"
+	);
+	const QList<UUID> customIconsOrder_ = this->meta->getCustomIconsOrder();
+	for(const UUID &uuid_: customIconsOrder_)
+	{
+		this->writeIcon(
+			uuid_,
+			this->meta->getCustomIcon(
+				uuid_
+			)
+		);
+	}
+	this->xml.writeEndElement();
 }
 
-void KeePass2XmlWriter::writeIcon(const Uuid& uuid, const QImage& icon)
+void KeePass2XmlWriter::writeIcon(
+	const UUID &uuid,
+	const QImage &icon
+)
 {
-    m_xml.writeStartElement("Icon");
-
-    writeUuid("UUID", uuid);
-
-    QByteArray ba;
-    QBuffer buffer(&ba);
-    buffer.open(QIODevice::WriteOnly);
-    // TODO: check !icon.save()
-    icon.save(&buffer, "PNG");
-    buffer.close();
-    writeBinary("Data", ba);
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"Icon"
+	);
+	this->writeUUID(
+		"UUID",
+		uuid
+	);
+	QByteArray ba_;
+	QBuffer buffer_(
+		&ba_
+	);
+	buffer_.open(
+		QIODevice::WriteOnly
+	);
+	// TODO: check !icon.save()
+	icon.save(
+		&buffer_,
+		"PNG"
+	);
+	buffer_.close();
+	this->writeBinary(
+		"Data",
+		ba_
+	);
+	this->xml.writeEndElement();
 }
 
 void KeePass2XmlWriter::writeBinaries()
 {
-    m_xml.writeStartElement("Binaries");
-
-    QHash<QByteArray, int>::const_iterator i;
-    for (i = m_idMap.constBegin(); i != m_idMap.constEnd(); ++i) {
-        m_xml.writeStartElement("Binary");
-
-        m_xml.writeAttribute("ID", QString::number(i.value()));
-
-        QByteArray data;
-        if (m_db->compressionAlgo() == Database::CompressionGZip) {
-            m_xml.writeAttribute("Compressed", "True");
-
-            QBuffer buffer;
-            buffer.open(QIODevice::ReadWrite);
-
-            QtIOCompressor compressor(&buffer);
-            compressor.setStreamFormat(QtIOCompressor::GzipFormat);
-            compressor.open(QIODevice::WriteOnly);
-
-            qint64 bytesWritten = compressor.write(i.key());
-            Q_ASSERT(bytesWritten == i.key().size());
-            Q_UNUSED(bytesWritten);
-            compressor.close();
-
-            buffer.seek(0);
-            data = buffer.readAll();
-        }
-        else {
-            data = i.key();
-        }
-
-        if (!data.isEmpty()) {
-            m_xml.writeCharacters(QString::fromLatin1(data.toBase64()));
-        }
-        m_xml.writeEndElement();
-    }
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"Binaries"
+	);
+	for(QHash<QByteArray, int>::const_iterator i_ = this->idMap.constBegin(); i_
+		!= this->idMap.constEnd(); ++i_)
+	{
+		this->xml.writeStartElement(
+			"Binary"
+		);
+		this->xml.writeAttribute(
+			"ID",
+			QString::number(
+				i_.value()
+			)
+		);
+		QByteArray data_;
+		if(this->db->getCompressionAlgo() == Database::CompressionGZip)
+		{
+			this->xml.writeAttribute(
+				"Compressed",
+				"True"
+			);
+			QBuffer buffer_;
+			buffer_.open(
+				QIODevice::ReadWrite
+			);
+			QtIOCompressor compressor_(
+				&buffer_
+			);
+			compressor_.setStreamFormat(
+				QtIOCompressor::GzipFormat
+			);
+			compressor_.open(
+				QIODevice::WriteOnly
+			);
+			if(const qint64 bytesWritten_ = compressor_.write(
+					i_.key()
+				);
+				bytesWritten_ != i_.key().size())
+			{
+				this->error = true;
+				this->errorStr = "Compression error";
+				return;
+			}
+			compressor_.close();
+			buffer_.seek(
+				0
+			);
+			data_ = buffer_.readAll();
+		}
+		else
+		{
+			data_ = i_.key();
+		}
+		if(!data_.isEmpty())
+		{
+			this->xml.writeCharacters(
+				QString::fromLatin1(
+					data_.toBase64()
+				)
+			);
+		}
+		this->xml.writeEndElement();
+	}
+	this->xml.writeEndElement();
 }
 
 void KeePass2XmlWriter::writeCustomData()
 {
-    m_xml.writeStartElement("CustomData");
-
-    QHash<QString, QString> customFields = m_meta->customFields();
-    const QList<QString> keyList = customFields.keys();
-    for (const QString& key : keyList) {
-        writeCustomDataItem(key, customFields.value(key));
-    }
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"CustomData"
+	);
+	const QHash<QString, QString> customFields_ = this->meta->getCustomFields();
+	const QList<QString> keyList_ = customFields_.keys();
+	for(const QString &key_: keyList_)
+	{
+		this->writeCustomDataItem(
+			key_,
+			customFields_.value(
+				key_
+			)
+		);
+	}
+	this->xml.writeEndElement();
 }
 
-void KeePass2XmlWriter::writeCustomDataItem(const QString& key, const QString& value)
+void KeePass2XmlWriter::writeCustomDataItem(
+	const QString &key,
+	const QString &value
+)
 {
-    m_xml.writeStartElement("Item");
-
-    writeString("Key", key);
-    writeString("Value", value);
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"Item"
+	);
+	this->writeString(
+		"Key",
+		key
+	);
+	this->writeString(
+		"Value",
+		value
+	);
+	this->xml.writeEndElement();
 }
 
 void KeePass2XmlWriter::writeRoot()
 {
-    Q_ASSERT(m_db->rootGroup());
-
-    m_xml.writeStartElement("Root");
-
-    writeGroup(m_db->rootGroup());
-    writeDeletedObjects();
-
-    m_xml.writeEndElement();
+	if(this->db->getRootGroup() == nullptr)
+	{
+		qWarning() << "No root group";
+		return;
+	}
+	this->xml.writeStartElement(
+		"Root"
+	);
+	this->writeGroup(
+		this->db->getRootGroup()
+	);
+	this->writeDeletedObjects();
+	this->xml.writeEndElement();
 }
 
-void KeePass2XmlWriter::writeGroup(const Group* group)
+void KeePass2XmlWriter::writeGroup(
+	const Group* group
+)
 {
-    Q_ASSERT(!group->uuid().isNull());
-
-    m_xml.writeStartElement("Group");
-
-    writeUuid("UUID", group->uuid());
-    writeString("Name", group->name());
-    writeString("Notes", group->notes());
-    writeNumber("IconID", group->iconNumber());
-
-    if (!group->iconUuid().isNull()) {
-        writeUuid("CustomIconUUID", group->iconUuid());
-    }
-    writeTimes(group->timeInfo());
-    writeBool("IsExpanded", group->isExpanded());
-    writeString("DefaultAutoTypeSequence", group->defaultAutoTypeSequence());
-
-    writeTriState("EnableAutoType", group->autoTypeEnabled());
-
-    writeTriState("EnableSearching", group->searchingEnabled());
-
-    writeUuid("LastTopVisibleEntry", group->lastTopVisibleEntry());
-
-    const QList<Entry*> entryList = group->entries();
-    for (const Entry* entry : entryList) {
-        writeEntry(entry);
-    }
-
-    const QList<Group*> children = group->children();
-    for (const Group* child : children) {
-        writeGroup(child);
-    }
-
-    m_xml.writeEndElement();
+	if(group->getUUID().isNull())
+	{
+		qWarning() << "No group UUID";
+		return;
+	}
+	this->xml.writeStartElement(
+		"Group"
+	);
+	this->writeUUID(
+		"UUID",
+		group->getUUID()
+	);
+	this->writeString(
+		"Name",
+		group->getName()
+	);
+	this->writeString(
+		"Notes",
+		group->getNotes()
+	);
+	this->writeNumber(
+		"IconID",
+		group->getIconNumber()
+	);
+	if(!group->getIconUUID().isNull())
+	{
+		this->writeUUID(
+			"CustomIconUUID",
+			group->getIconUUID()
+		);
+	}
+	this->writeTimes(
+		group->getTimeInfo()
+	);
+	this->writeBool(
+		"IsExpanded",
+		group->isExpanded()
+	);
+	this->writeTriState(
+		"EnableSearching",
+		group->isSearchingEnabled()
+	);
+	this->writeUUID(
+		"LastTopVisibleEntry",
+		group->getLastTopVisibleEntry()
+	);
+	const QList<Entry*> &entryList_ = group->getEntries();
+	for(const Entry* entry_: entryList_)
+	{
+		this->writeEntry(
+			entry_
+		);
+	}
+	const QList<Group*> &children_ = group->getChildren();
+	for(const Group* child_: children_)
+	{
+		this->writeGroup(
+			child_
+		);
+	}
+	this->xml.writeEndElement();
 }
 
-void KeePass2XmlWriter::writeTimes(const TimeInfo& ti)
+void KeePass2XmlWriter::writeTimes(
+	const TimeInfo &ti
+)
 {
-    m_xml.writeStartElement("Times");
-
-    writeDateTime("LastModificationTime", ti.lastModificationTime());
-    writeDateTime("CreationTime", ti.creationTime());
-    writeDateTime("LastAccessTime", ti.lastAccessTime());
-    writeDateTime("ExpiryTime", ti.expiryTime());
-    writeBool("Expires", ti.expires());
-    writeNumber("UsageCount", ti.usageCount());
-    writeDateTime("LocationChanged", ti.locationChanged());
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"Times"
+	);
+	this->writeDateTime(
+		"LastModificationTime",
+		ti.getLastModificationTime()
+	);
+	this->writeDateTime(
+		"CreationTime",
+		ti.getCreationTime()
+	);
+	this->writeDateTime(
+		"LastAccessTime",
+		ti.getLastAccessTime()
+	);
+	this->writeDateTime(
+		"ExpiryTime",
+		ti.getExpiryTime()
+	);
+	this->writeBool(
+		"Expires",
+		ti.getExpires()
+	);
+	this->writeNumber(
+		"UsageCount",
+		ti.getUsageCount()
+	);
+	this->writeDateTime(
+		"LocationChanged",
+		ti.getLocationChanged()
+	);
+	this->xml.writeEndElement();
 }
 
 void KeePass2XmlWriter::writeDeletedObjects()
 {
-    m_xml.writeStartElement("DeletedObjects");
-
-    const QList<DeletedObject> delObjList = m_db->deletedObjects();
-    for (const DeletedObject& delObj : delObjList) {
-        writeDeletedObject(delObj);
-    }
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"DeletedObjects"
+	);
+	const QList<DeletedObject> delObjList_ = this->db->getDeletedObjects();
+	for(const DeletedObject &delObj_: delObjList_)
+	{
+		this->writeDeletedObject(
+			delObj_
+		);
+	}
+	this->xml.writeEndElement();
 }
 
-void KeePass2XmlWriter::writeDeletedObject(const DeletedObject& delObj)
+void KeePass2XmlWriter::writeDeletedObject(
+	const DeletedObject &delObj
+)
 {
-    m_xml.writeStartElement("DeletedObject");
-
-    writeUuid("UUID", delObj.uuid);
-    writeDateTime("DeletionTime", delObj.deletionTime);
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"DeletedObject"
+	);
+	this->writeUUID(
+		"UUID",
+		delObj.uuid
+	);
+	this->writeDateTime(
+		"DeletionTime",
+		delObj.deletionTime
+	);
+	this->xml.writeEndElement();
 }
 
-void KeePass2XmlWriter::writeEntry(const Entry* entry)
+void KeePass2XmlWriter::writeEntry(
+	const Entry* entry
+)
 {
-    Q_ASSERT(!entry->uuid().isNull());
-
-    m_xml.writeStartElement("Entry");
-
-    writeUuid("UUID", entry->uuid());
-    writeNumber("IconID", entry->iconNumber());
-    if (!entry->iconUuid().isNull()) {
-        writeUuid("CustomIconUUID", entry->iconUuid());
-    }
-    writeColor("ForegroundColor", entry->foregroundColor());
-    writeColor("BackgroundColor", entry->backgroundColor());
-    writeString("OverrideURL", entry->overrideUrl());
-    writeString("Tags", entry->tags());
-    writeTimes(entry->timeInfo());
-
-    const QList<QString> attributesKeyList = entry->attributes()->keys();
-    for (const QString& key : attributesKeyList) {
-        m_xml.writeStartElement("String");
-
-        bool protect = ( ((key == "Title") && m_meta->protectTitle()) ||
-                         ((key == "UserName") && m_meta->protectUsername()) ||
-                         ((key == "Password") && m_meta->protectPassword()) ||
-                         ((key == "URL") && m_meta->protectUrl()) ||
-                         ((key == "Notes") && m_meta->protectNotes()) ||
-                         entry->attributes()->isProtected(key) );
-
-        writeString("Key", key);
-
-        m_xml.writeStartElement("Value");
-        QString value;
-
-        if (protect) {
-            if (m_randomStream) {
-                m_xml.writeAttribute("Protected", "True");
-                bool ok;
-                QByteArray rawData = m_randomStream->process(entry->attributes()->value(key).toUtf8(), &ok);
-                if (!ok) {
-                    raiseError(m_randomStream->errorString());
-                }
-                value = QString::fromLatin1(rawData.toBase64());
-            }
-            else {
-                m_xml.writeAttribute("ProtectInMemory", "True");
-                value = entry->attributes()->value(key);
-            }
-        }
-        else {
-            value = entry->attributes()->value(key);
-        }
-
-        if (!value.isEmpty()) {
-            m_xml.writeCharacters(stripInvalidXml10Chars(value));
-        }
-        m_xml.writeEndElement();
-
-        m_xml.writeEndElement();
-    }
-
-    const QList<QString> attachmentsKeyList = entry->attachments()->keys();
-    for (const QString& key : attachmentsKeyList) {
-        m_xml.writeStartElement("Binary");
-
-        writeString("Key", key);
-
-        m_xml.writeStartElement("Value");
-        m_xml.writeAttribute("Ref", QString::number(m_idMap[entry->attachments()->value(key)]));
-        m_xml.writeEndElement();
-
-        m_xml.writeEndElement();
-    }
-
-    writeAutoType(entry);
-    // write history only for entries that are not history items
-    if (entry->parent()) {
-        writeEntryHistory(entry);
-    }
-
-    m_xml.writeEndElement();
+	if(entry->getUUID().isNull())
+	{
+		qWarning() << "No UUID for entry";
+		return;
+	}
+	this->xml.writeStartElement(
+		"Entry"
+	);
+	this->writeUUID(
+		"UUID",
+		entry->getUUID()
+	);
+	this->writeNumber(
+		"IconID",
+		entry->getIconNumber()
+	);
+	if(!entry->getIconUUID().isNull())
+	{
+		this->writeUUID(
+			"CustomIconUUID",
+			entry->getIconUUID()
+		);
+	}
+	this->writeColor(
+		"ForegroundColor",
+		entry->getForegroundColor()
+	);
+	this->writeColor(
+		"BackgroundColor",
+		entry->getBackgroundColor()
+	);
+	this->writeString(
+		"OverrideURL",
+		entry->getOverrideURL()
+	);
+	this->writeString(
+		"Tags",
+		entry->getTags()
+	);
+	this->writeTimes(
+		entry->getTimeInfo()
+	);
+	const QList<QString> attributesKeyList_ = entry->getAttributes()->getKeys();
+	for(const QString &key_: attributesKeyList_)
+	{
+		this->xml.writeStartElement(
+			"String"
+		);
+		const bool protect_ = (key_ == "Title" && this->meta->protectTitle()) ||
+			(key_ == "UserName" && this->meta->protectUsername()) || (key_ ==
+				"Password" && this->meta->protectPassword()) || (key_ == "URL"
+				&& this->meta->protectUrl()) || (key_ == "Notes" && this->meta->
+				protectNotes()) || entry->getAttributes()->isProtected(
+				key_
+			);
+		this->writeString(
+			"Key",
+			key_
+		);
+		this->xml.writeStartElement(
+			"Value"
+		);
+		QString value_;
+		if(protect_)
+		{
+			if(this->randomStream)
+			{
+				this->xml.writeAttribute(
+					"Protected",
+					"True"
+				);
+				bool ok_;
+				QByteArray rawData_ = this->randomStream->process(
+					entry->getAttributes()->getValue(
+						key_
+					).toUtf8(),
+					&ok_
+				);
+				if(!ok_)
+				{
+					this->raiseError(
+						this->randomStream->getErrorString()
+					);
+				}
+				value_ = QString::fromLatin1(
+					rawData_.toBase64()
+				);
+			}
+			else
+			{
+				this->xml.writeAttribute(
+					"ProtectInMemory",
+					"True"
+				);
+				value_ = entry->getAttributes()->getValue(
+					key_
+				);
+			}
+		}
+		else
+		{
+			value_ = entry->getAttributes()->getValue(
+				key_
+			);
+		}
+		if(!value_.isEmpty())
+		{
+			this->xml.writeCharacters(
+				stripInvalidXml10Chars(
+					value_
+				)
+			);
+		}
+		this->xml.writeEndElement();
+		this->xml.writeEndElement();
+	}
+	const QList<QString> attachmentsKeyList_ = entry->getAttachments()->
+		getKeys();
+	for(const QString &key_: attachmentsKeyList_)
+	{
+		this->xml.writeStartElement(
+			"Binary"
+		);
+		this->writeString(
+			"Key",
+			key_
+		);
+		this->xml.writeStartElement(
+			"Value"
+		);
+		this->xml.writeAttribute(
+			"Ref",
+			QString::number(
+				this->idMap[entry->getAttachments()->getValue(
+					key_
+				)]
+			)
+		);
+		this->xml.writeEndElement();
+		this->xml.writeEndElement();
+	}
+	// write history only for entries that are not history items
+	if(entry->parent())
+	{
+		this->writeEntryHistory(
+			entry
+		);
+	}
+	this->xml.writeEndElement();
 }
 
-void KeePass2XmlWriter::writeAutoType(const Entry* entry)
+void KeePass2XmlWriter::writeEntryHistory(
+	const Entry* entry
+)
 {
-    m_xml.writeStartElement("AutoType");
-
-    writeBool("Enabled", entry->autoTypeEnabled());
-    writeNumber("DataTransferObfuscation", entry->autoTypeObfuscation());
-    writeString("DefaultSequence", entry->defaultAutoTypeSequence());
-
-    const QList<AutoTypeAssociations::Association> autoTypeAssociations = entry->autoTypeAssociations()->getAll();
-    for (const AutoTypeAssociations::Association& assoc : autoTypeAssociations) {
-        writeAutoTypeAssoc(assoc);
-    }
-
-    m_xml.writeEndElement();
+	this->xml.writeStartElement(
+		"History"
+	);
+	const QList<Entry*> &historyItems_ = entry->getHistoryItems();
+	for(const Entry* item_: historyItems_)
+	{
+		this->writeEntry(
+			item_
+		);
+	}
+	this->xml.writeEndElement();
 }
 
-void KeePass2XmlWriter::writeAutoTypeAssoc(const AutoTypeAssociations::Association& assoc)
+void KeePass2XmlWriter::writeString(
+	const QString &qualifiedName,
+	const QString &string
+)
 {
-    m_xml.writeStartElement("Association");
-
-    writeString("Window", assoc.window);
-    writeString("KeystrokeSequence", assoc.sequence);
-
-    m_xml.writeEndElement();
+	if(string.isEmpty())
+	{
+		this->xml.writeEmptyElement(
+			qualifiedName
+		);
+	}
+	else
+	{
+		this->xml.writeTextElement(
+			qualifiedName,
+			this->stripInvalidXml10Chars(
+				string
+			)
+		);
+	}
 }
 
-void KeePass2XmlWriter::writeEntryHistory(const Entry* entry)
+void KeePass2XmlWriter::writeNumber(
+	const QString &qualifiedName,
+	const int number
+)
 {
-    m_xml.writeStartElement("History");
-
-    const QList<Entry*>& historyItems = entry->historyItems();
-    for (const Entry* item : historyItems) {
-        writeEntry(item);
-    }
-
-    m_xml.writeEndElement();
+	this->writeString(
+		qualifiedName,
+		QString::number(
+			number
+		)
+	);
 }
 
-void KeePass2XmlWriter::writeString(const QString& qualifiedName, const QString& string)
+void KeePass2XmlWriter::writeBool(
+	const QString &qualifiedName,
+	const bool b
+)
 {
-    if (string.isEmpty()) {
-        m_xml.writeEmptyElement(qualifiedName);
-    }
-    else {
-        m_xml.writeTextElement(qualifiedName, stripInvalidXml10Chars(string));
-    }
+	if(b)
+	{
+		this->writeString(
+			qualifiedName,
+			"True"
+		);
+	}
+	else
+	{
+		this->writeString(
+			qualifiedName,
+			"False"
+		);
+	}
 }
 
-void KeePass2XmlWriter::writeNumber(const QString& qualifiedName, int number)
+void KeePass2XmlWriter::writeDateTime(
+	const QString &qualifiedName,
+	const QDateTime &dateTime
+)
 {
-    writeString(qualifiedName, QString::number(number));
+	if(!dateTime.isValid())
+	{
+		qWarning() << "Date time is not valid";
+		return;
+	}
+	if(dateTime.timeSpec() != Qt::UTC)
+	{
+		qWarning() << "Wrong spec for date time";
+		return;
+	}
+	QString dateTimeStr_ = dateTime.toString(
+		Qt::ISODate
+	);
+	// Qt < 4.8 doesn't append a 'Z' at the end
+	if(!dateTimeStr_.isEmpty() && dateTimeStr_[dateTimeStr_.size() - 1] != 'Z')
+	{
+		dateTimeStr_.append(
+			'Z'
+		);
+	}
+	this->writeString(
+		qualifiedName,
+		dateTimeStr_
+	);
 }
 
-void KeePass2XmlWriter::writeBool(const QString& qualifiedName, bool b)
+void KeePass2XmlWriter::writeUUID(
+	const QString &qualifiedName,
+	const UUID &uuid
+)
 {
-    if (b) {
-        writeString(qualifiedName, "True");
-    }
-    else {
-        writeString(qualifiedName, "False");
-    }
+	this->writeString(
+		qualifiedName,
+		uuid.toBase64()
+	);
 }
 
-void KeePass2XmlWriter::writeDateTime(const QString& qualifiedName, const QDateTime& dateTime)
+void KeePass2XmlWriter::writeUUID(
+	const QString &qualifiedName,
+	const Group* group
+)
 {
-    Q_ASSERT(dateTime.isValid());
-    Q_ASSERT(dateTime.timeSpec() == Qt::UTC);
-
-    QString dateTimeStr = dateTime.toString(Qt::ISODate);
-
-    // Qt < 4.8 doesn't append a 'Z' at the end
-    if (!dateTimeStr.isEmpty() && dateTimeStr[dateTimeStr.size() - 1] != 'Z') {
-        dateTimeStr.append('Z');
-    }
-
-    writeString(qualifiedName, dateTimeStr);
+	if(group)
+	{
+		this->writeUUID(
+			qualifiedName,
+			group->getUUID()
+		);
+	}
+	else
+	{
+		this->writeUUID(
+			qualifiedName,
+			UUID()
+		);
+	}
 }
 
-void KeePass2XmlWriter::writeUuid(const QString& qualifiedName, const Uuid& uuid)
+void KeePass2XmlWriter::writeUUID(
+	const QString &qualifiedName,
+	const Entry* entry
+)
 {
-    writeString(qualifiedName, uuid.toBase64());
+	if(entry)
+	{
+		this->writeUUID(
+			qualifiedName,
+			entry->getUUID()
+		);
+	}
+	else
+	{
+		this->writeUUID(
+			qualifiedName,
+			UUID()
+		);
+	}
 }
 
-void KeePass2XmlWriter::writeUuid(const QString& qualifiedName, const Group* group)
+void KeePass2XmlWriter::writeBinary(
+	const QString &qualifiedName,
+	const QByteArray &ba
+)
 {
-    if (group) {
-        writeUuid(qualifiedName, group->uuid());
-    }
-    else {
-        writeUuid(qualifiedName, Uuid());
-    }
+	this->writeString(
+		qualifiedName,
+		QString::fromLatin1(
+			ba.toBase64()
+		)
+	);
 }
 
-void KeePass2XmlWriter::writeUuid(const QString& qualifiedName, const Entry* entry)
+void KeePass2XmlWriter::writeColor(
+	const QString &qualifiedName,
+	const QColor &color
+)
 {
-    if (entry) {
-        writeUuid(qualifiedName, entry->uuid());
-    }
-    else {
-        writeUuid(qualifiedName, Uuid());
-    }
+	QString colorStr_;
+	if(color.isValid())
+	{
+		colorStr_ = QString(
+			"#%1%2%3"
+		).arg(
+			colorPartToString(
+				color.red()
+			)
+		).arg(
+			colorPartToString(
+				color.green()
+			)
+		).arg(
+			colorPartToString(
+				color.blue()
+			)
+		);
+	}
+	this->writeString(
+		qualifiedName,
+		colorStr_
+	);
 }
 
-void KeePass2XmlWriter::writeBinary(const QString& qualifiedName, const QByteArray& ba)
+void KeePass2XmlWriter::writeTriState(
+	const QString &qualifiedName,
+	const Group::TriState triState
+)
 {
-    writeString(qualifiedName, QString::fromLatin1(ba.toBase64()));
+	QString value_;
+	if(triState == Group::Inherit)
+	{
+		value_ = "null";
+	}
+	else if(triState == Group::Enable)
+	{
+		value_ = "true";
+	}
+	else
+	{
+		value_ = "false";
+	}
+	this->writeString(
+		qualifiedName,
+		value_
+	);
 }
 
-void KeePass2XmlWriter::writeColor(const QString& qualifiedName, const QColor& color)
+QString KeePass2XmlWriter::colorPartToString(
+	const int value
+)
 {
-    QString colorStr;
-
-    if (color.isValid()) {
-      colorStr = QString("#%1%2%3").arg(colorPartToString(color.red()))
-              .arg(colorPartToString(color.green()))
-              .arg(colorPartToString(color.blue()));
-    }
-
-    writeString(qualifiedName, colorStr);
+	QString str_ = QString::number(
+		value,
+		16
+	).toUpper();
+	if(str_.length() == 1)
+	{
+		str_.prepend(
+			"0"
+		);
+	}
+	return str_;
 }
 
-void KeePass2XmlWriter::writeTriState(const QString& qualifiedName, Group::TriState triState)
+QString KeePass2XmlWriter::stripInvalidXml10Chars(
+	const QString &str
+)
 {
-    QString value;
-
-    if (triState == Group::Inherit) {
-        value = "null";
-    }
-    else if (triState == Group::Enable) {
-        value = "true";
-    }
-    else {
-        value = "false";
-    }
-
-    writeString(qualifiedName, value);
+	QString result_;
+	result_.reserve(
+		str.size()
+	); // Reserve space to avoid reallocations
+	for(auto i_ = 0; i_ < str.size(); ++i_)
+	{
+		const QChar ch_ = str.at(
+			i_
+		);
+		if(const ushort uc_ = ch_.unicode();
+			(uc_ >= 0x20 && uc_ <= 0xD7FF) ||
+			// Valid XML 1.0 range (excluding surrogates)
+			(uc_ >= 0xE000 && uc_ <= 0xFFFD) ||
+			// Valid XML 1.0 range (excluding surrogates)
+			uc_ == 0x9 || uc_ == 0xA || uc_ == 0xD)
+		{
+			// Allowed whitespace
+			result_.append(
+				ch_
+			);
+			// Handle potential surrogate pairs
+			if(ch_.isHighSurrogate() && i_ < str.size() - 1)
+			{
+				if(const QChar nextCh_ = str.at(
+						i_ + 1
+					);
+					nextCh_.isLowSurrogate())
+				{
+					result_.append(
+						nextCh_
+					);
+					++i_; // Skip the low surrogate in the next iteration
+				}
+			}
+		}
+		else
+		{
+			qWarning(
+				"Stripping invalid XML 1.0 codepoint %x",
+				uc_
+			);
+		}
+	}
+	return result_;
 }
 
-QString KeePass2XmlWriter::colorPartToString(int value)
+void KeePass2XmlWriter::raiseError(
+	const QString &errorMessage
+)
 {
-    QString str = QString::number(value, 16).toUpper();
-    if (str.length() == 1) {
-        str.prepend("0");
-    }
-
-    return str;
-}
-
-QString KeePass2XmlWriter::stripInvalidXml10Chars(QString str)
-{
-    for (int i = str.size() - 1; i >= 0; i--) {
-        const QChar ch = str.at(i);
-        const ushort uc = ch.unicode();
-
-        if (ch.isLowSurrogate() && i != 0 && str.at(i - 1).isHighSurrogate()) {
-            // keep valid surrogate pair
-            i--;
-        }
-        else if ((uc < 0x20 && uc != 0x09 && uc != 0x0A && uc != 0x0D)  // control chracters
-                 || (uc >= 0x7F && uc <= 0x84)  // control chracters, valid but discouraged by XML
-                 || (uc >= 0x86 && uc <= 0x9F)  // control chracters, valid but discouraged by XML
-                 || (uc > 0xFFFD)               // noncharacter
-                 || ch.isLowSurrogate()         // single low surrogate
-                 || ch.isHighSurrogate())       // single high surrogate
-        {
-            qWarning("Stripping invalid XML 1.0 codepoint %x", uc);
-            str.remove(i, 1);
-        }
-    }
-
-    return str;
-}
-
-void KeePass2XmlWriter::raiseError(const QString& errorMessage)
-{
-    m_error = true;
-    m_errorStr = errorMessage;
+	qCritical() << errorMessage;
+	this->error = true;
+	this->errorStr = errorMessage;
 }

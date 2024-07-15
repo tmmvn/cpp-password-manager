@@ -14,307 +14,445 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "Database.h"
-
 #include <QFile>
 #include <QTimer>
 #include <QXmlStreamReader>
-
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "crypto/Random.h"
 #include "format/KeePass2.h"
-
-QHash<Uuid, Database*> Database::m_uuidMap;
+QHash<UUID, Database*> Database::uuidMap;
 
 Database::Database()
-    : m_metadata(new Metadata(this))
-    , m_timer(new QTimer(this))
-    , m_emitModified(false)
-    , m_uuid(Uuid::random())
+	: metadata(
+		new Metadata(
+			this
+		)
+	),
+	timer(
+		new QTimer(
+			this
+		)
+	),
+	emitModified(
+		false
+	),
+	uuid(
+		UUID::random()
+	)
 {
-    m_data.cipher = KeePass2::CIPHER_AES;
-    m_data.compressionAlgo = CompressionGZip;
-    m_data.transformRounds = 100000;
-    m_data.hasKey = false;
-
-    setRootGroup(new Group());
-    rootGroup()->setUuid(Uuid::random());
-    m_timer->setSingleShot(true);
-
-    m_uuidMap.insert(m_uuid, this);
-
-    connect(m_metadata, SIGNAL(modified()), this, SIGNAL(modifiedImmediate()));
-    connect(m_metadata, SIGNAL(nameTextChanged()), this, SIGNAL(nameTextChanged()));
-    connect(this, SIGNAL(modifiedImmediate()), this, SLOT(startModifiedTimer()));
-    connect(m_timer, SIGNAL(timeout()), SIGNAL(modified()));
+	this->data.cipher = KeePass2::CIPHER_AES;
+	this->data.compressionAlgo = CompressionGZip;
+	this->data.transformRounds = 100000;
+	this->data.hasKey = false;
+	this->setRootGroup(
+		new Group()
+	);
+	this->getRootGroup()->setUuid(
+		UUID::random()
+	);
+	this->timer->setSingleShot(
+		true
+	);
+	this->uuidMap.insert(
+		this->uuid,
+		this
+	);
+	this->connect(
+		this->metadata,
+		&Metadata::sig_modified,
+		this,
+		&Database::sig_modifiedImmediate
+	);
+	this->connect(
+		this->metadata,
+		&Metadata::sig_nameTextChanged,
+		this,
+		&Database::sig_nameTextChanged
+	);
+	this->connect(
+		this,
+		&Database::sig_modifiedImmediate,
+		this,
+		&Database::do_startModifiedTimer
+	);
+	this->connect(
+		this->timer,
+		&QTimer::timeout,
+		this,
+		&Database::sig_modified
+	);
 }
 
 Database::~Database()
 {
-    m_uuidMap.remove(m_uuid);
+	this->uuidMap.remove(
+		this->uuid
+	);
 }
 
-Group* Database::rootGroup()
+Group* Database::getRootGroup()
 {
-    return m_rootGroup;
+	return this->rootGroup;
 }
 
-const Group* Database::rootGroup() const
+const Group* Database::getRootGroup() const
 {
-    return m_rootGroup;
+	return this->rootGroup;
 }
 
-void Database::setRootGroup(Group* group)
+void Database::setRootGroup(
+	Group* group
+)
 {
-    Q_ASSERT(group);
-
-    m_rootGroup = group;
-    m_rootGroup->setParent(this);
+	if(group == nullptr)
+	{
+		return;
+	}
+	this->rootGroup = group;
+	this->rootGroup->setParent(
+		this
+	);
 }
 
-Metadata* Database::metadata()
+Metadata* Database::getMetadata()
 {
-    return m_metadata;
+	return this->metadata;
 }
 
-const Metadata* Database::metadata() const
+const Metadata* Database::getMetadata() const
 {
-    return m_metadata;
+	return this->metadata;
 }
 
-Entry* Database::resolveEntry(const Uuid& uuid)
+Entry* Database::resolveEntry(
+	const UUID &uuid
+)
 {
-    return recFindEntry(uuid, m_rootGroup);
+	return this->recFindEntry(
+		uuid,
+		this->rootGroup
+	);
 }
 
-Entry* Database::recFindEntry(const Uuid& uuid, Group* group)
+Entry* Database::recFindEntry(
+	const UUID &uuid,
+	Group* group
+)
 {
-    const QList<Entry*> entryList = group->entries();
-    for (Entry* entry : entryList) {
-        if (entry->uuid() == uuid) {
-            return entry;
-        }
-    }
-
-    const QList<Group*> children = group->children();
-    for (Group* child : children) {
-        Entry* result = recFindEntry(uuid, child);
-        if (result) {
-            return result;
-        }
-    }
-
-    return nullptr;
+	const QList<Entry*> entryList_ = group->getEntries();
+	for(Entry* entry_: entryList_)
+	{
+		if(entry_->getUUID() == uuid)
+		{
+			return entry_;
+		}
+	}
+	const QList<Group*> children_ = group->getChildren();
+	for(Group* child_: children_)
+	{
+		if(Entry* result_ = this->recFindEntry(
+			uuid,
+			child_
+		))
+		{
+			return result_;
+		}
+	}
+	return nullptr;
 }
 
-Group* Database::resolveGroup(const Uuid& uuid)
+Group* Database::resolveGroup(
+	const UUID &uuid
+)
 {
-    return recFindGroup(uuid, m_rootGroup);
+	return this->recFindGroup(
+		uuid,
+		this->rootGroup
+	);
 }
 
-Group* Database::recFindGroup(const Uuid& uuid, Group* group)
+Group* Database::recFindGroup(
+	const UUID &uuid,
+	Group* group
+)
 {
-    if (group->uuid() == uuid) {
-        return group;
-    }
-
-    const QList<Group*> children = group->children();
-    for (Group* child : children) {
-        Group* result = recFindGroup(uuid, child);
-        if (result) {
-            return result;
-        }
-    }
-
-    return nullptr;
+	if(group->getUUID() == uuid)
+	{
+		return group;
+	}
+	const QList<Group*> children_ = group->getChildren();
+	for(Group* child_: children_)
+	{
+		if(Group* result_ = this->recFindGroup(
+			uuid,
+			child_
+		))
+		{
+			return result_;
+		}
+	}
+	return nullptr;
 }
 
-QList<DeletedObject> Database::deletedObjects()
+QList<DeletedObject> Database::getDeletedObjects()
 {
-    return m_deletedObjects;
+	return this->deletedObjects;
 }
 
-void Database::addDeletedObject(const DeletedObject& delObj)
+void Database::addDeletedObject(
+	const DeletedObject &delObj
+)
 {
-    Q_ASSERT(delObj.deletionTime.timeSpec() == Qt::UTC);
-    m_deletedObjects.append(delObj);
+	if(delObj.deletionTime.timeSpec() != Qt::UTC)
+	{
+		return;
+	}
+	this->deletedObjects.append(
+		delObj
+	);
 }
 
-void Database::addDeletedObject(const Uuid& uuid)
+void Database::addDeletedObject(
+	const UUID &uuid
+)
 {
-    DeletedObject delObj;
-    delObj.deletionTime = QDateTime::currentDateTimeUtc();
-    delObj.uuid = uuid;
-
-    addDeletedObject(delObj);
+	DeletedObject delObj_;
+	delObj_.deletionTime = QDateTime::currentDateTimeUtc();
+	delObj_.uuid = uuid;
+	this->addDeletedObject(
+		delObj_
+	);
 }
 
-Uuid Database::cipher() const
+UUID Database::getCipher() const
 {
-    return m_data.cipher;
+	return this->data.cipher;
 }
 
-Database::CompressionAlgorithm Database::compressionAlgo() const
+Database::CompressionAlgorithm Database::getCompressionAlgo() const
 {
-    return m_data.compressionAlgo;
+	return this->data.compressionAlgo;
 }
 
 QByteArray Database::transformSeed() const
 {
-    return m_data.transformSeed;
+	return this->data.transformSeed;
 }
 
 quint64 Database::transformRounds() const
 {
-    return m_data.transformRounds;
+	return this->data.transformRounds;
 }
 
 QByteArray Database::transformedMasterKey() const
 {
-    return m_data.transformedMasterKey;
+	return this->data.transformedMasterKey;
 }
 
-void Database::setCipher(const Uuid& cipher)
+void Database::setCipher(
+	const UUID &cipher
+)
 {
-    Q_ASSERT(!cipher.isNull());
-
-    m_data.cipher = cipher;
+	if(cipher.isNull())
+	{
+		return;
+	}
+	this->data.cipher = cipher;
 }
 
-void Database::setCompressionAlgo(Database::CompressionAlgorithm algo)
+void Database::setCompressionAlgo(
+	const CompressionAlgorithm algo
+)
 {
-    Q_ASSERT(static_cast<quint32>(algo) <= CompressionAlgorithmMax);
-
-    m_data.compressionAlgo = algo;
+	if(static_cast<quint32>(algo) > CompressionAlgorithmMax)
+	{
+		return;
+	}
+	this->data.compressionAlgo = algo;
 }
 
-bool Database::setTransformRounds(quint64 rounds)
+bool Database::setTransformRounds(
+	const quint64 rounds
+)
 {
-    if (m_data.transformRounds != rounds) {
-        quint64 oldRounds = m_data.transformRounds;
-
-        m_data.transformRounds = rounds;
-
-        if (m_data.hasKey) {
-            if (!setKey(m_data.key)) {
-                m_data.transformRounds = oldRounds;
-                return false;
-            }
-        }
-    }
-
-    return true;
+	if(this->data.transformRounds != rounds)
+	{
+		const quint64 oldRounds_ = this->data.transformRounds;
+		this->data.transformRounds = rounds;
+		if(this->data.hasKey)
+		{
+			if(!this->setKey(
+				this->data.key
+			))
+			{
+				this->data.transformRounds = oldRounds_;
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
-bool Database::setKey(const CompositeKey& key, const QByteArray& transformSeed,
-                      bool updateChangedTime)
+bool Database::setKey(
+	const CompositeKey &key,
+	const QByteArray &transformSeed,
+	const bool updateChangedTime
+)
 {
-    bool ok;
-    QString errorString;
-
-    QByteArray transformedMasterKey =
-            key.transform(transformSeed, transformRounds(), &ok, &errorString);
-    if (!ok) {
-        return false;
-    }
-
-    m_data.key = key;
-    m_data.transformSeed = transformSeed;
-    m_data.transformedMasterKey = transformedMasterKey;
-    m_data.hasKey = true;
-    if (updateChangedTime) {
-        m_metadata->setMasterKeyChanged(QDateTime::currentDateTimeUtc());
-    }
-    Q_EMIT modifiedImmediate();
-
-    return true;
+	bool ok_;
+	QString errorString_;
+	const QByteArray transformedMasterKey_ = key.transform(
+		transformSeed,
+		this->transformRounds(),
+		&ok_,
+		&errorString_
+	);
+	if(!ok_)
+	{
+		return false;
+	}
+	this->data.key = key;
+	this->data.transformSeed = transformSeed;
+	this->data.transformedMasterKey = transformedMasterKey_;
+	this->data.hasKey = true;
+	if(updateChangedTime)
+	{
+		this->metadata->setMasterKeyChanged(
+			QDateTime::currentDateTimeUtc()
+		);
+	}
+	sig_modifiedImmediate();
+	return true;
 }
 
-bool Database::setKey(const CompositeKey& key)
+bool Database::setKey(
+	const CompositeKey &key
+)
 {
-    return setKey(key, randomGen()->randomArray(32));
+	return this->setKey(
+		key,
+		Random::getInstance()->getRandomArray(
+			32
+		)
+	);
 }
 
 bool Database::hasKey() const
 {
-    return m_data.hasKey;
+	return this->data.hasKey;
 }
 
-bool Database::verifyKey(const CompositeKey& key) const
+bool Database::verifyKey(
+	const CompositeKey &key
+) const
 {
-    Q_ASSERT(hasKey());
-
-    return (m_data.key.rawKey() == key.rawKey());
+	if(!this->hasKey())
+	{
+		return false;
+	}
+	return (this->data.key.rawKey() == key.rawKey());
 }
 
 void Database::createRecycleBin()
 {
-    Group* recycleBin = Group::createRecycleBin();
-    recycleBin->setParent(rootGroup());
-    m_metadata->setRecycleBin(recycleBin);
+	Group* recycleBin_ = Group::createRecycleBin();
+	recycleBin_->setParent(
+		this->getRootGroup()
+	);
+	this->metadata->setRecycleBin(
+		recycleBin_
+	);
 }
 
-void Database::recycleEntry(Entry* entry)
+void Database::recycleEntry(
+	Entry* entry
+)
 {
-    if (m_metadata->recycleBinEnabled()) {
-        if (!m_metadata->recycleBin()) {
-            createRecycleBin();
-        }
-        entry->setGroup(metadata()->recycleBin());
-    }
-    else {
-        delete entry;
-    }
+	if(this->metadata->recycleBinEnabled())
+	{
+		if(!this->metadata->getRecycleBin())
+		{
+			this->createRecycleBin();
+		}
+		entry->setGroup(
+			this->getMetadata()->getRecycleBin()
+		);
+	}
+	else
+	{
+		delete entry;
+	}
 }
 
-void Database::recycleGroup(Group* group)
+void Database::recycleGroup(
+	Group* group
+)
 {
-     if (m_metadata->recycleBinEnabled()) {
-        if (!m_metadata->recycleBin()) {
-            createRecycleBin();
-        }
-        group->setParent(metadata()->recycleBin());
-    }
-    else {
-        delete group;
-     }
+	if(this->metadata->recycleBinEnabled())
+	{
+		if(!this->metadata->getRecycleBin())
+		{
+			this->createRecycleBin();
+		}
+		group->setParent(
+			this->getMetadata()->getRecycleBin()
+		);
+	}
+	else
+	{
+		delete group;
+	}
 }
 
-void Database::setEmitModified(bool value)
+void Database::setEmitModified(
+	const bool value
+)
 {
-    if (m_emitModified && !value) {
-        m_timer->stop();
-    }
-
-    m_emitModified = value;
+	if(this->emitModified && !value)
+	{
+		this->timer->stop();
+	}
+	this->emitModified = value;
 }
 
-void Database::copyAttributesFrom(const Database* other)
+void Database::copyAttributesFrom(
+	const Database* other
+)
 {
-    m_data = other->m_data;
-    m_metadata->copyAttributesFrom(other->m_metadata);
+	this->data = other->data;
+	this->metadata->copyAttributesFrom(
+		other->metadata
+	);
 }
 
-Uuid Database::uuid()
+UUID Database::getUUID()
 {
-    return m_uuid;
+	return uuid;
 }
 
-Database* Database::databaseByUuid(const Uuid& uuid)
+Database* Database::databaseByUUID(
+	const UUID &uuid
+)
 {
-    return m_uuidMap.value(uuid, 0);
+	return uuidMap.value(
+		uuid,
+		nullptr
+	);
 }
 
-void Database::startModifiedTimer()
+void Database::do_startModifiedTimer() const
 {
-    if (!m_emitModified) {
-        return;
-    }
-
-    if (m_timer->isActive()) {
-        m_timer->stop();
-    }
-    m_timer->start(150);
+	if(!this->emitModified)
+	{
+		return;
+	}
+	if(this->timer->isActive())
+	{
+		this->timer->stop();
+	}
+	this->timer->start(
+		150
+	);
 }

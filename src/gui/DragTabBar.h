@@ -14,32 +14,34 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_DRAGTABBAR_H
 #define KEEPASSX_DRAGTABBAR_H
-
 #include <QTabBar>
 
-class DragTabBar : public QTabBar
+class DragTabBar final:public QTabBar
 {
-    Q_OBJECT
-
-public:
-    explicit DragTabBar(QWidget* parent = nullptr);
-
+	Q_OBJECT public:
+	explicit DragTabBar(
+		QWidget* parent = nullptr
+	);
 protected:
-    void dragEnterEvent(QDragEnterEvent* event) override;
-    void dragMoveEvent(QDragMoveEvent* event) override;
-    void dragLeaveEvent(QDragLeaveEvent* event) override;
-    void dropEvent(QDropEvent* event) override;
-    void tabLayoutChange() override;
-
+	virtual void dragEnterEvent(
+		QDragEnterEvent* event
+	) override;
+	virtual void dragMoveEvent(
+		QDragMoveEvent* event
+	) override;
+	virtual void dragLeaveEvent(
+		QDragLeaveEvent* event
+	) override;
+	virtual void dropEvent(
+		QDropEvent* event
+	) override;
+	virtual void tabLayoutChange() override;
 private Q_SLOTS:
-    void dragSwitchTab();
-
+	void do_dragSwitchTab();
 private:
-    QTimer* const m_tabSwitchTimer;
-    int m_tabSwitchIndex;
+	QTimer* const tabSwitchTimer;
+	int tabSwitchIndex;
 };
-
 #endif // KEEPASSX_DRAGTABBAR_H

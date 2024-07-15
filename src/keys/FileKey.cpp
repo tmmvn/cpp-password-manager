@@ -14,12 +14,9 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "FileKey.h"
-
 #include <QFile>
 #include <QXmlStreamReader>
-
 #include "core/Tools.h"
 #include "crypto/CryptoHash.h"
 #include "crypto/Random.h"
@@ -28,253 +25,342 @@ FileKey::FileKey()
 {
 }
 
-bool FileKey::load(QIODevice* device)
+bool FileKey::load(
+	QIODevice* device
+)
 {
-    // we may need to read the file multiple times
-    if (device->isSequential()) {
-        return false;
-    }
-
-    if (device->size() == 0) {
-        return false;
-    }
-
-    // try different key file formats
-
-    if (!device->reset()) {
-        return false;
-    }
-    if (loadXml(device)) {
-        return true;
-    }
-
-    if (!device->reset()) {
-        return false;
-    }
-    if (loadBinary(device)) {
-        return true;
-    }
-
-    if (!device->reset()) {
-        return false;
-    }
-    if (loadHex(device)) {
-        return true;
-    }
-
-    if (!device->reset()) {
-        return false;
-    }
-    if (loadHashed(device)) {
-        return true;
-    }
-
-    return false;
+	// we may need to read the file multiple times
+	if(device->isSequential())
+	{
+		return false;
+	}
+	if(device->size() == 0)
+	{
+		return false;
+	}
+	// try different key file formats
+	if(!device->reset())
+	{
+		return false;
+	}
+	if(this->loadXml(
+		device
+	))
+	{
+		return true;
+	}
+	if(!device->reset())
+	{
+		return false;
+	}
+	if(this->loadBinary(
+		device
+	))
+	{
+		return true;
+	}
+	if(!device->reset())
+	{
+		return false;
+	}
+	if(this->loadHex(
+		device
+	))
+	{
+		return true;
+	}
+	if(!device->reset())
+	{
+		return false;
+	}
+	if(this->loadHashed(
+		device
+	))
+	{
+		return true;
+	}
+	return false;
 }
 
-bool FileKey::load(const QString& fileName, QString* errorMsg)
+bool FileKey::load(
+	const QString &fileName,
+	QString* errorMsg
+)
 {
-    QFile file(fileName);
-    if (!file.open(QFile::ReadOnly)) {
-        if (errorMsg) {
-            *errorMsg = file.errorString();
-        }
-        return false;
-    }
-    bool result = load(&file);
-
-    file.close();
-
-    if (file.error()) {
-        result = false;
-        if (errorMsg) {
-            *errorMsg = file.errorString();
-        }
-    }
-
-    return result;
+	QFile file_(
+		fileName
+	);
+	if(!file_.open(
+		QFile::ReadOnly
+	))
+	{
+		if(errorMsg)
+		{
+			*errorMsg = file_.errorString();
+		}
+		return false;
+	}
+	bool result_ = load(
+		&file_
+	);
+	file_.close();
+	if(file_.error())
+	{
+		result_ = false;
+		if(errorMsg)
+		{
+			*errorMsg = file_.errorString();
+		}
+	}
+	return result_;
 }
 
 QByteArray FileKey::rawKey() const
 {
-    return m_key;
+	return this->key;
 }
 
 FileKey* FileKey::clone() const
 {
-    return new FileKey(*this);
+	return new FileKey(
+		*this
+	);
 }
 
-void FileKey::create(QIODevice* device)
+void FileKey::create(
+	QIODevice* device
+)
 {
-    QXmlStreamWriter xmlWriter(device);
-
-    xmlWriter.writeStartDocument("1.0");
-
-    xmlWriter.writeStartElement("KeyFile");
-
-    xmlWriter.writeStartElement("Meta");
-
-    xmlWriter.writeTextElement("Version", "1.00");
-
-    xmlWriter.writeEndElement();
-
-    xmlWriter.writeStartElement("Key");
-
-    QByteArray data = randomGen()->randomArray(32);
-    xmlWriter.writeTextElement("Data", QString::fromLatin1(data.toBase64()));
-
-    xmlWriter.writeEndElement();
-
-    xmlWriter.writeEndDocument();
+	QXmlStreamWriter xmlWriter_(
+		device
+	);
+	xmlWriter_.writeStartDocument(
+		"1.0"
+	);
+	xmlWriter_.writeStartElement(
+		"KeyFile"
+	);
+	xmlWriter_.writeStartElement(
+		"Meta"
+	);
+	xmlWriter_.writeTextElement(
+		"Version",
+		"1.00"
+	);
+	xmlWriter_.writeEndElement();
+	xmlWriter_.writeStartElement(
+		"Key"
+	);
+	const QByteArray data_ = Random::getInstance()->getRandomArray(
+		32
+	);
+	xmlWriter_.writeTextElement(
+		"Data",
+		QString::fromLatin1(
+			data_.toBase64()
+		)
+	);
+	xmlWriter_.writeEndElement();
+	xmlWriter_.writeEndDocument();
 }
 
-bool FileKey::create(const QString& fileName, QString* errorMsg)
+bool FileKey::create(
+	const QString &fileName,
+	QString* errorMsg
+)
 {
-    QFile file(fileName);
-    if (!file.open(QFile::WriteOnly)) {
-        if (errorMsg) {
-            *errorMsg = file.errorString();
-        }
-        return false;
-    }
-    create(&file);
-
-    file.close();
-
-    if (file.error()) {
-        if (errorMsg) {
-            *errorMsg = file.errorString();
-        }
-
-        return false;
-    }
-    else {
-        return true;
-    }
+	QFile file_(
+		fileName
+	);
+	if(!file_.open(
+		QFile::WriteOnly
+	))
+	{
+		if(errorMsg)
+		{
+			*errorMsg = file_.errorString();
+		}
+		return false;
+	}
+	create(
+		&file_
+	);
+	file_.close();
+	if(file_.error())
+	{
+		if(errorMsg)
+		{
+			*errorMsg = file_.errorString();
+		}
+		return false;
+	}
+	return true;
 }
 
-bool FileKey::loadXml(QIODevice* device)
+bool FileKey::loadXml(
+	QIODevice* device
+)
 {
-    QXmlStreamReader xmlReader(device);
-
-    if (!xmlReader.error() && xmlReader.readNextStartElement()) {
-        if (xmlReader.name() != "KeyFile") {
-            return false;
-        }
-    }
-    else {
-        return false;
-    }
-
-    bool correctMeta = false;
-    QByteArray data;
-
-    while (!xmlReader.error() && xmlReader.readNextStartElement()) {
-        if (xmlReader.name() == "Meta") {
-            correctMeta = loadXmlMeta(xmlReader);
-        }
-        else if (xmlReader.name() == "Key") {
-            data = loadXmlKey(xmlReader);
-        }
-    }
-
-    if (!xmlReader.error() && correctMeta && !data.isEmpty()) {
-        m_key = data;
-        return true;
-    }
-    else {
-        return false;
-    }
+	QXmlStreamReader xmlReader_(
+		device
+	);
+	if(!xmlReader_.error() && xmlReader_.readNextStartElement())
+	{
+		if(xmlReader_.name().toString() != "KeyFile")
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+	auto correctMeta_ = false;
+	QByteArray data_;
+	while(!xmlReader_.error() && xmlReader_.readNextStartElement())
+	{
+		if(xmlReader_.name().toString() == "Meta")
+		{
+			correctMeta_ = loadXmlMeta(
+				xmlReader_
+			);
+		}
+		else if(xmlReader_.name().toString() == "Key")
+		{
+			data_ = loadXmlKey(
+				xmlReader_
+			);
+		}
+	}
+	if(!xmlReader_.error() && correctMeta_ && !data_.isEmpty())
+	{
+		key = data_;
+		return true;
+	}
+	return false;
 }
 
-bool FileKey::loadXmlMeta(QXmlStreamReader& xmlReader)
+bool FileKey::loadXmlMeta(
+	QXmlStreamReader &xmlReader
+)
 {
-    bool corectVersion = false;
-
-    while (!xmlReader.error() && xmlReader.readNextStartElement()) {
-        if (xmlReader.name() == "Version") {
-            // TODO: error message about incompatible key file version
-            if (xmlReader.readElementText() == "1.00") {
-                corectVersion = true;
-            }
-        }
-    }
-
-    return corectVersion;
+	auto corectVersion_ = false;
+	while(!xmlReader.error() && xmlReader.readNextStartElement())
+	{
+		if(xmlReader.name().toString() == "Version")
+		{
+			// TODO: error message about incompatible key file version
+			if(xmlReader.readElementText() == "1.00")
+			{
+				corectVersion_ = true;
+			}
+		}
+	}
+	return corectVersion_;
 }
 
-QByteArray FileKey::loadXmlKey(QXmlStreamReader& xmlReader)
+QByteArray FileKey::loadXmlKey(
+	QXmlStreamReader &xmlReader
+)
 {
-    QByteArray data;
-
-    while (!xmlReader.error() && xmlReader.readNextStartElement()) {
-        if (xmlReader.name() == "Data") {
-            // TODO: do we need to enforce a specific data.size()?
-            QByteArray rawData = xmlReader.readElementText().toLatin1();
-            if (Tools::isBase64(rawData)) {
-                data = QByteArray::fromBase64(rawData);
-            }
-        }
-    }
-
-    return data;
+	QByteArray data_;
+	while(!xmlReader.error() && xmlReader.readNextStartElement())
+	{
+		if(xmlReader.name().toString() == "Data")
+		{
+			// TODO: do we need to enforce a specific data.size()?
+			if(QByteArray rawData_ = xmlReader.readElementText().toLatin1();
+				Tools::isBase64(
+					rawData_
+				))
+			{
+				data_ = QByteArray::fromBase64(
+					rawData_
+				);
+			}
+		}
+	}
+	return data_;
 }
 
-bool FileKey::loadBinary(QIODevice* device)
+bool FileKey::loadBinary(
+	QIODevice* device
+)
 {
-    if (device->size() != 32) {
-        return false;
-    }
-
-    QByteArray data;
-    if (!Tools::readAllFromDevice(device, data) || data.size() != 32) {
-        return false;
-    }
-    else {
-        m_key = data;
-        return true;
-    }
+	if(device->size() != 32)
+	{
+		return false;
+	}
+	if(QByteArray data_;
+		!Tools::readAllFromDevice(
+			device,
+			data_
+		) || data_.size() != 32)
+	{
+		return false;
+	}
+	else
+	{
+		this->key = data_;
+		return true;
+	}
 }
 
-bool FileKey::loadHex(QIODevice* device)
+bool FileKey::loadHex(
+	QIODevice* device
+)
 {
-    if (device->size() != 64) {
-        return false;
-    }
-
-    QByteArray data;
-    if (!Tools::readAllFromDevice(device, data) || data.size() != 64) {
-        return false;
-    }
-
-    if (!Tools::isHex(data)) {
-        return false;
-    }
-
-    QByteArray key = QByteArray::fromHex(data);
-
-    if (key.size() != 32) {
-        return false;
-    }
-
-    m_key = key;
-    return true;
+	if(device->size() != 64)
+	{
+		return false;
+	}
+	QByteArray data_;
+	if(!Tools::readAllFromDevice(
+		device,
+		data_
+	) || data_.size() != 64)
+	{
+		return false;
+	}
+	if(!Tools::isHex(
+		data_
+	))
+	{
+		return false;
+	}
+	const QByteArray key_ = QByteArray::fromHex(
+		data_
+	);
+	if(key_.size() != 32)
+	{
+		return false;
+	}
+	this->key = key_;
+	return true;
 }
 
-bool FileKey::loadHashed(QIODevice* device)
+bool FileKey::loadHashed(
+	QIODevice* device
+)
 {
-    CryptoHash cryptoHash(CryptoHash::Sha256);
-
-    QByteArray buffer;
-    do {
-        if (!Tools::readFromDevice(device, buffer)) {
-            return false;
-        }
-        cryptoHash.addData(buffer);
-    } while (!buffer.isEmpty());
-
-    m_key = cryptoHash.result();
-
-    return true;
+	CryptoHash cryptoHash_(
+		CryptoHash::Sha256
+	);
+	QByteArray buffer_;
+	do
+	{
+		if(!Tools::readFromDevice(
+			device,
+			buffer_
+		))
+		{
+			return false;
+		}
+		cryptoHash_.addData(
+			buffer_
+		);
+	}
+	while(!buffer_.isEmpty());
+	this->key = cryptoHash_.getResult();
+	return true;
 }

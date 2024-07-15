@@ -15,25 +15,34 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "ToDbExporter.h"
 #include "core/Database.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 
-Database* ToDbExporter::exportGroup(Group* group)
+Database* ToDbExporter::exportGroup(
+	Group* group
+)
 {
-    Database* oldDb = group->database();
-    Q_ASSERT(oldDb);
-
-    Database* db = new Database();
-    Group* clonedGroup = group->clone(Entry::CloneNewUuid | Entry::CloneIncludeHistory);
-    clonedGroup->setParent(db->rootGroup());
-
-    QSet<Uuid> customIcons = group->customIconsRecursive();
-    db->metadata()->copyCustomIcons(customIcons, oldDb->metadata());
-
-    db->copyAttributesFrom(oldDb);
-
-    return db;
+	Database* oldDb_ = group->getDatabase();
+	if(oldDb_ == nullptr)
+	{
+		return nullptr;
+	}
+	const auto db_ = new Database();
+	Group* clonedGroup_ = group->clone(
+		Entry::CloneNewUuid | Entry::CloneIncludeHistory
+	);
+	clonedGroup_->setParent(
+		db_->getRootGroup()
+	);
+	const QSet<UUID> customIcons_ = group->getCustomIconsRecursive();
+	db_->getMetadata()->copyCustomIcons(
+		customIcons_,
+		oldDb_->getMetadata()
+	);
+	db_->copyAttributesFrom(
+		oldDb_
+	);
+	return db_;
 }

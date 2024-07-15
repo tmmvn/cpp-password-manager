@@ -14,26 +14,22 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTDELETEDOBJECTS_H
 #define KEEPASSX_TESTDELETEDOBJECTS_H
-
 #include <QObject>
-
 class Database;
 
-class TestDeletedObjects : public QObject
+class TestDeletedObjects:public QObject
 {
-    Q_OBJECT
-
-private:
-    void createAndDelete(Database* db, int delObjectsSize);
-
+	Q_OBJECT private:
+	void createAndDelete(
+		Database* db,
+		int delObjectsSize
+	);
 private Q_SLOTS:
-    void initTestCase();
-    void testDeletedObjectsFromFile();
-    void testDeletedObjectsFromNewDb();
-    void testDatabaseChange();
+	void initTestCase();
+	void testDeletedObjectsFromFile();
+	void testDeletedObjectsFromNewDb();
+	void testDatabaseChange();
 };
-
 #endif // KEEPASSX_TESTDELETEDOBJECTS_H

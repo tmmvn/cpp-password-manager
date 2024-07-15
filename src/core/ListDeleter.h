@@ -14,23 +14,29 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_LISTDELETER_H
 #define KEEPASSX_LISTDELETER_H
-
 #include <QList>
 
-template <typename T>
-class ListDeleter
+template<typename T> class ListDeleter
 {
 public:
-    inline explicit ListDeleter(QList<T>* list) : m_list(list) {}
-    inline ~ListDeleter() {
-        qDeleteAll(*m_list);
-    }
+	explicit ListDeleter(
+		QList<T>* list
+	)
+		: list(
+			list
+		)
+	{
+	}
 
+	~ListDeleter()
+	{
+		qDeleteAll(
+			*list
+		);
+	}
 private:
-    QList<T>* m_list;
+	QList<T>* list;
 };
-
 #endif // KEEPASSX_LISTDELETER_H

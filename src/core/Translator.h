@@ -14,23 +14,26 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TRANSLATOR_H
 #define KEEPASSX_TRANSLATOR_H
-
 #include <QPair>
 #include <QString>
 
 class Translator
 {
 public:
-    static void installTranslator();
-    static QList<QPair<QString, QString> > availableLanguages();
-
+	static void installTranslator();
+	static QList<QPair<QString, QString>> availableLanguages();
 private:
-    static bool installTranslator(const QString& language);
-    static bool installTranslator(const QString& language, const QString& path);
-    static bool installQtTranslator(const QString& language);
+	static bool installTranslator(
+		const QString &language
+	);
+	static bool installTranslator(
+		const QString &language,
+		const QString &path
+	);
+	static bool installQtTranslator(
+		const QString &language
+	);
 };
-
 #endif // KEEPASSX_TRANSLATOR_H

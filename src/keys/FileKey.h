@@ -14,36 +14,51 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_FILEKEY_H
 #define KEEPASSX_FILEKEY_H
-
 #include <QXmlStreamReader>
-
 #include "keys/Key.h"
-
 class QIODevice;
 
-class FileKey : public Key
+class FileKey final:public Key
 {
 public:
-    FileKey();
-    bool load(QIODevice* device);
-    bool load(const QString& fileName, QString* errorMsg = nullptr);
-    QByteArray rawKey() const;
-    FileKey* clone() const;
-    static void create(QIODevice* device);
-    static bool create(const QString& fileName, QString* errorMsg = nullptr);
-
+	FileKey();
+	bool load(
+		QIODevice* device
+	);
+	bool load(
+		const QString &fileName,
+		QString* errorMsg = nullptr
+	);
+	virtual QByteArray rawKey() const override;
+	virtual FileKey* clone() const override;
+	static void create(
+		QIODevice* device
+	);
+	static bool create(
+		const QString &fileName,
+		QString* errorMsg = nullptr
+	);
 private:
-    bool loadXml(QIODevice* device);
-    bool loadXmlMeta(QXmlStreamReader& xmlReader);
-    QByteArray loadXmlKey(QXmlStreamReader& xmlReader);
-    bool loadBinary(QIODevice* device);
-    bool loadHex(QIODevice* device);
-    bool loadHashed(QIODevice* device);
-
-    QByteArray m_key;
+	bool loadXml(
+		QIODevice* device
+	);
+	static bool loadXmlMeta(
+		QXmlStreamReader &xmlReader
+	);
+	static QByteArray loadXmlKey(
+		QXmlStreamReader &xmlReader
+	);
+	bool loadBinary(
+		QIODevice* device
+	);
+	bool loadHex(
+		QIODevice* device
+	);
+	bool loadHashed(
+		QIODevice* device
+	);
+	QByteArray key;
 };
-
 #endif // KEEPASSX_FILEKEY_H

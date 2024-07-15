@@ -14,57 +14,97 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "TimeDelta.h"
-
 #include <QDateTime>
 
-QDateTime operator+(const QDateTime& dateTime, const TimeDelta& delta) {
-    return dateTime.addDays(delta.getDays())
-           .addMonths(delta.getMonths())
-           .addYears(delta.getYears());
+QDateTime operator+(
+	const QDateTime &dateTime,
+	const TimeDelta &delta
+)
+{
+	return dateTime.addDays(
+		delta.getDays()
+	).addMonths(
+		delta.getMonths()
+	).addYears(
+		delta.getYears()
+	);
 }
 
-TimeDelta TimeDelta::fromDays(int days)
+TimeDelta TimeDelta::fromDays(
+	const int days
+)
 {
-    return TimeDelta(days, 0, 0);
+	return TimeDelta(
+		days,
+		0,
+		0
+	);
 }
 
-TimeDelta TimeDelta::fromMonths(int months)
+TimeDelta TimeDelta::fromMonths(
+	const int months
+)
 {
-    return TimeDelta(0, months, 0);
+	return TimeDelta(
+		0,
+		months,
+		0
+	);
 }
 
-TimeDelta TimeDelta::fromYears(int years)
+TimeDelta TimeDelta::fromYears(
+	const int years
+)
 {
-    return TimeDelta(0, 0, years);
+	return TimeDelta(
+		0,
+		0,
+		years
+	);
 }
 
 TimeDelta::TimeDelta()
-    : m_days(0)
-    , m_months(0)
-    , m_years(0)
+	: days(
+		0
+	),
+	months(
+		0
+	),
+	years(
+		0
+	)
 {
 }
 
-TimeDelta::TimeDelta(int days, int months, int years)
-    : m_days(days)
-    , m_months(months)
-    , m_years(years)
+TimeDelta::TimeDelta(
+	const int days,
+	const int months,
+	const int years
+)
+	: days(
+		days
+	),
+	months(
+		months
+	),
+	years(
+		years
+	)
 {
 }
 
 int TimeDelta::getDays() const
 {
-    return m_days;
+	return this->days;
 }
 
 int TimeDelta::getMonths() const
 {
-    return m_months;
+	return this->months;
 }
 
 int TimeDelta::getYears() const
 {
-    return m_years;
+	return this->years;
 }

@@ -12,11 +12,8 @@
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE.BOOST-1.0 or copy at
 # http://www.boost.org/LICENSE_1_0.txt)
-
 set(HEAD_HASH)
-
 file(READ "@HEAD_FILE@" HEAD_CONTENTS LIMIT 1024)
-
 string(STRIP "${HEAD_CONTENTS}" HEAD_CONTENTS)
 if(HEAD_CONTENTS MATCHES "ref")
 	# named branch
@@ -34,7 +31,6 @@ else()
 	# detached HEAD
 	configure_file("@GIT_DIR@/HEAD" "@GIT_DATA@/head-ref" COPYONLY)
 endif()
-
 if(NOT HEAD_HASH)
 	file(READ "@GIT_DATA@/head-ref" HEAD_HASH LIMIT 1024)
 	string(STRIP "${HEAD_HASH}" HEAD_HASH)

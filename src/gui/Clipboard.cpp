@@ -14,78 +14,122 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "Clipboard.h"
-
 #include <QApplication>
 #include <QClipboard>
 #include <QTimer>
-
 #include "core/Config.h"
+Clipboard* Clipboard::instance(
+	nullptr
+);
 
-Clipboard* Clipboard::m_instance(nullptr);
-
-Clipboard::Clipboard(QObject* parent)
-    : QObject(parent)
-    , m_timer(new QTimer(this))
+Clipboard::Clipboard(
+	QObject* parent
+)
+	: QObject(
+		parent
+	),
+	timer(
+		new QTimer(
+			this
+		)
+	)
 {
-    m_timer->setSingleShot(true);
-    connect(m_timer, SIGNAL(timeout()), SLOT(clearClipboard()));
-    connect(qApp, SIGNAL(aboutToQuit()), SLOT(clearCopiedText()));
+	this->timer->setSingleShot(
+		true
+	);
+	this->connect(
+		this->timer,
+		&QTimer::timeout,
+		this,
+		&Clipboard::do_clearClipboard
+	);
+	this->connect(
+		qApp,
+		&QApplication::aboutToQuit,
+		this,
+		&Clipboard::do_clearCopiedText
+	);
 }
 
-void Clipboard::setText(const QString& text)
+void Clipboard::setText(
+	const QString &text
+)
 {
-    QClipboard* clipboard = QApplication::clipboard();
-
-    clipboard->setText(text, QClipboard::Clipboard);
-    if (clipboard->supportsSelection()) {
-        clipboard->setText(text, QClipboard::Selection);
-    }
-
-    if (config()->get("security/clearclipboard").toBool()) {
-        int timeout = config()->get("security/clearclipboardtimeout").toInt();
-        if (timeout > 0) {
-            m_lastCopied = text;
-            m_timer->start(timeout * 1000);
-        }
-    }
+	QClipboard* clipboard_ = QApplication::clipboard();
+	clipboard_->setText(
+		text,
+		QClipboard::Clipboard
+	);
+	if(clipboard_->supportsSelection())
+	{
+		clipboard_->setText(
+			text,
+			QClipboard::Selection
+		);
+	}
+	if(Config::getInstance()->get(
+		"security/clearclipboard"
+	).toBool())
+	{
+		if(const int timeout_ = Config::getInstance()->get(
+				"security/clearclipboardtimeout"
+			).toInt();
+			timeout_ > 0)
+		{
+			this->lastCopied = text;
+			this->timer->start(
+				timeout_ * 1000
+			);
+		}
+	}
 }
 
-void Clipboard::clearCopiedText()
+void Clipboard::do_clearCopiedText()
 {
-    if (m_timer->isActive()) {
-        m_timer->stop();
-        clearClipboard();
-    }
+	if(this->timer->isActive())
+	{
+		this->timer->stop();
+		this->do_clearClipboard();
+	}
 }
 
-void Clipboard::clearClipboard()
+void Clipboard::do_clearClipboard()
 {
-    QClipboard* clipboard = QApplication::clipboard();
-
-    if (!clipboard) {
-        qWarning("Unable to access the clipboard.");
-        return;
-    }
-
-    if (clipboard->text(QClipboard::Clipboard) == m_lastCopied) {
-        clipboard->clear(QClipboard::Clipboard);
-    }
-
-    if (clipboard->supportsSelection()
-            && (clipboard->text(QClipboard::Selection) == m_lastCopied)) {
-        clipboard->clear(QClipboard::Selection);
-    }
-
-    m_lastCopied.clear();
+	QClipboard* clipboard_ = QApplication::clipboard();
+	if(!clipboard_)
+	{
+		qWarning(
+			"Unable to access the clipboard."
+		);
+		return;
+	}
+	if(clipboard_->text(
+		QClipboard::Clipboard
+	) == this->lastCopied)
+	{
+		clipboard_->clear(
+			QClipboard::Clipboard
+		);
+	}
+	if(clipboard_->supportsSelection() && (clipboard_->text(
+		QClipboard::Selection
+	) == this->lastCopied))
+	{
+		clipboard_->clear(
+			QClipboard::Selection
+		);
+	}
+	this->lastCopied.clear();
 }
 
-Clipboard* Clipboard::instance()
+Clipboard* Clipboard::getInstance()
 {
-    if (!m_instance) {
-        m_instance = new Clipboard(qApp);
-    }
-
-    return m_instance;
+	if(!instance)
+	{
+		instance = new Clipboard(
+			qApp
+		);
+	}
+	return instance;
 }

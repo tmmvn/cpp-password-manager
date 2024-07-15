@@ -14,45 +14,41 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_DATABASESETTINGSWIDGET_H
 #define KEEPASSX_DATABASESETTINGSWIDGET_H
-
 #include <QScopedPointer>
-
-#include "gui/DialogyWidget.h"
-
+#include "gui/DialogWidget.h"
 class Database;
 
-namespace Ui {
-    class DatabaseSettingsWidget;
+namespace Ui
+{
+	class DatabaseSettingsWidget;
 }
 
-class DatabaseSettingsWidget : public DialogyWidget
+class DatabaseSettingsWidget:public DialogWidget
 {
-    Q_OBJECT
-
-public:
-    explicit DatabaseSettingsWidget(QWidget* parent = nullptr);
-    ~DatabaseSettingsWidget();
-
-    void load(Database* db);
-
+	Q_OBJECT public:
+	explicit DatabaseSettingsWidget(
+		QWidget* parent = nullptr
+	);
+	virtual ~DatabaseSettingsWidget() override;
+	void load(
+		Database* db
+	);
 Q_SIGNALS:
-    void editFinished(bool accepted);
-
+	void sig_editFinished(
+		bool accepted
+	);
 private Q_SLOTS:
-    void save();
-    void reject();
-    void transformRoundsBenchmark();
-
+	void do_save();
+	void do_reject();
+	void do_transformRoundsBenchmark() const;
 private:
-    void truncateHistories();
-
-    const QScopedPointer<Ui::DatabaseSettingsWidget> m_ui;
-    Database* m_db;
-
-    Q_DISABLE_COPY(DatabaseSettingsWidget)
+	void truncateHistories() const;
+	const QScopedPointer<Ui::DatabaseSettingsWidget> ui;
+	Database* db;
+	Q_DISABLE_COPY(
+		DatabaseSettingsWidget
+	)
 };
-
 #endif // KEEPASSX_DATABASESETTINGSWIDGET_H

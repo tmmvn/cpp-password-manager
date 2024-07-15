@@ -14,72 +14,117 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_EDITENTRYWIDGET_P_H
 #define KEEPASSX_EDITENTRYWIDGET_P_H
-
 #include <QListWidget>
 #include <QScrollBar>
 #include <QSize>
 #include <QStyledItemDelegate>
 
-class CategoryListViewDelegate : public QStyledItemDelegate
+class CategoryListViewDelegate final:public QStyledItemDelegate
 {
 public:
-    explicit CategoryListViewDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
+	explicit CategoryListViewDelegate(
+		QObject* parent
+	)
+		: QStyledItemDelegate(
+			parent
+		)
+	{
+	}
 
-    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
-    {
-        QSize size = QStyledItemDelegate::sizeHint(option, index);
-        size.setHeight(qMax(size.height(), 22));
-        return size;
-    }
+	virtual QSize sizeHint(
+		const QStyleOptionViewItem &option,
+		const QModelIndex &index
+	) const override
+	{
+		QSize size_ = QStyledItemDelegate::sizeHint(
+			option,
+			index
+		);
+		size_.setHeight(
+			qMax(
+				size_.height(),
+				22
+			)
+		);
+		return size_;
+	}
 };
 
-class CategoryListWidget : public QListWidget
+class CategoryListWidget final:public QListWidget
 {
 public:
-    explicit CategoryListWidget(QWidget* parent = 0) : QListWidget(parent)
-    {
-        setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
-        setItemDelegate(new CategoryListViewDelegate(this));
-    }
+	explicit CategoryListWidget(
+		QWidget* parent = nullptr
+	)
+		: QListWidget(
+			parent
+		)
+	{
+		this->setSizePolicy(
+			QSizePolicy::Fixed,
+			QSizePolicy::Expanding
+		);
+		this->setItemDelegate(
+			new CategoryListViewDelegate(
+				this
+			)
+		);
+	}
 
-    virtual QSize sizeHint() const
-    {
-        QSize sizeHint = QListWidget::sizeHint();
-
-        int width = sizeHintForColumn(0) + frameWidth() * 2 + 5;
-        if (verticalScrollBar()->isVisible()) {
-            width += verticalScrollBar()->width();
-        }
-        sizeHint.setWidth(width);
-
-        return sizeHint;
-    }
+	virtual QSize sizeHint() const override
+	{
+		QSize sizeHint_ = QListWidget::sizeHint();
+		int width_ = this->sizeHintForColumn(
+			0
+		) + frameWidth() * 2 + 5;
+		if(this->verticalScrollBar()->isVisible())
+		{
+			width_ += this->verticalScrollBar()->width();
+		}
+		sizeHint_.setWidth(
+			width_
+		);
+		return sizeHint_;
+	}
 };
 
-class AttributesListView : public QListView
+class AttributesListView final:public QListView
 {
 public:
-    explicit AttributesListView(QWidget* parent = 0) : QListView(parent)
-    {
-        setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-        setItemDelegate(new CategoryListViewDelegate(this));
-    }
+	explicit AttributesListView(
+		QWidget* parent = nullptr
+	)
+		: QListView(
+			parent
+		)
+	{
+		this->setSizePolicy(
+			QSizePolicy::Preferred,
+			QSizePolicy::Expanding
+		);
+		this->setItemDelegate(
+			new CategoryListViewDelegate(
+				this
+			)
+		);
+	}
 
-    virtual QSize sizeHint() const
-    {
-        QSize sizeHint = QListView::sizeHint();
-
-        int width = sizeHintForColumn(0) + frameWidth() * 2 + 5;
-        if (verticalScrollBar()->isVisible()) {
-            width += verticalScrollBar()->width();
-        }
-        sizeHint.setWidth(width);
-
-        return sizeHint;
-    }
+	virtual QSize sizeHint() const override
+	{
+		QSize sizeHint_ = QListView::sizeHint();
+		int width_ = this->sizeHintForColumn(
+			0
+		) + frameWidth() * 2 + 5;
+		if(this->verticalScrollBar()->isVisible())
+		{
+			width_ += this->verticalScrollBar()->width();
+		}
+		sizeHint_.setWidth(
+			width_
+		);
+		return sizeHint_;
+	}
 };
-
 #endif // KEEPASSX_EDITENTRYWIDGET_P_H

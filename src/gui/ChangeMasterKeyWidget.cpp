@@ -14,125 +14,265 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "ChangeMasterKeyWidget.h"
 #include "ui_ChangeMasterKeyWidget.h"
-
 #include "core/FilePath.h"
-#include "keys/FileKey.h"
-#include "keys/PasswordKey.h"
 #include "gui/FileDialog.h"
 #include "gui/MessageBox.h"
+#include "keys/FileKey.h"
+#include "keys/PasswordKey.h"
 
-ChangeMasterKeyWidget::ChangeMasterKeyWidget(QWidget* parent)
-    : DialogyWidget(parent)
-    , m_ui(new Ui::ChangeMasterKeyWidget())
+ChangeMasterKeyWidget::ChangeMasterKeyWidget(
+	QWidget* parent
+)
+	: DialogWidget(
+		parent
+	),
+	ui(
+		new Ui::ChangeMasterKeyWidget()
+	)
 {
-    m_ui->setupUi(this);
-
-    connect(m_ui->buttonBox, SIGNAL(accepted()), SLOT(generateKey()));
-    connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(reject()));
-    m_ui->togglePasswordButton->setIcon(filePath()->onOffIcon("actions", "password-show"));
-    connect(m_ui->togglePasswordButton, SIGNAL(toggled(bool)), m_ui->enterPasswordEdit, SLOT(setShowPassword(bool)));
-    m_ui->repeatPasswordEdit->enableVerifyMode(m_ui->enterPasswordEdit);
-    connect(m_ui->createKeyFileButton, SIGNAL(clicked()), SLOT(createKeyFile()));
-    connect(m_ui->browseKeyFileButton, SIGNAL(clicked()), SLOT(browseKeyFile()));
+	this->ui->setupUi(
+		this
+	);
+	this->connect(
+		this->ui->buttonBox,
+		&QDialogButtonBox::accepted,
+		this,
+		&ChangeMasterKeyWidget::do_generateKey
+	);
+	this->connect(
+		this->ui->buttonBox,
+		&QDialogButtonBox::rejected,
+		this,
+		&ChangeMasterKeyWidget::do_reject
+	);
+	this->ui->togglePasswordButton->setIcon(
+		FilePath::getInstance()->getOnOffIcon(
+			"actions",
+			"password-show"
+		)
+	);
+	this->connect(
+		this->ui->togglePasswordButton,
+		&QToolButton::toggled,
+		this->ui->enterPasswordEdit,
+		&PasswordEdit::do_setShowPassword
+	);
+	this->ui->repeatPasswordEdit->enableVerifyMode(
+		this->ui->enterPasswordEdit
+	);
+	this->connect(
+		this->ui->createKeyFileButton,
+		&QPushButton::clicked,
+		this,
+		&ChangeMasterKeyWidget::do_createKeyFile
+	);
+	this->connect(
+		this->ui->browseKeyFileButton,
+		&QPushButton::clicked,
+		this,
+		&ChangeMasterKeyWidget::do_browseKeyFile
+	);
 }
 
 ChangeMasterKeyWidget::~ChangeMasterKeyWidget()
 {
 }
 
-void ChangeMasterKeyWidget::createKeyFile()
+void ChangeMasterKeyWidget::do_createKeyFile()
 {
-    QString filters = QString("%1 (*.key);;%2 (*)").arg(tr("Key files"), tr("All files"));
-    QString fileName = fileDialog()->getSaveFileName(this, tr("Create Key File..."), QString(), filters);
-
-    if (!fileName.isEmpty()) {
-        QString errorMsg;
-        bool created = FileKey::create(fileName, &errorMsg);
-        if (!created) {
-            MessageBox::warning(this, tr("Error"), tr("Unable to create Key File : ") + errorMsg);
-        }
-        else {
-            m_ui->keyFileCombo->setEditText(fileName);
-        }
-    }
+	const QString filters_ = QString(
+		"%1 (*.key);;%2 (*)"
+	).arg(
+		tr(
+			"Key files"
+		),
+		tr(
+			"All files"
+		)
+	);
+	if(const QString fileName_ = FileDialog::getInstance()->getSaveFileName(
+			this,
+			tr(
+				"Create Key File..."
+			),
+			QString(),
+			filters_
+		);
+		!fileName_.isEmpty())
+	{
+		QString errorMsg_;
+		if(const bool created_ = FileKey::create(
+				fileName_,
+				&errorMsg_
+			);
+			!created_)
+		{
+			MessageBox::warning(
+				this,
+				tr(
+					"Error"
+				),
+				tr(
+					"Unable to create Key File : "
+				) + errorMsg_
+			);
+		}
+		else
+		{
+			this->ui->keyFileCombo->setEditText(
+				fileName_
+			);
+		}
+	}
 }
 
-void ChangeMasterKeyWidget::browseKeyFile()
+void ChangeMasterKeyWidget::do_browseKeyFile()
 {
-    QString filters = QString("%1 (*.key);;%2 (*)").arg(tr("Key files"), tr("All files"));
-    QString fileName = fileDialog()->getOpenFileName(this, tr("Select a key file"), QString(), filters);
-
-    if (!fileName.isEmpty()) {
-        m_ui->keyFileCombo->setEditText(fileName);
-    }
+	const QString filters_ = QString(
+		"%1 (*.key);;%2 (*)"
+	).arg(
+		tr(
+			"Key files"
+		),
+		tr(
+			"All files"
+		)
+	);
+	if(const QString fileName_ = FileDialog::getInstance()->getOpenFileName(
+			this,
+			tr(
+				"Select a key file"
+			),
+			QString(),
+			filters_
+		);
+		!fileName_.isEmpty())
+	{
+		this->ui->keyFileCombo->setEditText(
+			fileName_
+		);
+	}
 }
 
 void ChangeMasterKeyWidget::clearForms()
 {
-    m_key.clear();
-
-    m_ui->passwordGroup->setChecked(true);
-    m_ui->enterPasswordEdit->setText("");
-    m_ui->repeatPasswordEdit->setText("");
-    m_ui->keyFileGroup->setChecked(false);
-    m_ui->togglePasswordButton->setChecked(false);
-    // TODO: clear m_ui->keyFileCombo
-
-    m_ui->enterPasswordEdit->setFocus();
+	this->key.clear();
+	this->ui->passwordGroup->setChecked(
+		true
+	);
+	this->ui->enterPasswordEdit->setText(
+		""
+	);
+	this->ui->repeatPasswordEdit->setText(
+		""
+	);
+	this->ui->keyFileGroup->setChecked(
+		false
+	);
+	this->ui->togglePasswordButton->setChecked(
+		false
+	);
+	// TODO: clear m_ui->keyFileCombo
+	this->ui->enterPasswordEdit->setFocus();
 }
 
 CompositeKey ChangeMasterKeyWidget::newMasterKey()
 {
-    return m_key;
+	return this->key;
 }
 
-QLabel* ChangeMasterKeyWidget::headlineLabel()
+QLabel* ChangeMasterKeyWidget::headlineLabel() const
 {
-    return m_ui->headlineLabel;
+	return this->ui->headlineLabel;
 }
 
-void ChangeMasterKeyWidget::generateKey()
+void ChangeMasterKeyWidget::do_generateKey()
 {
-    m_key.clear();
-
-    if (m_ui->passwordGroup->isChecked()) {
-        if (m_ui->enterPasswordEdit->text() == m_ui->repeatPasswordEdit->text()) {
-            if (m_ui->enterPasswordEdit->text().isEmpty()) {
-                if (MessageBox::question(this, tr("Question"),
-                                         tr("Do you really want to use an empty string as password?"),
-                                         QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) {
-                    return;
-                }
-            }
-            m_key.addKey(PasswordKey(m_ui->enterPasswordEdit->text()));
-        }
-        else {
-            MessageBox::warning(this, tr("Error"), tr("Different passwords supplied."));
-            m_ui->enterPasswordEdit->setText("");
-            m_ui->repeatPasswordEdit->setText("");
-            return;
-        }
-    }
-    if (m_ui->keyFileGroup->isChecked()) {
-        FileKey fileKey;
-        QString errorMsg;
-        if (!fileKey.load(m_ui->keyFileCombo->currentText(), &errorMsg)) {
-            MessageBox::critical(this, tr("Failed to set key file"),
-                                 tr("Failed to set %1 as the Key file:\n%2")
-                                 .arg(m_ui->keyFileCombo->currentText(), errorMsg));
-            return;
-        }
-        m_key.addKey(fileKey);
-    }
-
-    Q_EMIT editFinished(true);
+	this->key.clear();
+	if(this->ui->passwordGroup->isChecked())
+	{
+		if(this->ui->enterPasswordEdit->text() == this->ui->repeatPasswordEdit->
+			text())
+		{
+			if(this->ui->enterPasswordEdit->text().isEmpty())
+			{
+				if(MessageBox::question(
+					this,
+					tr(
+						"Question"
+					),
+					tr(
+						"Do you really want to use an empty string as password?"
+					),
+					QMessageBox::Yes | QMessageBox::No
+				) != QMessageBox::Yes)
+				{
+					return;
+				}
+			}
+			this->key.addKey(
+				PasswordKey(
+					this->ui->enterPasswordEdit->text()
+				)
+			);
+		}
+		else
+		{
+			MessageBox::warning(
+				this,
+				tr(
+					"Error"
+				),
+				tr(
+					"Different passwords supplied."
+				)
+			);
+			this->ui->enterPasswordEdit->setText(
+				""
+			);
+			this->ui->repeatPasswordEdit->setText(
+				""
+			);
+			return;
+		}
+	}
+	if(this->ui->keyFileGroup->isChecked())
+	{
+		FileKey fileKey_;
+		QString errorMsg_;
+		if(!fileKey_.load(
+			this->ui->keyFileCombo->currentText(),
+			&errorMsg_
+		))
+		{
+			MessageBox::critical(
+				this,
+				tr(
+					"Failed to set key file"
+				),
+				tr(
+					"Failed to set %1 as the Key file:\n%2"
+				).arg(
+					this->ui->keyFileCombo->currentText(),
+					errorMsg_
+				)
+			);
+			return;
+		}
+		this->key.addKey(
+			fileKey_
+		);
+	}
+	 this->sig_editFinished(
+		true
+	);
 }
 
-
-void ChangeMasterKeyWidget::reject()
+void ChangeMasterKeyWidget::do_reject()
 {
-    Q_EMIT editFinished(false);
+	 this->sig_editFinished(
+		false
+	);
 }

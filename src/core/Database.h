@@ -14,17 +14,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_DATABASE_H
 #define KEEPASSX_DATABASE_H
-
 #include <QDateTime>
 #include <QHash>
 #include <QObject>
-
-#include "core/Uuid.h"
+#include "core/UUID.h"
 #include "keys/CompositeKey.h"
-
 class Entry;
 class Group;
 class Metadata;
@@ -32,117 +28,155 @@ class QTimer;
 
 struct DeletedObject
 {
-    Uuid uuid;
-    QDateTime deletionTime;
+	UUID uuid;
+	QDateTime deletionTime;
 };
 
-Q_DECLARE_TYPEINFO(DeletedObject, Q_MOVABLE_TYPE);
+Q_DECLARE_TYPEINFO(
+	DeletedObject,
+	Q_MOVABLE_TYPE
+);
 
-class Database : public QObject
+class Database final:public QObject
 {
-    Q_OBJECT
+	Q_OBJECT public:
+	enum CompressionAlgorithm: u_int8_t
+	{
+		CompressionNone = 0,
+		CompressionGZip = 1
+	};
 
-public:
-    enum CompressionAlgorithm
-    {
-        CompressionNone = 0,
-        CompressionGZip = 1
-    };
-    static const quint32 CompressionAlgorithmMax = CompressionGZip;
+	static constexpr quint32 CompressionAlgorithmMax = CompressionGZip;
 
-    struct DatabaseData
-    {
-        Uuid cipher;
-        CompressionAlgorithm compressionAlgo;
-        QByteArray transformSeed;
-        quint64 transformRounds;
-        QByteArray transformedMasterKey;
-        CompositeKey key;
-        bool hasKey;
-    };
+	struct DatabaseData
+	{
+		UUID cipher;
+		CompressionAlgorithm compressionAlgo;
+		QByteArray transformSeed;
+		quint64 transformRounds;
+		QByteArray transformedMasterKey;
+		CompositeKey key;
+		bool hasKey;
+	};
 
-    Database();
-    ~Database();
-    Group* rootGroup();
-    const Group* rootGroup() const;
-
-    /**
-     * Sets group as the root group and takes ownership of it.
-     * Warning: Be careful when calling this method as it doesn't
-     *          emit any notifications so e.g. models aren't updated.
-     *          The caller is responsible for cleaning up the previous
-                root group.
-     */
-    void setRootGroup(Group* group);
-
-    Metadata* metadata();
-    const Metadata* metadata() const;
-    Entry* resolveEntry(const Uuid& uuid);
-    Group* resolveGroup(const Uuid& uuid);
-    QList<DeletedObject> deletedObjects();
-    void addDeletedObject(const DeletedObject& delObj);
-    void addDeletedObject(const Uuid& uuid);
-
-    Uuid cipher() const;
-    Database::CompressionAlgorithm compressionAlgo() const;
-    QByteArray transformSeed() const;
-    quint64 transformRounds() const;
-    QByteArray transformedMasterKey() const;
-
-    void setCipher(const Uuid& cipher);
-    void setCompressionAlgo(Database::CompressionAlgorithm algo);
-    bool setTransformRounds(quint64 rounds);
-    bool setKey(const CompositeKey& key, const QByteArray& transformSeed,
-                bool updateChangedTime = true);
-
-    /**
-     * Sets the database key and generates a random transform seed.
-     */
-    bool setKey(const CompositeKey& key);
-    bool hasKey() const;
-    bool verifyKey(const CompositeKey& key) const;
-    void recycleEntry(Entry* entry);
-    void recycleGroup(Group* group);
-    void setEmitModified(bool value);
-    void copyAttributesFrom(const Database* other);
-
-    /**
-     * Returns a unique id that is only valid as long as the Database exists.
-     */
-    Uuid uuid();
-
-    static Database* databaseByUuid(const Uuid& uuid);
-
+	Database();
+	virtual ~Database() override;
+	Group* getRootGroup();
+	const Group* getRootGroup() const;
+	/**
+	* Sets group as the root group and takes ownership of it.
+	* Warning: Be careful when calling this method as it doesn't
+	*          emit any notifications so e.g. models aren't updated.
+	*          The caller is responsible for cleaning up the previous
+				root group.
+	*/
+	void setRootGroup(
+		Group* group
+	);
+	Metadata* getMetadata();
+	const Metadata* getMetadata() const;
+	Entry* resolveEntry(
+		const UUID &uuid
+	);
+	Group* resolveGroup(
+		const UUID &uuid
+	);
+	QList<DeletedObject> getDeletedObjects();
+	void addDeletedObject(
+		const DeletedObject &delObj
+	);
+	void addDeletedObject(
+		const UUID &uuid
+	);
+	UUID getCipher() const;
+	CompressionAlgorithm getCompressionAlgo() const;
+	QByteArray transformSeed() const;
+	quint64 transformRounds() const;
+	QByteArray transformedMasterKey() const;
+	void setCipher(
+		const UUID &cipher
+	);
+	void setCompressionAlgo(
+		CompressionAlgorithm algo
+	);
+	bool setTransformRounds(
+		quint64 rounds
+	);
+	bool setKey(
+		const CompositeKey &key,
+		const QByteArray &transformSeed,
+		bool updateChangedTime = true
+	);
+	/**
+	* Sets the database key and generates a random transform seed.
+	*/
+	bool setKey(
+		const CompositeKey &key
+	);
+	bool hasKey() const;
+	bool verifyKey(
+		const CompositeKey &key
+	) const;
+	void recycleEntry(
+		Entry* entry
+	);
+	void recycleGroup(
+		Group* group
+	);
+	void setEmitModified(
+		bool value
+	);
+	void copyAttributesFrom(
+		const Database* other
+	);
+	/**
+	* Returns a unique id that is only valid as long as the Database exists.
+	*/
+	UUID getUUID();
+	static Database* databaseByUUID(
+		const UUID &uuid
+	);
 Q_SIGNALS:
-    void groupDataChanged(Group* group);
-    void groupAboutToAdd(Group* group, int index);
-    void groupAdded();
-    void groupAboutToRemove(Group* group);
-    void groupRemoved();
-    void groupAboutToMove(Group* group, Group* toGroup, int index);
-    void groupMoved();
-    void nameTextChanged();
-    void modified();
-    void modifiedImmediate();
-
+	void sig_groupDataChanged(
+		Group* group
+	);
+	void sig_groupAboutToAdd(
+		Group* group,
+		int index
+	);
+	void sig_groupAdded();
+	void sig_groupAboutToRemove(
+		Group* group
+	);
+	void sig_groupRemoved();
+	void sig_groupAboutToMove(
+		Group* group,
+		Group* toGroup,
+		int index
+	);
+	void sig_groupMoved();
+	void sig_nameTextChanged();
+	void sig_modified();
+	void sig_modifiedImmediate();
 private Q_SLOTS:
-    void startModifiedTimer();
-
+	void do_startModifiedTimer() const;
 private:
-    Entry* recFindEntry(const Uuid& uuid, Group* group);
-    Group* recFindGroup(const Uuid& uuid, Group* group);
-
-    void createRecycleBin();
-
-    Metadata* const m_metadata;
-    Group* m_rootGroup;
-    QList<DeletedObject> m_deletedObjects;
-    QTimer* m_timer;
-    DatabaseData m_data;
-    bool m_emitModified;
-
-    Uuid m_uuid;
-    static QHash<Uuid, Database*> m_uuidMap;
+	Entry* recFindEntry(
+		const UUID &uuid,
+		Group* group
+	);
+	Group* recFindGroup(
+		const UUID &uuid,
+		Group* group
+	);
+	void createRecycleBin();
+	Metadata* const metadata;
+	Group* rootGroup;
+	QList<DeletedObject> deletedObjects;
+	QTimer* timer;
+	DatabaseData data;
+	bool emitModified;
+	UUID uuid;
+	static QHash<UUID, Database*> uuidMap;
 };
-
 #endif // KEEPASSX_DATABASE_H

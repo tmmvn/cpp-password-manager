@@ -14,109 +14,140 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "FileDialog.h"
-
 #include "core/Config.h"
+FileDialog* FileDialog::instance(
+	nullptr
+);
 
-FileDialog* FileDialog::m_instance(nullptr);
-
-QString FileDialog::getOpenFileName(QWidget* parent, const QString& caption, QString dir,
-                                    const QString& filter, QString* selectedFilter,
-                                    QFileDialog::Options options)
+QString FileDialog::getOpenFileName(
+	QWidget* parent,
+	const QString &caption,
+	QString dir,
+	const QString &filter,
+	QString* selectedFilter
+)
 {
-    if (!m_nextFileName.isEmpty()) {
-        QString result = m_nextFileName;
-        m_nextFileName = "";
-        return result;
-    }
-    else {
-        if (dir.isEmpty()) {
-            dir = config()->get("LastDir").toString();
-        }
-
-        QString result = QFileDialog::getOpenFileName(parent, caption, dir, filter,
-                                                      selectedFilter, options);
-
-        // on Mac OS X the focus is lost after closing the native dialog
-        if (parent) {
-            parent->activateWindow();
-        }
-
-        if (!result.isEmpty()) {
-            config()->set("LastDir", QFileInfo(result).absolutePath());
-        }
-
-        return result;
-    }
+	if(!this->nextFileName.isEmpty())
+	{
+		QString result_ = this->nextFileName;
+		this->nextFileName = "";
+		return result_;
+	}
+	if(dir.isEmpty())
+	{
+		dir = Config::getInstance()->get(
+			"LastDir"
+		).toString();
+	}
+	QString result_ = QFileDialog::getOpenFileName(
+		parent,
+		caption,
+		dir,
+		filter,
+		selectedFilter
+	);
+	// on Mac OS X the focus is lost after closing the native dialog
+	if(parent)
+	{
+		parent->activateWindow();
+	}
+	if(!result_.isEmpty())
+	{
+		Config::getInstance()->set(
+			"LastDir",
+			QFileInfo(
+				result_
+			).absolutePath()
+		);
+	}
+	return result_;
 }
 
-QString FileDialog::getSaveFileName(QWidget* parent, const QString& caption, QString dir,
-                                    const QString& filter, QString* selectedFilter,
-                                    QFileDialog::Options options, const QString& defaultExtension)
+QString FileDialog::getSaveFileName(
+	QWidget* parent,
+	const QString &caption,
+	QString dir,
+	const QString &filter,
+	QString* selectedFilter,
+	const QString &defaultExtension
+)
 {
-    if (!m_nextFileName.isEmpty()) {
-        QString result = m_nextFileName;
-        m_nextFileName = "";
-        return result;
-    }
-    else {
-        if (dir.isEmpty()) {
-            dir = config()->get("LastDir").toString();
-        }
-
-        QString result;
+	if(!this->nextFileName.isEmpty())
+	{
+		QString result_ = this->nextFileName;
+		this->nextFileName = "";
+		return result_;
+	}
+	if(dir.isEmpty())
+	{
+		dir = Config::getInstance()->get(
+			"LastDir"
+		).toString();
+	}
+	QString result_;
 #if defined(Q_OS_MAC) || defined(Q_OS_WIN)
-        Q_UNUSED(defaultExtension);
-        // the native dialogs on these platforms already append the file extension
-        result = QFileDialog::getSaveFileName(parent, caption, dir, filter,
-                                              selectedFilter, options);
+	Q_UNUSED(
+		defaultExtension
+	);
+	// the native dialogs on these platforms already append the file extension
+	result_ = QFileDialog::getSaveFileName(
+		parent,
+		caption,
+		dir,
+		filter,
+		selectedFilter
+	);
 #else
-        QFileDialog dialog(parent, caption, dir, filter);
-        dialog.setAcceptMode(QFileDialog::AcceptSave);
-        dialog.setFileMode(QFileDialog::AnyFile);
-        if (selectedFilter) {
-            dialog.selectNameFilter(*selectedFilter);
-        }
-        dialog.setOptions(options);
-        dialog.setDefaultSuffix(defaultExtension);
-
-        QStringList results;
-        if (dialog.exec()) {
-            results = dialog.selectedFiles();
-            if (!results.isEmpty()) {
-                result = results[0];
-            }
-        }
+	QFileDialog dialog_(parent, caption, dir, filter);
+	dialog_.setAcceptMode(QFileDialog::AcceptSave);
+	dialog_.setFileMode(QFileDialog::AnyFile);
+	if (selectedFilter) {
+	    dialog_.selectNameFilter(*selectedFilter);
+	}
+	dialog_.setOptions(this->options);
+	dialog_.setDefaultSuffix(defaultExtension);
+	QStringList results_;
+	if (dialog_.exec()) {
+	    results_ = dialog_.selectedFiles();
+	    if (!results_.isEmpty()) {
+	        result_ = results_[0];
+	    }
+	}
 #endif
-
-        // on Mac OS X the focus is lost after closing the native dialog
-        if (parent) {
-            parent->activateWindow();
-        }
-
-        if (!result.isEmpty()) {
-            config()->set("LastDir", QFileInfo(result).absolutePath());
-        }
-
-        return result;
-    }
+	// on Mac OS X the focus is lost after closing the native dialog
+	if(parent)
+	{
+		parent->activateWindow();
+	}
+	if(!result_.isEmpty())
+	{
+		Config::getInstance()->set(
+			"LastDir",
+			QFileInfo(
+				result_
+			).absolutePath()
+		);
+	}
+	return result_;
 }
 
-void FileDialog::setNextFileName(const QString& fileName)
+void FileDialog::setNextFileName(
+	const QString &fileName
+)
 {
-    m_nextFileName = fileName;
+	this->nextFileName = fileName;
 }
 
 FileDialog::FileDialog()
 {
 }
 
-FileDialog* FileDialog::instance()
+FileDialog* FileDialog::getInstance()
 {
-    if (!m_instance) {
-        m_instance = new FileDialog();
-    }
-
-    return m_instance;
+	if(!instance)
+	{
+		instance = new FileDialog();
+	}
+	return instance;
 }

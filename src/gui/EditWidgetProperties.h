@@ -14,33 +14,32 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_EDITWIDGETPROPERTIES_H
 #define KEEPASSX_EDITWIDGETPROPERTIES_H
-
 #include <QWidget>
-
 #include "core/TimeInfo.h"
-#include "core/Uuid.h"
+#include "core/UUID.h"
 
-namespace Ui {
-    class EditWidgetProperties;
+namespace Ui
+{
+	class EditWidgetProperties;
 }
 
-class EditWidgetProperties : public QWidget
+class EditWidgetProperties final:public QWidget
 {
-    Q_OBJECT
-
-public:
-    explicit EditWidgetProperties(QWidget* parent = nullptr);
-    ~EditWidgetProperties();
-
-    void setFields(TimeInfo timeInfo, Uuid uuid);
-
+	Q_OBJECT public:
+	explicit EditWidgetProperties(
+		QWidget* parent = nullptr
+	);
+	virtual ~EditWidgetProperties() override;
+	void setFields(
+		const TimeInfo &timeInfo,
+		const UUID &uuid
+	) const;
 private:
-    const QScopedPointer<Ui::EditWidgetProperties> m_ui;
-
-    Q_DISABLE_COPY(EditWidgetProperties)
+	const QScopedPointer<Ui::EditWidgetProperties> ui;
+	Q_DISABLE_COPY(
+		EditWidgetProperties
+	)
 };
-
 #endif // KEEPASSX_EDITWIDGETPROPERTIES_H

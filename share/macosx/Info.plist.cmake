@@ -1,51 +1,51 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>NSPrincipalClass</key>
-  <string>NSApplication</string>
-  <key>CFBundleDevelopmentRegion</key>
-  <string>English</string>
-  <key>CFBundleDisplayName</key>
-  <string>${PROJECT_NAME}</string>
-  <key>CFBundleExecutable</key>
-  <string>${PROGNAME}</string>
-  <key>CFBundleIconFile</key>
-  <string>keepassx.icns</string>
-  <key>CFBundleIdentifier</key>
-  <string>org.keepassx.keepassx</string>
-  <key>CFBundleInfoDictionaryVersion</key>
-  <string>6.0</string>
-  <key>CFBundleName</key>
-  <string>${PROJECT_NAME}</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleShortVersionString</key>
-  <string>${KEEPASSX_VERSION}</string>
-  <key>CFBundleSignature</key>
-  <string>KEPX</string>
-  <key>CFBundleVersion</key>
-  <string>${KEEPASSX_VERSION_NUM}</string>
-  <key>NSHumanReadableCopyright</key>
-    <string>Copyright 2010-2012 KeePassX Development Team</string>
-    <key>CFBundleDocumentTypes</key>
-    <array>
-      <dict>
-        <key>CFBundleTypeExtensions</key>
-        <array>
-          <string>kdbx</string>
-        </array>
-        <key>CFBundleTypeIconFile</key>
-        <string>keepassx.icns</string>
-        <key>CFBundleTypeName</key>
-        <string>KeePassX Password Database</string>
-        <key>CFBundleTypeOSTypes</key>
-        <array>
-          <string>kdbx</string>
-        </array>
-        <key>CFBundleTypeRole</key>
-        <string>Editor</string>
-      </dict>
-    </array>
-  </dict>
-</plist>
+<?XML VERSION="1.0" ENCODING="UTF-8"?>
+<!DOCTYPE PLIST PUBLIC "-//APPLE COMPUTER//DTD PLIST 1.0//EN" "HTTP://WWW.APPLE.COM/DTDS/PROPERTYLIST-1.0.DTD">
+<PLIST VERSION="1.0">
+<DICT>
+<KEY>NSPRINCIPALCLASS</KEY>
+<STRING>NSAPPLICATION</STRING>
+<KEY>CFBUNDLEDEVELOPMENTREGION</KEY>
+<STRING>ENGLISH</STRING>
+<KEY>CFBUNDLEDISPLAYNAME</KEY>
+<STRING>${PROJECT_NAME}</STRING>
+<KEY>CFBUNDLEEXECUTABLE</KEY>
+<STRING>${PROGNAME}</STRING>
+<KEY>CFBUNDLEICONFILE</KEY>
+<STRING>KEEPASSX.ICNS</STRING>
+<KEY>CFBUNDLEIDENTIFIER</KEY>
+<STRING>ORG.KEEPASSX.KEEPASSX</STRING>
+<KEY>CFBUNDLEINFODICTIONARYVERSION</KEY>
+<STRING>6.0</STRING>
+<KEY>CFBUNDLENAME</KEY>
+<STRING>${PROJECT_NAME}</STRING>
+<KEY>CFBUNDLEPACKAGETYPE</KEY>
+<STRING>APPL</STRING>
+<KEY>CFBUNDLESHORTVERSIONSTRING</KEY>
+<STRING>${KEEPASSX_VERSION}</STRING>
+<KEY>CFBUNDLESIGNATURE</KEY>
+<STRING>KEPX</STRING>
+<KEY>CFBUNDLEVERSION</KEY>
+<STRING>${KEEPASSX_VERSION_NUM}</STRING>
+<KEY>NSHUMANREADABLECOPYRIGHT</KEY>
+<STRING>COPYRIGHT 2010-2012 KEEPASSX DEVELOPMENT TEAM</STRING>
+<KEY>CFBUNDLEDOCUMENTTYPES</KEY>
+<ARRAY>
+<DICT>
+<KEY>CFBUNDLETYPEEXTENSIONS</KEY>
+<ARRAY>
+<STRING>KDBX</STRING>
+</ARRAY>
+<KEY>CFBUNDLETYPEICONFILE</KEY>
+<STRING>KEEPASSX.ICNS</STRING>
+<KEY>CFBUNDLETYPENAME</KEY>
+<STRING>KEEPASSX PASSWORD DATABASE</STRING>
+<KEY>CFBUNDLETYPEOSTYPES</KEY>
+<ARRAY>
+<STRING>KDBX</STRING>
+</ARRAY>
+<KEY>CFBUNDLETYPEROLE</KEY>
+<STRING>EDITOR</STRING>
+</DICT>
+</ARRAY>
+</DICT>
+</PLIST>

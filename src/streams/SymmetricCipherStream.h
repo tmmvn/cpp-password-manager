@@ -14,45 +14,52 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_SYMMETRICCIPHERSTREAM_H
 #define KEEPASSX_SYMMETRICCIPHERSTREAM_H
-
 #include <QByteArray>
-#include <QScopedPointer>
-
 #include "crypto/SymmetricCipher.h"
 #include "streams/LayeredStream.h"
 
-class SymmetricCipherStream : public LayeredStream
+class SymmetricCipherStream final:public LayeredStream
 {
-    Q_OBJECT
-
-public:
-    SymmetricCipherStream(QIODevice* baseDevice, SymmetricCipher::Algorithm algo,
-                          SymmetricCipher::Mode mode, SymmetricCipher::Direction direction);
-    ~SymmetricCipherStream();
-    bool init(const QByteArray& key, const QByteArray& iv);
-    bool open(QIODevice::OpenMode mode) override;
-    bool reset() override;
-    void close() override;
-
+	Q_OBJECT public:
+	SymmetricCipherStream(
+		QIODevice* baseDevice,
+		SymmetricCipher::Algorithm algo,
+		SymmetricCipher::Mode mode,
+		SymmetricCipher::Direction direction
+	);
+	virtual ~SymmetricCipherStream() override;
+	bool init(
+		const QByteArray &key,
+		const QByteArray &iv
+	);
+	virtual bool open(
+		OpenMode mode
+	) override;
+	virtual bool reset() override;
+	virtual void close() override;
 protected:
-    qint64 readData(char* data, qint64 maxSize) override;
-    qint64 writeData(const char* data, qint64 maxSize) override;
-
+	virtual qint64 readData(
+		char* data,
+		qint64 maxSize
+	) override;
+	virtual qint64 writeData(
+		const char* data,
+		qint64 maxSize
+	) override;
 private:
-    void resetInternalState();
-    bool readBlock();
-    bool writeBlock(bool lastBlock);
-
-    const QScopedPointer<SymmetricCipher> m_cipher;
-    QByteArray m_buffer;
-    int m_bufferPos;
-    bool m_bufferFilling;
-    bool m_error;
-    bool m_isInitalized;
-    bool m_dataWritten;
+	void resetInternalState();
+	bool readBlock();
+	bool writeBlock(
+		bool lastBlock
+	);
+	const QScopedPointer<SymmetricCipher> cipher;
+	QByteArray buffer;
+	int bufferPos;
+	bool bufferFilling;
+	bool error;
+	bool isInitalized;
+	bool dataWritten;
 };
-
 #endif // KEEPASSX_SYMMETRICCIPHERSTREAM_H

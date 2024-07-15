@@ -15,40 +15,38 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_DATABASEWIDGETSTATESYNC_H
 #define KEEPASSX_DATABASEWIDGETSTATESYNC_H
-
 #include "gui/DatabaseWidget.h"
 
-class DatabaseWidgetStateSync : public QObject
+class DatabaseWidgetStateSync final:public QObject
 {
-    Q_OBJECT
-
-public:
-    explicit DatabaseWidgetStateSync(QObject* parent = nullptr);
-    ~DatabaseWidgetStateSync();
-
+	Q_OBJECT public:
+	explicit DatabaseWidgetStateSync(
+		QObject* parent = nullptr
+	);
+	virtual ~DatabaseWidgetStateSync() override;
 public Q_SLOTS:
-    void setActive(DatabaseWidget* dbWidget);
-    void restoreListView();
-    void restoreSearchView();
-
+	void do_setActive(
+		DatabaseWidget* dbWidget
+	);
+	void do_restoreListView();
+	void do_restoreSearchView();
 private Q_SLOTS:
-    void blockUpdates();
-    void updateSplitterSizes();
-    void updateColumnSizes();
-
+	void do_getBlockUpdates();
+	void do_updateSplitterSizes();
+	void do_updateColumnSizes();
 private:
-    static QList<int> variantToIntList(const QVariant& variant);
-    static QVariant intListToVariant(const QList<int>& list);
-
-    DatabaseWidget* m_activeDbWidget;
-
-    bool m_blockUpdates;
-    QList<int> m_splitterSizes;
-    QList<int> m_columnSizesList;
-    QList<int> m_columnSizesSearch;
+	static QList<int> variantToIntList(
+		const QVariant &variant
+	);
+	static QVariant intListToVariant(
+		const QList<int> &list
+	);
+	DatabaseWidget* activeDbWidget;
+	bool blockUpdates;
+	QList<int> splitterSizes;
+	QList<int> columnSizesList;
+	QList<int> columnSizesSearch;
 };
-
 #endif // KEEPASSX_DATABASEWIDGETSTATESYNC_H

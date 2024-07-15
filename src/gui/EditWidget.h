@@ -14,45 +14,51 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_EDITWIDGET_H
 #define KEEPASSX_EDITWIDGET_H
-
 #include <QScopedPointer>
-
-#include "gui/DialogyWidget.h"
-
+#include "gui/DialogWidget.h"
 class QLabel;
 
-namespace Ui {
-    class EditWidget;
+namespace Ui
+{
+	class EditWidget;
 }
 
-class EditWidget : public DialogyWidget
+class EditWidget:public DialogWidget
 {
-    Q_OBJECT
-
-public:
-    explicit EditWidget(QWidget* parent = nullptr);
-    ~EditWidget();
-
-    void add(const QString& labelText, QWidget* widget);
-    void setRowHidden(QWidget* widget, bool hide);
-    void setCurrentRow(int index);
-    void setHeadline(const QString& text);
-    QLabel* headlineLabel();
-    void setReadOnly(bool readOnly);
-    bool readOnly() const;
-
+	Q_OBJECT public:
+	explicit EditWidget(
+		QWidget* parent = nullptr
+	);
+	virtual ~EditWidget() override;
+	void add(
+		const QString &labelText,
+		QWidget* widget
+	) const;
+	void setRowHidden(
+		const QWidget* widget,
+		bool hide
+	) const;
+	void setCurrentRow(
+		int index
+	) const;
+	void setHeadline(
+		const QString &text
+	) const;
+	QLabel* headlineLabel() const;
+	void setReadOnly(
+		bool readOnly
+	);
+	bool isReadOnly() const;
 Q_SIGNALS:
-    void accepted();
-    void rejected();
-
+	void sig_accepted();
+	void sig_rejected();
 private:
-    const QScopedPointer<Ui::EditWidget> m_ui;
-    bool m_readOnly;
-
-    Q_DISABLE_COPY(EditWidget)
+	const QScopedPointer<Ui::EditWidget> ui;
+	bool readOnly;
+	Q_DISABLE_COPY(
+		EditWidget
+	)
 };
-
 #endif // KEEPASSX_EDITWIDGET_H

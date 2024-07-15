@@ -14,31 +14,24 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTKEEPASS2WRITER_H
 #define KEEPASSX_TESTKEEPASS2WRITER_H
-
 #include <QObject>
-
 class Database;
 
-class TestKeePass2Writer : public QObject
+class TestKeePass2Writer:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testBasic();
-    void testProtectedAttributes();
-    void testAttachments();
-    void testNonAsciiPasswords();
-    void testDeviceFailure();
-    void testRepair();
-    void cleanupTestCase();
-
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testBasic();
+	void testProtectedAttributes();
+	void testAttachments();
+	void testNonAsciiPasswords();
+	void testDeviceFailure();
+	void testRepair();
+	void cleanupTestCase();
 private:
-    Database* m_dbOrg;
-    Database* m_dbTest;
+	Database* m_dbOrg;
+	Database* m_dbTest;
 };
-
 #endif // KEEPASSX_TESTKEEPASS2WRITER_H

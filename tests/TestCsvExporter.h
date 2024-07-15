@@ -15,33 +15,25 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTCSVEXPORTER_H
 #define KEEPASSX_TESTCSVEXPORTER_H
-
 #include <QObject>
-
 class Database;
 class CsvExporter;
 
-class TestCsvExporter : public QObject
+class TestCsvExporter:public QObject
 {
-    Q_OBJECT
-
-public:
-    static const QString ExpectedHeaderLine;
-
+	Q_OBJECT public:
+	static const QString ExpectedHeaderLine;
 private Q_SLOTS:
-    void init();
-    void initTestCase();
-    void cleanUp();
-    void testExport();
-    void testEmptyDatabase();
-    void testNestedGroups();
-
+	void init();
+	void initTestCase();
+	void cleanUp();
+	void testExport();
+	void testEmptyDatabase();
+	void testNestedGroups();
 private:
-    Database* m_db;
-    CsvExporter* m_csvExporter;
+	Database* m_db;
+	CsvExporter* m_csvExporter;
 };
-
 #endif // KEEPASSX_TESTCSVEXPORTER_H

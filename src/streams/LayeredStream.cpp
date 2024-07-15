@@ -14,76 +14,114 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "LayeredStream.h"
 
-LayeredStream::LayeredStream(QIODevice* baseDevice)
-    : QIODevice(baseDevice)
-    , m_baseDevice(baseDevice)
+LayeredStream::LayeredStream(
+	QIODevice* baseDevice
+)
+	: QIODevice(
+		baseDevice
+	),
+	baseDevice(
+		baseDevice
+	)
 {
-    connect(baseDevice, SIGNAL(aboutToClose()), SLOT(closeStream()));
+	this->connect(
+		baseDevice,
+		&QIODevice::aboutToClose,
+		this,
+		&LayeredStream::do_CloseStream
+	);
 }
 
 LayeredStream::~LayeredStream()
 {
-    close();
+	QIODevice::close();
 }
 
 bool LayeredStream::isSequential() const
 {
-    return true;
+	return true;
 }
 
-bool LayeredStream::open(QIODevice::OpenMode mode)
+bool LayeredStream::open(
+	OpenMode mode
+)
 {
-    if (isOpen()) {
-        qWarning("LayeredStream::open: Device is already open.");
-        return false;
-    }
-
-    bool readMode = (mode & QIODevice::ReadOnly);
-    bool writeMode = (mode & QIODevice::WriteOnly);
-
-    if (readMode && writeMode) {
-        qWarning("LayeredStream::open: Reading and writing at the same time is not supported.");
-        return false;
-    }
-    else if (!readMode && !writeMode) {
-        qWarning("LayeredStream::open: Must be opened in read or write mode.");
-        return false;
-    }
-    else if ((readMode && !m_baseDevice->isReadable()) ||
-             (writeMode && !m_baseDevice->isWritable())) {
-        qWarning("LayeredStream::open: Base device is not opened correctly.");
-        return false;
-    }
-    else {
-        if (mode & QIODevice::Append) {
-            qWarning("LayeredStream::open: QIODevice::Append is not supported.");
-            mode = mode & ~QIODevice::Append;
-        }
-        if (mode & QIODevice::Truncate) {
-            qWarning("LayeredStream::open: QIODevice::Truncate is not supported.");
-            mode = mode & ~QIODevice::Truncate;
-        }
-
-        mode = mode | QIODevice::Unbuffered;
-
-        return QIODevice::open(mode);
-    }
+	if(this->isOpen())
+	{
+		qWarning(
+			"LayeredStream::open: Device is already open."
+		);
+		return false;
+	}
+	const bool readMode_ = (mode & ReadOnly);
+	const bool writeMode_ = (mode & WriteOnly);
+	if(readMode_ && writeMode_)
+	{
+		qWarning(
+			"LayeredStream::open: Reading and writing at the same time is not supported."
+		);
+		return false;
+	}
+	if(!readMode_ && !writeMode_)
+	{
+		qWarning(
+			"LayeredStream::open: Must be opened in read or write mode."
+		);
+		return false;
+	}
+	if((readMode_ && !baseDevice->isReadable()) || (writeMode_ && !baseDevice->
+		isWritable()))
+	{
+		qWarning(
+			"LayeredStream::open: Base device is not opened correctly."
+		);
+		return false;
+	}
+	if(mode & Append)
+	{
+		qWarning(
+			"LayeredStream::open: QIODevice::Append is not supported."
+		);
+		mode = mode & ~Append;
+	}
+	if(mode & Truncate)
+	{
+		qWarning(
+			"LayeredStream::open: QIODevice::Truncate is not supported."
+		);
+		mode = mode & ~Truncate;
+	}
+	mode = mode | Unbuffered;
+	return QIODevice::open(
+		mode
+	);
 }
 
-qint64 LayeredStream::readData(char* data, qint64 maxSize)
+qint64 LayeredStream::readData(
+	char* data,
+	const qint64 maxSize
+)
 {
-    return m_baseDevice->read(data, maxSize);
+	return baseDevice->read(
+		data,
+		maxSize
+	);
 }
 
-qint64 LayeredStream::writeData(const char* data, qint64 maxSize)
+qint64 LayeredStream::writeData(
+	const char* data,
+	const qint64 maxSize
+)
 {
-    return m_baseDevice->write(data, maxSize);
+	return baseDevice->write(
+		data,
+		maxSize
+	);
 }
 
-void LayeredStream::closeStream()
+void LayeredStream::do_CloseStream()
 {
-    close();
+	this->close();
 }

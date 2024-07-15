@@ -14,34 +14,36 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_CRYPTOHASH_H
 #define KEEPASSX_CRYPTOHASH_H
-
 #include <QByteArray>
-
 class CryptoHashPrivate;
 
 class CryptoHash
 {
 public:
-    enum Algorithm
-    {
-        Sha256
-    };
+	enum Algorithm: uint8_t
+	{
+		Sha256
+	};
 
-    explicit CryptoHash(CryptoHash::Algorithm algo);
-    ~CryptoHash();
-    void addData(const QByteArray& data);
-    void reset();
-    QByteArray result() const;
-
-    static QByteArray hash(const QByteArray& data, CryptoHash::Algorithm algo);
-
+	explicit CryptoHash(
+		Algorithm algo
+	);
+	~CryptoHash();
+	void addData(
+		const QByteArray &data
+	);
+	void reset();
+	QByteArray getResult() const;
+	static QByteArray hash(
+		const QByteArray &data,
+		Algorithm algo
+	);
 private:
-    CryptoHashPrivate* const d_ptr;
-
-    Q_DECLARE_PRIVATE(CryptoHash)
+	CryptoHashPrivate* const d_ptr;
+	Q_DECLARE_PRIVATE(
+		CryptoHash
+	)
 };
-
 #endif // KEEPASSX_CRYPTOHASH_H

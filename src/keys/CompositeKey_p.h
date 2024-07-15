@@ -14,26 +14,21 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_COMPOSITEKEY_P_H
 #define KEEPASSX_COMPOSITEKEY_P_H
-
 #include <QThread>
 
-class TransformKeyBenchmarkThread : public QThread
+class TransformKeyBenchmarkThread final:public QThread
 {
-    Q_OBJECT
-
-public:
-    explicit TransformKeyBenchmarkThread(int msec);
-    int rounds();
-
+	Q_OBJECT public:
+	explicit TransformKeyBenchmarkThread(
+		int msec
+	);
+	int getRounds() const;
 protected:
-    void run();
-
+	virtual void run() override;
 private:
-    int m_msec;
-    int m_rounds;
+	int msec;
+	int rounds;
 };
-
 #endif // KEEPASSX_COMPOSITEKEY_P_H

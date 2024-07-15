@@ -15,91 +15,175 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "CsvExporter.h"
-
 #include <QFile>
-
 #include "core/Database.h"
 #include "core/Group.h"
 
-bool CsvExporter::exportDatabase(const QString& filename, const Database* db)
+bool CsvExporter::exportDatabase(
+	const QString &filename,
+	const Database* db
+)
 {
-    QFile file(filename);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        m_error = file.errorString();
-        return false;
-    }
-    return exportDatabase(&file, db);
+	QFile file_(
+		filename
+	);
+	if(!file_.open(
+		QIODevice::WriteOnly | QIODevice::Truncate
+	))
+	{
+		this->error = file_.errorString();
+		return false;
+	}
+	return this->exportDatabase(
+		&file_,
+		db
+	);
 }
 
-bool CsvExporter::exportDatabase(QIODevice* device, const Database* db)
+bool CsvExporter::exportDatabase(
+	QIODevice* device,
+	const Database* db
+)
 {
-    QString header;
-    addColumn(header, "Group");
-    addColumn(header, "Title");
-    addColumn(header, "Username");
-    addColumn(header, "Password");
-    addColumn(header, "URL");
-    addColumn(header, "Notes");
-    header.append("\n");
-
-    if (device->write(header.toUtf8()) == -1) {
-        m_error = device->errorString();
-        return false;
-    }
-
-    return writeGroup(device, db->rootGroup());
+	QString header_;
+	this->addColumn(
+		header_,
+		"Group"
+	);
+	this->addColumn(
+		header_,
+		"Title"
+	);
+	this->addColumn(
+		header_,
+		"Username"
+	);
+	this->addColumn(
+		header_,
+		"Password"
+	);
+	this->addColumn(
+		header_,
+		"URL"
+	);
+	this->addColumn(
+		header_,
+		"Notes"
+	);
+	header_.append(
+		"\n"
+	);
+	if(device->write(
+		header_.toUtf8()
+	) == -1)
+	{
+		this->error = device->errorString();
+		return false;
+	}
+	return this->writeGroup(
+		device,
+		db->getRootGroup()
+	);
 }
 
-QString CsvExporter::errorString() const
+QString CsvExporter::getErrorString() const
 {
-    return m_error;
+	return this->error;
 }
 
-bool CsvExporter::writeGroup(QIODevice* device, const Group* group, QString groupPath)
+bool CsvExporter::writeGroup(
+	QIODevice* device,
+	const Group* group,
+	QString groupPath
+)
 {
-    if (!groupPath.isEmpty()) {
-        groupPath.append("/");
-    }
-    groupPath.append(group->name());
-
-    const QList<Entry*> entryList = group->entries();
-    for (const Entry* entry : entryList) {
-        QString line;
-
-        addColumn(line, groupPath);
-        addColumn(line, entry->title());
-        addColumn(line, entry->username());
-        addColumn(line, entry->password());
-        addColumn(line, entry->url());
-        addColumn(line, entry->notes());
-
-        line.append("\n");
-
-        if (device->write(line.toUtf8()) == -1) {
-            m_error = device->errorString();
-            return false;
-        }
-    }
-
-    const QList<Group*> children = group->children();
-    for (const Group* child : children) {
-        if (!writeGroup(device, child, groupPath)) {
-            return false;
-        }
-    }
-
-    return true;
+	if(!groupPath.isEmpty())
+	{
+		groupPath.append(
+			"/"
+		);
+	}
+	groupPath.append(
+		group->getName()
+	);
+	const QList<Entry*> &entryList_ = group->getEntries();
+	for(const Entry* entry_: entryList_)
+	{
+		QString line_;
+		this->addColumn(
+			line_,
+			groupPath
+		);
+		this->addColumn(
+			line_,
+			entry_->getTitle()
+		);
+		this->addColumn(
+			line_,
+			entry_->getUsername()
+		);
+		this->addColumn(
+			line_,
+			entry_->getPassword()
+		);
+		this->addColumn(
+			line_,
+			entry_->getURL()
+		);
+		this->addColumn(
+			line_,
+			entry_->getNotes()
+		);
+		line_.append(
+			"\n"
+		);
+		if(device->write(
+			line_.toUtf8()
+		) == -1)
+		{
+			this->error = device->errorString();
+			return false;
+		}
+	}
+	const QList<Group*> &children_ = group->getChildren();
+	for(const Group* child_: children_)
+	{
+		if(!this->writeGroup(
+			device,
+			child_,
+			groupPath
+		))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
-void CsvExporter::addColumn(QString& str, const QString& column)
+void CsvExporter::addColumn(
+	QString &str,
+	const QString &column
+)
 {
-    if (!str.isEmpty()) {
-        str.append(",");
-    }
-
-    str.append("\"");
-    str.append(QString(column).replace("\"", "\"\""));
-    str.append("\"");
+	if(!str.isEmpty())
+	{
+		str.append(
+			","
+		);
+	}
+	str.append(
+		"\""
+	);
+	str.append(
+		QString(
+			column
+		).replace(
+			"\"",
+			"\"\""
+		)
+	);
+	str.append(
+		"\""
+	);
 }

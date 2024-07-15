@@ -14,50 +14,98 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "AboutDialog.h"
-#include "ui_AboutDialog.h"
-
 #include "config-keepassx.h"
+#include "ui_AboutDialog.h"
 #include "version.h"
 #include "core/FilePath.h"
 #include "crypto/Crypto.h"
 
-AboutDialog::AboutDialog(QWidget* parent)
-    : QDialog(parent)
-    , m_ui(new Ui::AboutDialog())
+AboutDialog::AboutDialog(
+	QWidget* parent
+)
+	: QDialog(
+		parent
+	),
+	ui(
+		new Ui::AboutDialog()
+	)
 {
-    m_ui->setupUi(this);
-
-    m_ui->nameLabel->setText(m_ui->nameLabel->text() + " " + KEEPASSX_VERSION);
-    QFont nameLabelFont = m_ui->nameLabel->font();
-    nameLabelFont.setBold(true);
-    nameLabelFont.setPointSize(nameLabelFont.pointSize() + 4);
-    m_ui->nameLabel->setFont(nameLabelFont);
-
-    m_ui->iconLabel->setPixmap(filePath()->applicationIcon().pixmap(48));
-
-    QString commitHash;
-    if (!QString(GIT_HEAD).isEmpty()) {
-        commitHash = GIT_HEAD;
-    }
-    else if (!QString(DIST_HASH).contains("Format")) {
-        commitHash = DIST_HASH;
-    }
-
-    if (!commitHash.isEmpty()) {
-        QString labelText = tr("Revision").append(": ").append(commitHash);
-        m_ui->label_git->setText(labelText);
-    }
-
-    QString libs = QString("%1\n- Qt %2\n- %3")
-            .arg(m_ui->label_libs->text())
-            .arg(QString::fromLocal8Bit(qVersion()))
-            .arg(Crypto::backendVersion());
-    m_ui->label_libs->setText(libs);
-
-    setAttribute(Qt::WA_DeleteOnClose);
-    connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(close()));
+	this->ui->setupUi(
+		this
+	);
+	this->ui->nameLabel->setText(
+		this->ui->nameLabel->text() + " " + KEEPASSX_VERSION
+	);
+	QFont nameLabelFont_ = this->ui->nameLabel->font();
+	nameLabelFont_.setBold(
+		true
+	);
+	nameLabelFont_.setPointSize(
+		nameLabelFont_.pointSize() + 4
+	);
+	this->ui->nameLabel->setFont(
+		nameLabelFont_
+	);
+	this->ui->iconLabel->setPixmap(
+		FilePath::getInstance()->getApplicationIcon().pixmap(
+			48
+		)
+	);
+	QString commitHash_;
+	if(!QString(
+		GIT_HEAD
+	).isEmpty())
+	{
+		commitHash_ = GIT_HEAD;
+	}
+	else if(!QString(
+		DIST_HASH
+	).contains(
+		"Format"
+	))
+	{
+		commitHash_ = DIST_HASH;
+	}
+	if(!commitHash_.isEmpty())
+	{
+		const QString labelText_ = tr(
+			"Revision"
+		).append(
+			": "
+		).append(
+			commitHash_
+		);
+		this->ui->label_git->setText(
+			labelText_
+		);
+	}
+	const QString libs_ = QString(
+		"%1\n- Qt %2\n- %3"
+	).arg(
+		this->ui->label_libs->text()
+	).arg(
+		QString::fromLocal8Bit(
+			qVersion()
+		)
+	).arg(
+		Crypto::getBackendVersion()
+	);
+	this->ui->label_libs->setText(
+		libs_
+	);
+	this->setAttribute(
+		Qt::WA_DeleteOnClose
+	);
+	this->connect(
+		this->ui->buttonBox,
+		SIGNAL(
+			rejected()
+		),
+		SLOT(
+			close()
+		)
+	);
 }
 
 AboutDialog::~AboutDialog()

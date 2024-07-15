@@ -14,25 +14,19 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "DatabaseWidget.h"
-#include "ui_SearchWidget.h"
-
 #include <QAction>
 #include <QDesktopServices>
-#include <QHBoxLayout>
 #include <QHeaderView>
-#include <QLabel>
-#include <QLineEdit>
 #include <QKeyEvent>
+#include <QProcess>
 #include <QSplitter>
 #include <QTimer>
-#include <QProcess>
-
-#include "autotype/AutoType.h"
+#include "ui_SearchWidget.h"
 #include "core/Config.h"
 #include "core/EntrySearcher.h"
 #include "core/FilePath.h"
+#include "core/Global.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "core/Tools.h"
@@ -40,7 +34,6 @@
 #include "gui/Clipboard.h"
 #include "gui/DatabaseOpenWidget.h"
 #include "gui/DatabaseSettingsWidget.h"
-#include "gui/KeePass1OpenWidget.h"
 #include "gui/MessageBox.h"
 #include "gui/UnlockDatabaseWidget.h"
 #include "gui/entry/EditEntryWidget.h"
@@ -48,994 +41,1585 @@
 #include "gui/group/EditGroupWidget.h"
 #include "gui/group/GroupView.h"
 
-DatabaseWidget::DatabaseWidget(Database* db, QWidget* parent)
-    : QStackedWidget(parent)
-    , m_db(db)
-    , m_searchUi(new Ui::SearchWidget())
-    , m_searchWidget(new QWidget())
-    , m_newGroup(nullptr)
-    , m_newEntry(nullptr)
-    , m_newParent(nullptr)
+DatabaseWidget::DatabaseWidget(
+	Database* db,
+	QWidget* parent
+)
+	: QStackedWidget(
+		parent
+	),
+	db(
+		db
+	),
+	searchUi(
+		new Ui::SearchWidget()
+	),
+	searchWidget(
+		new QWidget()
+	),
+	newGroup(
+		nullptr
+	),
+	newEntry(
+		nullptr
+	),
+	newParent(
+		nullptr
+	)
 {
-    m_searchUi->setupUi(m_searchWidget);
-
-    m_searchTimer = new QTimer(this);
-    m_searchTimer->setSingleShot(true);
-
-    m_mainWidget = new QWidget(this);
-    QLayout* layout = new QHBoxLayout(m_mainWidget);
-    m_splitter = new QSplitter(m_mainWidget);
-    m_splitter->setChildrenCollapsible(false);
-
-    QWidget* rightHandSideWidget = new QWidget(m_splitter);
-    m_searchWidget->setParent(rightHandSideWidget);
-
-    m_groupView = new GroupView(db, m_splitter);
-    m_groupView->setObjectName("groupView");
-    m_groupView->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_groupView, SIGNAL(customContextMenuRequested(QPoint)),
-            SLOT(emitGroupContextMenuRequested(QPoint)));
-
-    m_entryView = new EntryView(rightHandSideWidget);
-    m_entryView->setObjectName("entryView");
-    m_entryView->setContextMenuPolicy(Qt::CustomContextMenu);
-    m_entryView->setGroup(db->rootGroup());
-    connect(m_entryView, SIGNAL(customContextMenuRequested(QPoint)),
-            SLOT(emitEntryContextMenuRequested(QPoint)));
-
-    QAction* closeAction = new QAction(m_searchWidget);
-    QIcon closeIcon = filePath()->icon("actions", "dialog-close");
-    closeAction->setIcon(closeIcon);
-    m_searchUi->closeSearchButton->setDefaultAction(closeAction);
-    m_searchUi->closeSearchButton->setShortcut(Qt::Key_Escape);
-    m_searchWidget->hide();
-    m_searchUi->caseSensitiveCheckBox->setVisible(false);
-    m_searchUi->searchEdit->installEventFilter(this);
-
-    QVBoxLayout* vLayout = new QVBoxLayout(rightHandSideWidget);
-    vLayout->setMargin(0);
-    vLayout->addWidget(m_searchWidget);
-    vLayout->addWidget(m_entryView);
-
-    rightHandSideWidget->setLayout(vLayout);
-
-    setTabOrder(m_searchUi->searchRootRadioButton, m_entryView);
-    setTabOrder(m_entryView, m_groupView);
-    setTabOrder(m_groupView, m_searchWidget);
-
-    m_splitter->addWidget(m_groupView);
-    m_splitter->addWidget(rightHandSideWidget);
-
-    m_splitter->setStretchFactor(0, 30);
-    m_splitter->setStretchFactor(1, 70);
-
-    layout->addWidget(m_splitter);
-    m_mainWidget->setLayout(layout);
-
-    m_editEntryWidget = new EditEntryWidget();
-    m_editEntryWidget->setObjectName("editEntryWidget");
-    m_historyEditEntryWidget = new EditEntryWidget();
-    m_editGroupWidget = new EditGroupWidget();
-    m_editGroupWidget->setObjectName("editGroupWidget");
-    m_changeMasterKeyWidget = new ChangeMasterKeyWidget();
-    m_changeMasterKeyWidget->headlineLabel()->setText(tr("Change master key"));
-    QFont headlineLabelFont = m_changeMasterKeyWidget->headlineLabel()->font();
-    headlineLabelFont.setBold(true);
-    headlineLabelFont.setPointSize(headlineLabelFont.pointSize() + 2);
-    m_changeMasterKeyWidget->headlineLabel()->setFont(headlineLabelFont);
-    m_databaseSettingsWidget = new DatabaseSettingsWidget();
-    m_databaseSettingsWidget->setObjectName("databaseSettingsWidget");
-    m_databaseOpenWidget = new DatabaseOpenWidget();
-    m_databaseOpenWidget->setObjectName("databaseOpenWidget");
-    m_keepass1OpenWidget = new KeePass1OpenWidget();
-    m_keepass1OpenWidget->setObjectName("keepass1OpenWidget");
-    m_unlockDatabaseWidget = new UnlockDatabaseWidget();
-    m_unlockDatabaseWidget->setObjectName("unlockDatabaseWidget");
-    addWidget(m_mainWidget);
-    addWidget(m_editEntryWidget);
-    addWidget(m_editGroupWidget);
-    addWidget(m_changeMasterKeyWidget);
-    addWidget(m_databaseSettingsWidget);
-    addWidget(m_historyEditEntryWidget);
-    addWidget(m_databaseOpenWidget);
-    addWidget(m_keepass1OpenWidget);
-    addWidget(m_unlockDatabaseWidget);
-
-    connect(m_splitter, SIGNAL(splitterMoved(int,int)), SIGNAL(splitterSizesChanged()));
-    connect(m_entryView->header(), SIGNAL(sectionResized(int,int,int)), SIGNAL(entryColumnSizesChanged()));
-    connect(m_groupView, SIGNAL(groupChanged(Group*)), this, SLOT(clearLastGroup(Group*)));
-    connect(m_groupView, SIGNAL(groupChanged(Group*)), SIGNAL(groupChanged()));
-    connect(m_groupView, SIGNAL(groupChanged(Group*)), m_entryView, SLOT(setGroup(Group*)));
-    connect(m_entryView, SIGNAL(entryActivated(Entry*, EntryModel::ModelColumn)),
-            SLOT(entryActivationSignalReceived(Entry*, EntryModel::ModelColumn)));
-    connect(m_entryView, SIGNAL(entrySelectionChanged()), SIGNAL(entrySelectionChanged()));
-    connect(m_editEntryWidget, SIGNAL(editFinished(bool)), SLOT(switchToView(bool)));
-    connect(m_editEntryWidget, SIGNAL(historyEntryActivated(Entry*)), SLOT(switchToHistoryView(Entry*)));
-    connect(m_historyEditEntryWidget, SIGNAL(editFinished(bool)), SLOT(switchBackToEntryEdit()));
-    connect(m_editGroupWidget, SIGNAL(editFinished(bool)), SLOT(switchToView(bool)));
-    connect(m_changeMasterKeyWidget, SIGNAL(editFinished(bool)), SLOT(updateMasterKey(bool)));
-    connect(m_databaseSettingsWidget, SIGNAL(editFinished(bool)), SLOT(switchToView(bool)));
-    connect(m_databaseOpenWidget, SIGNAL(editFinished(bool)), SLOT(openDatabase(bool)));
-    connect(m_keepass1OpenWidget, SIGNAL(editFinished(bool)), SLOT(openDatabase(bool)));
-    connect(m_unlockDatabaseWidget, SIGNAL(editFinished(bool)), SLOT(unlockDatabase(bool)));
-    connect(this, SIGNAL(currentChanged(int)), this, SLOT(emitCurrentModeChanged()));
-    connect(m_searchUi->searchEdit, SIGNAL(textChanged(QString)), this, SLOT(startSearchTimer()));
-    connect(m_searchUi->caseSensitiveCheckBox, SIGNAL(toggled(bool)), this, SLOT(startSearch()));
-    connect(m_searchUi->searchCurrentRadioButton, SIGNAL(toggled(bool)), this, SLOT(startSearch()));
-    connect(m_searchUi->searchRootRadioButton, SIGNAL(toggled(bool)), this, SLOT(startSearch()));
-    connect(m_searchUi->searchEdit, SIGNAL(returnPressed()), m_entryView, SLOT(setFocus()));
-    connect(m_searchTimer, SIGNAL(timeout()), this, SLOT(search()));
-    connect(closeAction, SIGNAL(triggered()), this, SLOT(closeSearch()));
-
-    setCurrentWidget(m_mainWidget);
+	this->searchUi->setupUi(
+		this->searchWidget
+	);
+	this->searchTimer = new QTimer(
+		this
+	);
+	this->searchTimer->setSingleShot(
+		true
+	);
+	this->mainWidget = new QWidget(
+		this
+	);
+	QLayout* layout_ = new QHBoxLayout(
+		this->mainWidget
+	);
+	this->splitter = new QSplitter(
+		this->mainWidget
+	);
+	this->splitter->setChildrenCollapsible(
+		false
+	);
+	const auto rightHandSideWidget_ = new QWidget(
+		this->splitter
+	);
+	this->searchWidget->setParent(
+		rightHandSideWidget_
+	);
+	this->groupView = new GroupView(
+		this->db,
+		this->splitter
+	);
+	this->groupView->setObjectName(
+		"groupView"
+	);
+	this->groupView->setContextMenuPolicy(
+		Qt::CustomContextMenu
+	);
+	this->connect(
+		this->groupView,
+		&GroupView::customContextMenuRequested,
+		this,
+		&DatabaseWidget::do_emitGroupContextMenuRequested
+	);
+	this->entryView = new EntryView(
+		rightHandSideWidget_
+	);
+	this->entryView->setObjectName(
+		"entryView"
+	);
+	this->entryView->setContextMenuPolicy(
+		Qt::CustomContextMenu
+	);
+	this->entryView->do_setGroup(
+		this->db->getRootGroup()
+	);
+	this->connect(
+		this->entryView,
+		&EntryView::customContextMenuRequested,
+		this,
+		&DatabaseWidget::do_emitEntryContextMenuRequested
+	);
+	const auto closeAction_ = new QAction(
+		this->searchWidget
+	);
+	const QIcon closeIcon_ = FilePath::getInstance()->getIcon(
+		"actions",
+		"dialog-close"
+	);
+	closeAction_->setIcon(
+		closeIcon_
+	);
+	this->searchUi->closeSearchButton->setDefaultAction(
+		closeAction_
+	);
+	this->searchUi->closeSearchButton->setShortcut(
+		Qt::Key_Escape
+	);
+	this->searchWidget->hide();
+	this->searchUi->caseSensitiveCheckBox->setVisible(
+		false
+	);
+	this->searchUi->searchEdit->installEventFilter(
+		this
+	);
+	const auto vLayout_ = new QVBoxLayout(
+		rightHandSideWidget_
+	);
+	vLayout_->setContentsMargins(
+		0,
+		0,
+		0,
+		0
+	);
+	vLayout_->addWidget(
+		this->searchWidget
+	);
+	vLayout_->addWidget(
+		this->entryView
+	);
+	rightHandSideWidget_->setLayout(
+		vLayout_
+	);
+	this->setTabOrder(
+		this->searchUi->searchRootRadioButton,
+		this->entryView
+	);
+	this->setTabOrder(
+		this->entryView,
+		this->groupView
+	);
+	this->setTabOrder(
+		this->groupView,
+		this->searchWidget
+	);
+	this->splitter->addWidget(
+		this->groupView
+	);
+	this->splitter->addWidget(
+		rightHandSideWidget_
+	);
+	this->splitter->setStretchFactor(
+		0,
+		30
+	);
+	this->splitter->setStretchFactor(
+		1,
+		70
+	);
+	layout_->addWidget(
+		this->splitter
+	);
+	this->mainWidget->setLayout(
+		layout_
+	);
+	this->editEntryWidget = new EditEntryWidget();
+	this->editEntryWidget->setObjectName(
+		"editEntryWidget"
+	);
+	this->historyEditEntryWidget = new EditEntryWidget();
+	this->editGroupWidget = new EditGroupWidget();
+	this->editGroupWidget->setObjectName(
+		"editGroupWidget"
+	);
+	this->changeMasterKeyWidget = new ChangeMasterKeyWidget();
+	this->changeMasterKeyWidget->headlineLabel()->setText(
+		this->tr(
+			"Change master key"
+		)
+	);
+	QFont headlineLabelFont_ = this->changeMasterKeyWidget->headlineLabel()->
+		font();
+	headlineLabelFont_.setBold(
+		true
+	);
+	headlineLabelFont_.setPointSize(
+		headlineLabelFont_.pointSize() + 2
+	);
+	this->changeMasterKeyWidget->headlineLabel()->setFont(
+		headlineLabelFont_
+	);
+	this->databaseSettingsWidget = new DatabaseSettingsWidget();
+	this->databaseSettingsWidget->setObjectName(
+		"databaseSettingsWidget"
+	);
+	this->databaseOpenWidget = new DatabaseOpenWidget();
+	this->databaseOpenWidget->setObjectName(
+		"databaseOpenWidget"
+	);
+	this->unlockDatabaseWidget = new UnlockDatabaseWidget();
+	this->unlockDatabaseWidget->setObjectName(
+		"unlockDatabaseWidget"
+	);
+	this->addDbWidget(
+		this->mainWidget
+	);
+	this->addDbWidget(
+		this->editEntryWidget
+	);
+	this->addDbWidget(
+		this->editGroupWidget
+	);
+	this->addDbWidget(
+		this->changeMasterKeyWidget
+	);
+	this->addDbWidget(
+		this->databaseSettingsWidget
+	);
+	this->addDbWidget(
+		this->historyEditEntryWidget
+	);
+	this->addDbWidget(
+		this->databaseOpenWidget
+	);
+	this->addDbWidget(
+		this->unlockDatabaseWidget
+	);
+	this->connect(
+		this->splitter,
+		&QSplitter::splitterMoved,
+		this,
+		&DatabaseWidget::sig_splitterSizesChanged
+	);
+	this->connect(
+		this->entryView->header(),
+		&QHeaderView::sectionResized,
+		this,
+		&DatabaseWidget::sig_entryColumnSizesChanged
+	);
+	this->connect(
+		this->groupView,
+		&GroupView::sig_groupChanged,
+		this,
+		&DatabaseWidget::do_clearLastGroup
+	);
+	this->connect(
+		this->groupView,
+		&GroupView::sig_groupChanged,
+		this,
+		&DatabaseWidget::sig_groupChanged
+	);
+	this->connect(
+		this->groupView,
+		&GroupView::sig_groupChanged,
+		this->entryView,
+		&EntryView::do_setGroup
+	);
+	this->connect(
+		this->entryView,
+		&EntryView::sig_entryActivated,
+		this,
+		&DatabaseWidget::do_entryActivationSignalReceived
+	);
+	this->connect(
+		this->entryView,
+		&EntryView::sig_entrySelectionChanged,
+		this,
+		&DatabaseWidget::sig_entrySelectionChanged
+	);
+	this->connect(
+		this->editEntryWidget,
+		&EditEntryWidget::sig_editFinished,
+		this,
+		&DatabaseWidget::do_switchToView
+	);
+	this->connect(
+		this->editEntryWidget,
+		&EditEntryWidget::sig_historyEntryActivated,
+		this,
+		&DatabaseWidget::do_switchToHistoryView
+	);
+	this->connect(
+		this->historyEditEntryWidget,
+		&EditEntryWidget::sig_editFinished,
+		this,
+		&DatabaseWidget::do_switchBackToEntryEdit
+	);
+	this->connect(
+		this->editGroupWidget,
+		&EditGroupWidget::sig_editFinished,
+		this,
+		&DatabaseWidget::do_switchToView
+	);
+	this->connect(
+		this->changeMasterKeyWidget,
+		&ChangeMasterKeyWidget::sig_editFinished,
+		this,
+		&DatabaseWidget::do_updateMasterKey
+	);
+	this->connect(
+		this->databaseSettingsWidget,
+		&DatabaseSettingsWidget::sig_editFinished,
+		this,
+		&DatabaseWidget::do_switchToView
+	);
+	this->connect(
+		this->databaseOpenWidget,
+		&DatabaseOpenWidget::sig_editFinished,
+		this,
+		&DatabaseWidget::do_openDatabase
+	);
+	this->connect(
+		this->unlockDatabaseWidget,
+		&UnlockDatabaseWidget::sig_editFinished,
+		this,
+		&DatabaseWidget::do_unlockDatabase
+	);
+	this->connect(
+		this,
+		&DatabaseWidget::currentChanged,
+		this,
+		&DatabaseWidget::do_emitCurrentModeChanged
+	);
+	this->connect(
+		this->searchUi->searchEdit,
+		&QLineEdit::textChanged,
+		this,
+		&DatabaseWidget::do_startSearchTimer
+	);
+	this->connect(
+		this->searchUi->caseSensitiveCheckBox,
+		&QCheckBox::toggled,
+		this,
+		&DatabaseWidget::do_startSearch
+	);
+	this->connect(
+		this->searchUi->searchCurrentRadioButton,
+		&QRadioButton::toggled,
+		this,
+		&DatabaseWidget::do_startSearch
+	);
+	this->connect(
+		this->searchUi->searchRootRadioButton,
+		&QRadioButton::toggled,
+		this,
+		&DatabaseWidget::do_startSearch
+	);
+	this->connect(
+		this->searchUi->searchEdit,
+		&LineEdit::returnPressed,
+		this->entryView,
+		&EntryView::do_setFocus
+	);
+	this->connect(
+		this->searchTimer,
+		&QTimer::timeout,
+		this,
+		&DatabaseWidget::do_search
+	);
+	this->connect(
+		closeAction_,
+		&QAction::triggered,
+		this,
+		&DatabaseWidget::do_closeSearch
+	);
+	this->setCurrentDbWidget(
+		this->mainWidget
+	);
 }
 
 DatabaseWidget::~DatabaseWidget()
 {
+	/*if(this->db != nullptr)
+	{
+		delete(this->db);
+		this->db = nullptr;
+	}*/
 }
 
-DatabaseWidget::Mode DatabaseWidget::currentMode() const
+DatabaseWidget::Mode DatabaseWidget::getCurrentMode() const
 {
-    if (currentWidget() == nullptr) {
-        return DatabaseWidget::None;
-    }
-    else if (currentWidget() == m_mainWidget) {
-        return DatabaseWidget::ViewMode;
-    }
-    else if (currentWidget() == m_unlockDatabaseWidget) {
-        return DatabaseWidget::LockedMode;
-    }
-    else {
-        return DatabaseWidget::EditMode;
-    }
+	if(this->currentWidget() == nullptr)
+	{
+		return this->None;
+	}
+	if(this->currentWidget() == this->mainWidget)
+	{
+		return this->ViewMode;
+	}
+	if(this->currentWidget() == this->unlockDatabaseWidget)
+	{
+		return this->LockedMode;
+	}
+	return this->EditMode;
 }
 
 bool DatabaseWidget::isInEditMode() const
 {
-    return currentMode() == DatabaseWidget::EditMode;
+	return this->getCurrentMode() == this->EditMode;
 }
 
 bool DatabaseWidget::isEditWidgetModified() const
 {
-    if (currentWidget() == m_editEntryWidget) {
-        return m_editEntryWidget->hasBeenModified();
-    }
-    else {
-        // other edit widget don't have a hasBeenModified() method yet
-        // assume that they already have been modified
-        return true;
-    }
+	if(this->currentWidget() == this->editEntryWidget)
+	{
+		return this->editEntryWidget->hasBeenModified();
+	}
+	// other edit widget don't have a hasBeenModified() method yet
+	// assume that they already have been modified
+	return true;
 }
 
-QList<int> DatabaseWidget::splitterSizes() const
+QList<int> DatabaseWidget::getSplitterSizes() const
 {
-    return m_splitter->sizes();
+	return this->splitter->sizes();
 }
 
-void DatabaseWidget::setSplitterSizes(const QList<int>& sizes)
+void DatabaseWidget::setSplitterSizes(
+	const QList<int> &sizes
+) const
 {
-    m_splitter->setSizes(sizes);
+	this->splitter->setSizes(
+		sizes
+	);
 }
 
-QList<int> DatabaseWidget::entryHeaderViewSizes() const
+QList<int> DatabaseWidget::getEntryHeaderViewSizes() const
 {
-    QList<int> sizes;
-
-    for (int i = 0; i < m_entryView->header()->count(); i++) {
-        sizes.append(m_entryView->header()->sectionSize(i));
-    }
-
-    return sizes;
+	QList<int> sizes_;
+	for(auto i_ = 0; i_ < this->entryView->header()->count(); i_++)
+	{
+		sizes_.append(
+			this->entryView->header()->sectionSize(
+				i_
+			)
+		);
+	}
+	return sizes_;
 }
 
-void DatabaseWidget::setEntryViewHeaderSizes(const QList<int>& sizes)
+void DatabaseWidget::setEntryViewHeaderSizes(
+	const QList<int> &sizes
+) const
 {
-    if (sizes.size() != m_entryView->header()->count()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    for (int i = 0; i < sizes.size(); i++) {
-        m_entryView->header()->resizeSection(i, sizes[i]);
-    }
+	if(sizes.size() != this->entryView->header()->count())
+	{
+		return;
+	}
+	for(auto i_ = 0; i_ < sizes.size(); i_++)
+	{
+		this->entryView->header()->resizeSection(
+			i_,
+			sizes[i_]
+		);
+	}
 }
 
-void DatabaseWidget::clearAllWidgets()
+void DatabaseWidget::clearAllWidgets() const
 {
-    m_editEntryWidget->clear();
-    m_historyEditEntryWidget->clear();
-    m_editGroupWidget->clear();
+	this->editEntryWidget->clear();
+	this->historyEditEntryWidget->clear();
+	this->editGroupWidget->clear();
 }
 
-void DatabaseWidget::emitCurrentModeChanged()
+void DatabaseWidget::do_emitCurrentModeChanged()
 {
-    Q_EMIT currentModeChanged(currentMode());
+	this->sig_currentModeChanged(
+		this->getCurrentMode()
+	);
 }
 
-Database* DatabaseWidget::database()
+Database* DatabaseWidget::getDatabase() const
 {
-    return m_db;
+	return this->db;
 }
 
-void DatabaseWidget::createEntry()
+void DatabaseWidget::do_createEntry()
 {
-    if (!m_groupView->currentGroup()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    m_newEntry = new Entry();
-    m_newEntry->setUuid(Uuid::random());
-    m_newEntry->setUsername(m_db->metadata()->defaultUserName());
-    m_newParent = m_groupView->currentGroup();
-    setIconFromParent();
-    switchToEntryEdit(m_newEntry, true);
+	if(!this->groupView->getCurrentGroup())
+	{
+		return;
+	}
+	this->newEntry = new Entry();
+	this->newEntry->setUUID(
+		UUID::random()
+	);
+	this->newEntry->setUsername(
+		this->db->getMetadata()->getDefaultUserName()
+	);
+	this->newParent = this->groupView->getCurrentGroup();
+	this->setIconFromParent();
+	this->do_switchToEntryEdit(
+		this->newEntry,
+		true
+	);
 }
 
-void DatabaseWidget::setIconFromParent()
+void DatabaseWidget::setIconFromParent() const
 {
-    if (!config()->get("UseGroupIconOnEntryCreation").toBool()) {
-        return;
-    }
-
-    if (m_newParent->iconNumber() == Group::DefaultIconNumber && m_newParent->iconUuid().isNull()) {
-        return;
-    }
-
-    if (m_newParent->iconUuid().isNull()) {
-        m_newEntry->setIcon(m_newParent->iconNumber());
-    }
-    else {
-        m_newEntry->setIcon(m_newParent->iconUuid());
-    }
+	if(!Config::getInstance()->get(
+		"UseGroupIconOnEntryCreation"
+	).toBool())
+	{
+		return;
+	}
+	if(this->newParent->getIconNumber() == Group::DefaultIconNumber && this->
+		newParent->getIconUUID().isNull())
+	{
+		return;
+	}
+	if(this->newParent->getIconUUID().isNull())
+	{
+		this->newEntry->setIcon(
+			this->newParent->getIconNumber()
+		);
+	}
+	else
+	{
+		this->newEntry->setIcon(
+			this->newParent->getIconUUID()
+		);
+	}
 }
 
-void DatabaseWidget::replaceDatabase(Database* db)
+void DatabaseWidget::replaceDatabase(
+	Database* db
+)
 {
-    Database* oldDb = m_db;
-    m_db = db;
-    m_groupView->changeDatabase(m_db);
-    Q_EMIT databaseChanged(m_db);
-    delete oldDb;
+	const Database* oldDb_ = this->db;
+	this->db = db;
+	groupView->changeDatabase(
+		this->db
+	);
+	this->sig_databaseChanged(
+		this->db
+	);
+	delete oldDb_;
 }
 
-void DatabaseWidget::cloneEntry()
+void DatabaseWidget::do_cloneEntry() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    Entry* entry = currentEntry->clone(Entry::CloneNewUuid | Entry::CloneResetTimeInfo);
-    entry->setGroup(currentEntry->group());
-    m_entryView->setFocus();
-    m_entryView->setCurrentEntry(entry);
+	Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return;
+	}
+	Entry* entry = currentEntry_->clone(
+		Entry::CloneNewUuid | Entry::CloneResetTimeInfo
+	);
+	entry->setGroup(
+		currentEntry_->getGroup()
+	);
+	this->entryView->setFocus();
+	this->entryView->setCurrentEntry(
+		entry
+	);
 }
 
-void DatabaseWidget::deleteEntries()
+void DatabaseWidget::do_deleteEntries()
 {
-    const QModelIndexList selected = m_entryView->selectionModel()->selectedRows();
-
-    if (selected.isEmpty()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    // get all entry pointers as the indexes change when removing multiple entries
-    QList<Entry*> selectedEntries;
-    for (const QModelIndex& index : selected) {
-        selectedEntries.append(m_entryView->entryFromIndex(index));
-    }
-
-    bool inRecylceBin = Tools::hasChild(m_db->metadata()->recycleBin(), selectedEntries.first());
-    if (inRecylceBin || !m_db->metadata()->recycleBinEnabled()) {
-        QMessageBox::StandardButton result;
-
-        if (selected.size() == 1) {
-            result = MessageBox::question(
-                this, tr("Delete entry?"),
-                tr("Do you really want to delete the entry \"%1\" for good?")
-                .arg(selectedEntries.first()->title()),
-                QMessageBox::Yes | QMessageBox::No);
-        }
-        else {
-            result = MessageBox::question(
-                this, tr("Delete entries?"),
-                tr("Do you really want to delete %1 entries for good?")
-                .arg(selected.size()),
-                QMessageBox::Yes | QMessageBox::No);
-        }
-
-        if (result == QMessageBox::Yes) {
-            for (Entry* entry : asConst(selectedEntries)) {
-                delete entry;
-            }
-        }
-    }
-    else {
-        QMessageBox::StandardButton result;
-
-        if (selected.size() == 1) {
-            result = MessageBox::question(
-                this, tr("Move entry to recycle bin?"),
-                tr("Do you really want to move entry \"%1\" to the recycle bin?")
-                .arg(selectedEntries.first()->title()),
-                QMessageBox::Yes | QMessageBox::No);
-        }
-        else {
-            result = MessageBox::question(
-                this, tr("Move entries to recycle bin?"),
-                tr("Do you really want to move %n entry(s) to the recycle bin?", 0, selected.size()),
-                QMessageBox::Yes | QMessageBox::No);
-        }
-
-        if (result == QMessageBox::No) {
-            return;
-        }
-
-        for (Entry* entry : asConst(selectedEntries)) {
-            m_db->recycleEntry(entry);
-        }
-    }
+	const QModelIndexList selected_ = this->entryView->selectionModel()->
+		selectedRows();
+	if(selected_.isEmpty())
+	{
+		return;
+	}
+	// get all entry pointers as the indexes change when removing multiple entries
+	QList<Entry*> selectedEntries_;
+	for(const QModelIndex &index_: selected_)
+	{
+		selectedEntries_.append(
+			this->entryView->entryFromIndex(
+				index_
+			)
+		);
+	}
+	if(const bool inRecylceBin_ = Tools::hasChild(
+			this->db->getMetadata()->getRecycleBin(),
+			selectedEntries_.first()
+		);
+		inRecylceBin_ || !this->db->getMetadata()->recycleBinEnabled())
+	{
+		QMessageBox::StandardButton result_;
+		if(selected_.size() == 1)
+		{
+			result_ = MessageBox::question(
+				this,
+				this->tr(
+					"Delete entry?"
+				),
+				this->tr(
+					"Do you really want to delete the entry \"%1\" for good?"
+				).arg(
+					selectedEntries_.first()->getTitle()
+				),
+				QMessageBox::Yes | QMessageBox::No
+			);
+		}
+		else
+		{
+			result_ = MessageBox::question(
+				this,
+				this->tr(
+					"Delete entries?"
+				),
+				this->tr(
+					"Do you really want to delete %1 entries for good?"
+				).arg(
+					selected_.size()
+				),
+				QMessageBox::Yes | QMessageBox::No
+			);
+		}
+		if(result_ == QMessageBox::Yes)
+		{
+			for(const Entry* entry_: asConst(
+					selectedEntries_
+				))
+			{
+				delete entry_;
+			}
+		}
+	}
+	else
+	{
+		QMessageBox::StandardButton result_;
+		if(selected_.size() == 1)
+		{
+			result_ = MessageBox::question(
+				this,
+				this->tr(
+					"Move entry to recycle bin?"
+				),
+				this->tr(
+					"Do you really want to move entry \"%1\" to the recycle bin?"
+				).arg(
+					selectedEntries_.first()->getTitle()
+				),
+				QMessageBox::Yes | QMessageBox::No
+			);
+		}
+		else
+		{
+			result_ = MessageBox::question(
+				this,
+				this->tr(
+					"Move entries to recycle bin?"
+				),
+				this->tr(
+					"Do you really want to move %n entry(s) to the recycle bin?",
+					nullptr,
+					static_cast<int>(selected_.size())
+				),
+				QMessageBox::Yes | QMessageBox::No
+			);
+		}
+		if(result_ == QMessageBox::No)
+		{
+			return;
+		}
+		for(Entry* entry_: asConst(
+				selectedEntries_
+			))
+		{
+			this->db->recycleEntry(
+				entry_
+			);
+		}
+	}
 }
 
-void DatabaseWidget::copyTitle()
+void DatabaseWidget::do_copyTitle() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    setClipboardTextAndMinimize(currentEntry->title());
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return;
+	}
+	this->setClipboardTextAndMinimize(
+		currentEntry_->getTitle()
+	);
 }
 
-void DatabaseWidget::copyUsername()
+void DatabaseWidget::do_copyUsername() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    setClipboardTextAndMinimize(currentEntry->username());
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return;
+	}
+	this->setClipboardTextAndMinimize(
+		currentEntry_->getUsername()
+	);
 }
 
-void DatabaseWidget::copyPassword()
+void DatabaseWidget::do_copyPassword() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    setClipboardTextAndMinimize(currentEntry->password());
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return;
+	}
+	this->setClipboardTextAndMinimize(
+		currentEntry_->getPassword()
+	);
 }
 
-void DatabaseWidget::copyURL()
+void DatabaseWidget::do_copyURL() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    setClipboardTextAndMinimize(currentEntry->url());
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return;
+	}
+	this->setClipboardTextAndMinimize(
+		currentEntry_->getURL()
+	);
 }
 
-void DatabaseWidget::copyNotes()
+void DatabaseWidget::do_copyNotes() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    setClipboardTextAndMinimize(currentEntry->notes());
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return;
+	}
+	this->setClipboardTextAndMinimize(
+		currentEntry_->getNotes()
+	);
 }
 
-void DatabaseWidget::copyAttribute(QAction* action)
+void DatabaseWidget::do_copyAttribute(
+	const QAction* action
+) const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    setClipboardTextAndMinimize(currentEntry->attributes()->value(action->text()));
+	Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return;
+	}
+	this->setClipboardTextAndMinimize(
+		currentEntry_->getAttributes()->getValue(
+			action->text()
+		)
+	);
 }
 
-void DatabaseWidget::setClipboardTextAndMinimize(const QString& text)
+void DatabaseWidget::setClipboardTextAndMinimize(
+	const QString &text
+) const
 {
-    clipboard()->setText(text);
-    if (config()->get("MinimizeOnCopy").toBool()) {
-        window()->showMinimized();
-    }
+	Clipboard::getInstance()->setText(
+		text
+	);
+	if(Config::getInstance()->get(
+		"MinimizeOnCopy"
+	).toBool())
+	{
+		this->window()->showMinimized();
+	}
 }
 
-void DatabaseWidget::performAutoType()
+void DatabaseWidget::do_performAutoType() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    autoType()->performAutoType(currentEntry, window());
+	if(const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+		!currentEntry_)
+	{
+		return;
+	}
 }
 
-void DatabaseWidget::openUrl()
+void DatabaseWidget::do_openUrl() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    openUrlForEntry(currentEntry);
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return;
+	}
+	this->do_openUrlForEntry(
+		currentEntry_
+	);
 }
 
-void DatabaseWidget::openUrlForEntry(Entry* entry)
+void DatabaseWidget::do_openUrlForEntry(
+	const Entry* entry
+)
 {
-    QString urlString = entry->resolvePlaceholders(entry->url());
-    if (urlString.isEmpty()) {
-        return;
-    }
-
-    if (urlString.startsWith("cmd://")) {
-        if (urlString.length() > 6) {
-            QProcess::startDetached(urlString.mid(6));
-        }
-    }
-    else {
-        QUrl url = QUrl::fromUserInput(urlString);
-        QDesktopServices::openUrl(url);
-    }
+	const QString urlString_ = entry->resolvePlaceholders(
+		entry->getURL()
+	);
+	if(urlString_.isEmpty())
+	{
+		return;
+	}
+	if(urlString_.startsWith(
+		"cmd://"
+	))
+	{
+		if(urlString_.length() > 6)
+		{
+			QProcess::startDetached(
+				urlString_.mid(
+					6
+				)
+			);
+		}
+	}
+	else
+	{
+		const QUrl url = QUrl::fromUserInput(
+			urlString_
+		);
+		QDesktopServices::openUrl(
+			url
+		);
+	}
 }
 
-void DatabaseWidget::createGroup()
+void DatabaseWidget::do_createGroup()
 {
-    if (!m_groupView->currentGroup()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    m_newGroup = new Group();
-    m_newGroup->setUuid(Uuid::random());
-    m_newParent = m_groupView->currentGroup();
-    switchToGroupEdit(m_newGroup, true);
+	if(!this->groupView->getCurrentGroup())
+	{
+		return;
+	}
+	this->newGroup = new Group();
+	this->newGroup->setUuid(
+		UUID::random()
+	);
+	this->newParent = this->groupView->getCurrentGroup();
+	this->do_switchToGroupEdit(
+		this->newGroup,
+		true
+	);
 }
 
-void DatabaseWidget::deleteGroup()
+void DatabaseWidget::do_deleteGroup()
 {
-    Group* currentGroup = m_groupView->currentGroup();
-    if (!currentGroup || !canDeleteCurrentGroup()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    bool inRecylceBin = Tools::hasChild(m_db->metadata()->recycleBin(), currentGroup);
-    bool isRecycleBin = (currentGroup == m_db->metadata()->recycleBin());
-    bool isRecycleBinSubgroup = Tools::hasChild(currentGroup, m_db->metadata()->recycleBin());
-    if (inRecylceBin || isRecycleBin || isRecycleBinSubgroup || !m_db->metadata()->recycleBinEnabled()) {
-        QMessageBox::StandardButton result = MessageBox::question(
-            this, tr("Delete group?"),
-            tr("Do you really want to delete the group \"%1\" for good?")
-            .arg(currentGroup->name()),
-            QMessageBox::Yes | QMessageBox::No);
-        if (result == QMessageBox::Yes) {
-            delete currentGroup;
-        }
-    }
-    else {
-        m_db->recycleGroup(currentGroup);
-    }
+	Group* currentGroup_ = this->groupView->getCurrentGroup();
+	if(!currentGroup_ || !this->canDeleteCurrentGroup())
+	{
+		return;
+	}
+	const bool inRecylceBin_ = Tools::hasChild(
+		this->db->getMetadata()->getRecycleBin(),
+		currentGroup_
+	);
+	const bool isRecycleBin_ = (currentGroup_ == this->db->getMetadata()->
+		getRecycleBin());
+	if(const bool isRecycleBinSubgroup_ = Tools::hasChild(
+			currentGroup_,
+			this->db->getMetadata()->getRecycleBin()
+		);
+		inRecylceBin_ || isRecycleBin_ || isRecycleBinSubgroup_ || !this->db->
+		getMetadata()->recycleBinEnabled())
+	{
+		if(const QMessageBox::StandardButton result_ = MessageBox::question(
+				this,
+				this->tr(
+					"Delete group?"
+				),
+				this->tr(
+					"Do you really want to delete the group \"%1\" for good?"
+				).arg(
+					currentGroup_->getName()
+				),
+				QMessageBox::Yes | QMessageBox::No
+			);
+			result_ == QMessageBox::Yes)
+		{
+			delete currentGroup_;
+		}
+	}
+	else
+	{
+		this->db->recycleGroup(
+			currentGroup_
+		);
+	}
 }
 
-int DatabaseWidget::addWidget(QWidget* w)
+int DatabaseWidget::addDbWidget(
+	QWidget* w
+)
 {
-    w->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-
-    int index = QStackedWidget::addWidget(w);
-
-    adjustSize();
-
-    return index;
+	w->setSizePolicy(
+		QSizePolicy::Ignored,
+		QSizePolicy::Ignored
+	);
+	const int index_ = addWidget(
+		w
+	);
+	this->adjustSize();
+	return index_;
 }
 
-void DatabaseWidget::setCurrentIndex(int index)
+void DatabaseWidget::setCurrentDbIndex(
+	const int index
+)
 {
-    // use setCurrentWidget() instead
-    // index is not reliable
-    Q_UNUSED(index);
-    Q_ASSERT(false);
+	// use setCurrentWidget() instead
+	// index is not reliable
+	Q_UNUSED(
+		index
+	);
 }
 
-void DatabaseWidget::setCurrentWidget(QWidget* widget)
+void DatabaseWidget::setCurrentDbWidget(
+	QWidget* widget
+)
 {
-    if (currentWidget()) {
-        currentWidget()->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-    }
-
-    QStackedWidget::setCurrentWidget(widget);
-
-    if (currentWidget()) {
-        currentWidget()->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-    }
-
-    adjustSize();
+	if(this->currentWidget())
+	{
+		this->currentWidget()->setSizePolicy(
+			QSizePolicy::Ignored,
+			QSizePolicy::Ignored
+		);
+	}
+	this->setCurrentWidget(
+		widget
+	);
+	if(this->currentWidget())
+	{
+		this->currentWidget()->setSizePolicy(
+			QSizePolicy::Preferred,
+			QSizePolicy::Preferred
+		);
+	}
+	this->adjustSize();
 }
 
-void DatabaseWidget::switchToView(bool accepted)
+void DatabaseWidget::do_switchToView(
+	const bool accepted
+)
 {
-    if (m_newGroup) {
-        if (accepted) {
-            m_newGroup->setParent(m_newParent);
-            m_groupView->setCurrentGroup(m_newGroup);
-            m_groupView->expandGroup(m_newParent);
-        }
-        else {
-            delete m_newGroup;
-        }
-
-        m_newGroup = nullptr;
-        m_newParent = nullptr;
-    }
-    else if (m_newEntry) {
-        if (accepted) {
-            m_newEntry->setGroup(m_newParent);
-            m_entryView->setFocus();
-            m_entryView->setCurrentEntry(m_newEntry);
-        }
-        else {
-            delete m_newEntry;
-        }
-
-        m_newEntry = nullptr;
-        m_newParent = nullptr;
-    }
-
-    setCurrentWidget(m_mainWidget);
+	if(this->newGroup)
+	{
+		if(accepted)
+		{
+			this->newGroup->setParent(
+				this->newParent
+			);
+			this->groupView->setCurrentGroup(
+				this->newGroup
+			);
+			this->groupView->expandGroup(
+				this->newParent
+			);
+		}
+		else
+		{
+			delete this->newGroup;
+		}
+		this->newGroup = nullptr;
+		this->newParent = nullptr;
+	}
+	else if(this->newEntry)
+	{
+		if(accepted)
+		{
+			this->newEntry->setGroup(
+				this->newParent
+			);
+			this->entryView->setFocus();
+			this->entryView->setCurrentEntry(
+				this->newEntry
+			);
+		}
+		else
+		{
+			delete this->newEntry;
+		}
+		this->newEntry = nullptr;
+		this->newParent = nullptr;
+	}
+	this->setCurrentDbWidget(
+		this->mainWidget
+	);
 }
 
-void DatabaseWidget::switchToHistoryView(Entry* entry)
+void DatabaseWidget::do_switchToHistoryView(
+	Entry* entry
+)
 {
-    m_historyEditEntryWidget->loadEntry(entry, false, true, m_editEntryWidget->entryTitle(), m_db);
-    setCurrentWidget(m_historyEditEntryWidget);
+	this->historyEditEntryWidget->loadEntry(
+		entry,
+		false,
+		true,
+		this->editEntryWidget->entryTitle(),
+		this->db
+	);
+	this->setCurrentWidget(
+		this->historyEditEntryWidget
+	);
 }
 
-void DatabaseWidget::switchBackToEntryEdit()
+void DatabaseWidget::do_switchBackToEntryEdit()
 {
-    setCurrentWidget(m_editEntryWidget);
+	this->setCurrentWidget(
+		this->editEntryWidget
+	);
 }
 
-void DatabaseWidget::switchToEntryEdit(Entry* entry)
+void DatabaseWidget::do_switchToEntryEdit(
+	Entry* entry
+)
 {
-    switchToEntryEdit(entry, false);
+	this->do_switchToEntryEdit(
+		entry,
+		false
+	);
 }
 
-void DatabaseWidget::switchToEntryEdit(Entry* entry, bool create)
+void DatabaseWidget::do_switchToEntryEdit(
+	Entry* entry,
+	const bool create
+)
 {
-    Group* group = m_groupView->currentGroup();
-    if (!group) {
-        Q_ASSERT(m_entryView->inEntryListMode());
-        group = m_lastGroup;
-    }
-    Q_ASSERT(group);
-
-    m_editEntryWidget->loadEntry(entry, create, false, group->name(), m_db);
-    setCurrentWidget(m_editEntryWidget);
+	const Group* group_ = this->groupView->getCurrentGroup();
+	if(!group_)
+	{
+		group_ = this->lastGroup;
+	}
+	this->editEntryWidget->loadEntry(
+		entry,
+		create,
+		false,
+		group_->getName(),
+		this->db
+	);
+	this->setCurrentWidget(
+		this->editEntryWidget
+	);
 }
 
-void DatabaseWidget::switchToGroupEdit(Group* group, bool create)
+void DatabaseWidget::do_switchToGroupEdit(
+	Group* entry,
+	const bool create
+)
 {
-    m_editGroupWidget->loadGroup(group, create, m_db);
-    setCurrentWidget(m_editGroupWidget);
+	this->editGroupWidget->loadGroup(
+		entry,
+		create,
+		this->db
+	);
+	this->setCurrentWidget(
+		this->editGroupWidget
+	);
 }
 
-void DatabaseWidget::updateMasterKey(bool accepted)
+void DatabaseWidget::do_updateMasterKey(
+	const bool accepted
+)
 {
-    if (accepted) {
-        QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-        bool result = m_db->setKey(m_changeMasterKeyWidget->newMasterKey());
-        QApplication::restoreOverrideCursor();
-
-        if (!result) {
-            MessageBox::critical(this, tr("Error"), tr("Unable to calculate master key"));
-            return;
-        }
-    }
-    else if (!m_db->hasKey()) {
-        Q_EMIT closeRequest();
-        return;
-    }
-
-    setCurrentWidget(m_mainWidget);
+	if(accepted)
+	{
+		QApplication::setOverrideCursor(
+			QCursor(
+				Qt::WaitCursor
+			)
+		);
+		const bool result_ = this->db->setKey(
+			this->changeMasterKeyWidget->newMasterKey()
+		);
+		QApplication::restoreOverrideCursor();
+		if(!result_)
+		{
+			MessageBox::critical(
+				this,
+				tr(
+					"Error"
+				),
+				tr(
+					"Unable to calculate master key"
+				)
+			);
+			return;
+		}
+	}
+	else if(!this->db->hasKey())
+	{
+		this->sig_closeRequest();
+		return;
+	}
+	this->setCurrentDbWidget(
+		this->mainWidget
+	);
 }
 
-void DatabaseWidget::openDatabase(bool accepted)
+void DatabaseWidget::do_openDatabase(
+	const bool accepted
+)
 {
-    if (accepted) {
-        replaceDatabase(static_cast<DatabaseOpenWidget*>(sender())->database());
-        setCurrentWidget(m_mainWidget);
-
-        // We won't need those anymore and KeePass1OpenWidget closes
-        // the file in its dtor.
-        delete m_databaseOpenWidget;
-        m_databaseOpenWidget = nullptr;
-        delete m_keepass1OpenWidget;
-        m_keepass1OpenWidget = nullptr;
-    }
-    else {
-        if (m_databaseOpenWidget->database()) {
-            delete m_databaseOpenWidget->database();
-        }
-        Q_EMIT closeRequest();
-    }
+	if(accepted)
+	{
+		this->replaceDatabase(
+			static_cast<DatabaseOpenWidget*>(this->sender())->database()
+		);
+		this->setCurrentDbWidget(
+			this->mainWidget
+		);
+		// We won't need those anymore and KeePass1OpenWidget closes
+		// the file in its dtor.
+		delete this->databaseOpenWidget;
+		this->databaseOpenWidget = nullptr;
+	}
+	else
+	{
+		if(this->databaseOpenWidget->database() != nullptr)
+		{
+			delete this->databaseOpenWidget->database();
+		}
+		this->sig_closeRequest();
+	}
 }
 
-void DatabaseWidget::unlockDatabase(bool accepted)
+void DatabaseWidget::do_unlockDatabase(
+	const bool accepted
+)
 {
-    if (!accepted) {
-        Q_EMIT closeRequest();
-        return;
-    }
-
-    replaceDatabase(static_cast<DatabaseOpenWidget*>(sender())->database());
-
-    const QList<Group*> groups = m_db->rootGroup()->groupsRecursive(true);
-    for (Group* group : groups) {
-        if (group->uuid() == m_groupBeforeLock) {
-            m_groupView->setCurrentGroup(group);
-            break;
-        }
-    }
-
-    m_groupBeforeLock = Uuid();
-    setCurrentWidget(m_mainWidget);
-    m_unlockDatabaseWidget->clearForms();
-    Q_EMIT unlockedDatabase();
+	if(!accepted)
+	{
+		this->sig_closeRequest();
+		return;
+	}
+	replaceDatabase(
+		static_cast<DatabaseOpenWidget*>(this->sender())->database()
+	);
+	const QList<Group*> groups_ = this->db->getRootGroup()->getGroupsRecursive(
+		true
+	);
+	for(Group* group_: groups_)
+	{
+		if(group_->getUUID() == this->groupBeforeLock)
+		{
+			this->groupView->setCurrentGroup(
+				group_
+			);
+			break;
+		}
+	}
+	this->groupBeforeLock = UUID();
+	this->setCurrentDbWidget(
+		this->mainWidget
+	);
+	this->unlockDatabaseWidget->clearForms();
+	this->sig_unlockedDatabase();
 }
 
-void DatabaseWidget::entryActivationSignalReceived(Entry* entry, EntryModel::ModelColumn column)
+void DatabaseWidget::do_entryActivationSignalReceived(
+	Entry* entry,
+	const EntryModel::ModelColumn column
+)
 {
-    if (column == EntryModel::Url && !entry->url().isEmpty()) {
-        openUrlForEntry(entry);
-    }
-    else {
-        switchToEntryEdit(entry);
-    }
+	if(column == EntryModel::Url && !entry->getURL().isEmpty())
+	{
+		this->do_openUrlForEntry(
+			entry
+		);
+	}
+	else
+	{
+		this->do_switchToEntryEdit(
+			entry
+		);
+	}
 }
 
-void DatabaseWidget::switchToEntryEdit()
+void DatabaseWidget::do_switchToEntryEdit()
 {
-    Entry* entry = m_entryView->currentEntry();
-    Q_ASSERT(entry);
-    if (!entry) {
-        return;
-    }
-
-    switchToEntryEdit(entry, false);
+	Entry* entry_ = this->entryView->getCurrentEntry();
+	if(!entry_)
+	{
+		return;
+	}
+	this->do_switchToEntryEdit(
+		entry_,
+		false
+	);
 }
 
-void DatabaseWidget::switchToGroupEdit()
+void DatabaseWidget::do_switchToGroupEdit()
 {
-    Group* group = m_groupView->currentGroup();
-    Q_ASSERT(group);
-    if (!group) {
-        return;
-    }
-
-    switchToGroupEdit(group, false);
+	Group* group_ = this->groupView->getCurrentGroup();
+	if(!group_)
+	{
+		return;
+	}
+	this->do_switchToGroupEdit(
+		group_,
+		false
+	);
 }
 
-void DatabaseWidget::switchToMasterKeyChange()
+void DatabaseWidget::do_switchToMasterKeyChange()
 {
-    m_changeMasterKeyWidget->clearForms();
-    setCurrentWidget(m_changeMasterKeyWidget);
+	this->changeMasterKeyWidget->clearForms();
+	this->setCurrentDbWidget(
+		this->changeMasterKeyWidget
+	);
 }
 
-void DatabaseWidget::switchToDatabaseSettings()
+void DatabaseWidget::do_switchToDatabaseSettings()
 {
-    m_databaseSettingsWidget->load(m_db);
-    setCurrentWidget(m_databaseSettingsWidget);
+	this->databaseSettingsWidget->load(
+		this->db
+	);
+	this->setCurrentDbWidget(
+		this->databaseSettingsWidget
+	);
 }
 
-void DatabaseWidget::switchToOpenDatabase(const QString& fileName)
+void DatabaseWidget::do_switchToOpenDatabase(
+	const QString &fileName
+)
 {
-    updateFilename(fileName);
-    m_databaseOpenWidget->load(fileName);
-    setCurrentWidget(m_databaseOpenWidget);
+	this->updateFilename(
+		fileName
+	);
+	this->databaseOpenWidget->load(
+		fileName
+	);
+	this->setCurrentDbWidget(
+		this->databaseOpenWidget
+	);
 }
 
-void DatabaseWidget::switchToOpenDatabase(const QString& fileName, const QString& password,
-                                          const QString& keyFile)
+void DatabaseWidget::do_switchToOpenDatabase(
+	const QString &fileName,
+	const QString &password,
+	const QString &keyFile
+)
 {
-    updateFilename(fileName);
-    switchToOpenDatabase(fileName);
-    m_databaseOpenWidget->enterKey(password, keyFile);
+	this->updateFilename(
+		fileName
+	);
+	this->do_switchToOpenDatabase(
+		fileName
+	);
+	this->databaseOpenWidget->enterKey(
+		password,
+		keyFile
+	);
 }
 
-void DatabaseWidget::switchToImportKeepass1(const QString& fileName)
+void DatabaseWidget::do_openSearch()
 {
-    updateFilename(fileName);
-    m_keepass1OpenWidget->load(fileName);
-    setCurrentWidget(m_keepass1OpenWidget);
+	if(this->isInSearchMode())
+	{
+		this->searchUi->searchEdit->selectAll();
+		if(!this->searchUi->searchEdit->hasFocus())
+		{
+			this->searchUi->searchEdit->setFocus();
+			// make sure the search action is checked again
+			this->do_emitCurrentModeChanged();
+		}
+	}
+	else
+	{
+		this->do_showSearch();
+	}
 }
 
-void DatabaseWidget::openSearch()
+void DatabaseWidget::do_closeSearch()
 {
-    if (isInSearchMode()) {
-        m_searchUi->searchEdit->selectAll();
-
-        if (!m_searchUi->searchEdit->hasFocus()) {
-            m_searchUi->searchEdit->setFocus();
-            // make sure the search action is checked again
-            emitCurrentModeChanged();
-        }
-    }
-    else {
-        showSearch();
-    }
+	this->sig_listModeAboutToActivate();
+	this->groupView->setCurrentGroup(
+		this->lastGroup
+	);
+	this->searchTimer->stop();
+	this->sig_listModeActivated();
 }
 
-void DatabaseWidget::closeSearch()
+void DatabaseWidget::do_showSearch()
 {
-    Q_ASSERT(m_lastGroup);
-
-    Q_EMIT listModeAboutToActivate();
-
-    m_groupView->setCurrentGroup(m_lastGroup);
-    m_searchTimer->stop();
-
-    Q_EMIT listModeActivated();
+	this->sig_searchModeAboutToActivate();
+	this->searchUi->searchEdit->blockSignals(
+		true
+	);
+	this->searchUi->searchEdit->clear();
+	this->searchUi->searchEdit->blockSignals(
+		false
+	);
+	this->searchUi->searchCurrentRadioButton->blockSignals(
+		true
+	);
+	this->searchUi->searchRootRadioButton->blockSignals(
+		true
+	);
+	this->searchUi->searchRootRadioButton->setChecked(
+		true
+	);
+	this->searchUi->searchCurrentRadioButton->blockSignals(
+		false
+	);
+	this->searchUi->searchRootRadioButton->blockSignals(
+		false
+	);
+	this->lastGroup = this->groupView->getCurrentGroup();
+	if(this->lastGroup == this->db->getRootGroup())
+	{
+		this->searchUi->optionsWidget->hide();
+		this->searchUi->searchCurrentRadioButton->hide();
+		this->searchUi->searchRootRadioButton->hide();
+	}
+	else
+	{
+		this->searchUi->optionsWidget->show();
+		this->searchUi->searchCurrentRadioButton->show();
+		this->searchUi->searchRootRadioButton->show();
+		this->searchUi->searchCurrentRadioButton->setText(
+			this->tr(
+				"Current group"
+			).append(
+				" ("
+			).append(
+				lastGroup->getName()
+			).append(
+				")"
+			)
+		);
+	}
+	this->groupView->setCurrentIndex(
+		QModelIndex()
+	);
+	this->searchWidget->show();
+	this->do_search();
+	this->searchUi->searchEdit->setFocus();
+	this->sig_searchModeActivated();
 }
 
-void DatabaseWidget::showSearch()
+void DatabaseWidget::do_search() const
 {
-    Q_EMIT searchModeAboutToActivate();
-
-    m_searchUi->searchEdit->blockSignals(true);
-    m_searchUi->searchEdit->clear();
-    m_searchUi->searchEdit->blockSignals(false);
-
-    m_searchUi->searchCurrentRadioButton->blockSignals(true);
-    m_searchUi->searchRootRadioButton->blockSignals(true);
-    m_searchUi->searchRootRadioButton->setChecked(true);
-    m_searchUi->searchCurrentRadioButton->blockSignals(false);
-    m_searchUi->searchRootRadioButton->blockSignals(false);
-
-    m_lastGroup = m_groupView->currentGroup();
-
-    Q_ASSERT(m_lastGroup);
-
-    if (m_lastGroup == m_db->rootGroup()) {
-        m_searchUi->optionsWidget->hide();
-        m_searchUi->searchCurrentRadioButton->hide();
-        m_searchUi->searchRootRadioButton->hide();
-    }
-    else {
-        m_searchUi->optionsWidget->show();
-        m_searchUi->searchCurrentRadioButton->show();
-        m_searchUi->searchRootRadioButton->show();
-        m_searchUi->searchCurrentRadioButton->setText(tr("Current group")
-                                                      .append(" (")
-                                                      .append(m_lastGroup->name())
-                                                      .append(")"));
-    }
-    m_groupView->setCurrentIndex(QModelIndex());
-
-    m_searchWidget->show();
-    search();
-    m_searchUi->searchEdit->setFocus();
-
-    Q_EMIT searchModeActivated();
+	Group* searchGroup_;
+	if(this->searchUi->searchCurrentRadioButton->isChecked())
+	{
+		searchGroup_ = this->lastGroup;
+	}
+	else if(this->searchUi->searchRootRadioButton->isChecked())
+	{
+		searchGroup_ = this->db->getRootGroup();
+	}
+	else
+	{
+		return;
+	}
+	Qt::CaseSensitivity sensitivity_;
+	if(this->searchUi->caseSensitiveCheckBox->isChecked())
+	{
+		sensitivity_ = Qt::CaseSensitive;
+	}
+	else
+	{
+		sensitivity_ = Qt::CaseInsensitive;
+	}
+	const QList<Entry*> searchResult_ = EntrySearcher().search(
+		this->searchUi->searchEdit->text(),
+		searchGroup_,
+		sensitivity_
+	);
+	this->entryView->setEntryList(
+		searchResult_
+	);
 }
 
-void DatabaseWidget::search()
+void DatabaseWidget::do_startSearchTimer() const
 {
-    Q_ASSERT(m_lastGroup);
-
-    Group* searchGroup;
-    if (m_searchUi->searchCurrentRadioButton->isChecked()) {
-        searchGroup = m_lastGroup;
-    }
-    else if (m_searchUi->searchRootRadioButton->isChecked()) {
-        searchGroup = m_db->rootGroup();
-    }
-    else {
-        Q_ASSERT(false);
-        return;
-    }
-
-    Qt::CaseSensitivity sensitivity;
-    if (m_searchUi->caseSensitiveCheckBox->isChecked()) {
-        sensitivity = Qt::CaseSensitive;
-    }
-    else {
-        sensitivity = Qt::CaseInsensitive;
-    }
-
-    QList<Entry*> searchResult = EntrySearcher().search(m_searchUi->searchEdit->text(), searchGroup, sensitivity);
-
-    m_entryView->setEntryList(searchResult);
+	if(!this->searchTimer->isActive())
+	{
+		this->searchTimer->stop();
+	}
+	this->searchTimer->start(
+		100
+	);
 }
 
-void DatabaseWidget::startSearchTimer()
+void DatabaseWidget::do_startSearch() const
 {
-    if (!m_searchTimer->isActive()) {
-        m_searchTimer->stop();
-    }
-    m_searchTimer->start(100);
+	if(!this->searchTimer->isActive())
+	{
+		this->searchTimer->stop();
+	}
+	this->do_search();
 }
 
-void DatabaseWidget::startSearch()
+void DatabaseWidget::do_emitGroupContextMenuRequested(
+	const QPoint &pos
+)
 {
-    if (!m_searchTimer->isActive()) {
-        m_searchTimer->stop();
-    }
-    search();
+	this->sig_groupContextMenuRequested(
+		this->groupView->viewport()->mapToGlobal(
+			pos
+		)
+	);
 }
 
-void DatabaseWidget::emitGroupContextMenuRequested(const QPoint& pos)
+void DatabaseWidget::do_emitEntryContextMenuRequested(
+	const QPoint &pos
+)
 {
-    Q_EMIT groupContextMenuRequested(m_groupView->viewport()->mapToGlobal(pos));
-}
-
-void DatabaseWidget::emitEntryContextMenuRequested(const QPoint& pos)
-{
-    Q_EMIT entryContextMenuRequested(m_entryView->viewport()->mapToGlobal(pos));
+	this->sig_entryContextMenuRequested(
+		this->entryView->viewport()->mapToGlobal(
+			pos
+		)
+	);
 }
 
 bool DatabaseWidget::dbHasKey() const
 {
-    return m_db->hasKey();
+	return this->db->hasKey();
 }
 
 bool DatabaseWidget::canDeleteCurrentGroup() const
 {
-    bool isRootGroup = m_db->rootGroup() == m_groupView->currentGroup();
-    return !isRootGroup;
+	const bool isRootGroup = this->db->getRootGroup() == this->groupView->
+		getCurrentGroup();
+	return !isRootGroup;
 }
 
 bool DatabaseWidget::isInSearchMode() const
 {
-    return m_entryView->inEntryListMode();
+	return this->entryView->isInEntryListMode();
 }
 
-void DatabaseWidget::clearLastGroup(Group* group)
+void DatabaseWidget::do_clearLastGroup(
+	const Group* group
+)
 {
-    if (group) {
-        m_lastGroup = nullptr;
-        m_searchWidget->hide();
-    }
+	if(group)
+	{
+		this->lastGroup = nullptr;
+		this->searchWidget->hide();
+	}
 }
 
 void DatabaseWidget::lock()
 {
-    Q_ASSERT(currentMode() != DatabaseWidget::LockedMode);
-    if (isInSearchMode()) {
-        closeSearch();
-    }
-
-    if (m_groupView->currentGroup()) {
-        m_groupBeforeLock = m_groupView->currentGroup()->uuid();
-    }
-    else {
-        m_groupBeforeLock = m_db->rootGroup()->uuid();
-    }
-
-    clearAllWidgets();
-    m_unlockDatabaseWidget->load(m_filename);
-    setCurrentWidget(m_unlockDatabaseWidget);
-    Database* newDb = new Database();
-    newDb->metadata()->setName(m_db->metadata()->name());
-    replaceDatabase(newDb);
+	if(this->isInSearchMode())
+	{
+		this->do_closeSearch();
+	}
+	if(this->groupView->getCurrentGroup())
+	{
+		this->groupBeforeLock = this->groupView->getCurrentGroup()->getUUID();
+	}
+	else
+	{
+		this->groupBeforeLock = this->db->getRootGroup()->getUUID();
+	}
+	this->clearAllWidgets();
+	this->unlockDatabaseWidget->load(
+		this->filename
+	);
+	this->setCurrentDbWidget(
+		this->unlockDatabaseWidget
+	);
+	const auto newDb_ = new Database();
+	newDb_->getMetadata()->setName(
+		this->db->getMetadata()->getName()
+	);
+	this->replaceDatabase(
+		newDb_
+	);
 }
 
-void DatabaseWidget::updateFilename(const QString& fileName)
+void DatabaseWidget::updateFilename(
+	const QString &filename
+)
 {
-    m_filename = fileName;
+	this->filename = filename;
 }
 
-int DatabaseWidget::numberOfSelectedEntries() const
+int DatabaseWidget::getNumberOfSelectedEntries() const
 {
-    return m_entryView->numberOfSelectedEntries();
+	return static_cast<int>(this->entryView->numberOfSelectedEntries());
 }
 
-QStringList DatabaseWidget::customEntryAttributes() const
+QStringList DatabaseWidget::getCustomEntryAttributes() const
 {
-    Entry* entry = m_entryView->currentEntry();
-    if (!entry) {
-        return QStringList();
-    }
-
-    return entry->attributes()->customKeys();
+	Entry* entry_ = this->entryView->getCurrentEntry();
+	if(!entry_)
+	{
+		return QStringList();
+	}
+	return entry_->getAttributes()->getCustomKeys();
 }
 
 bool DatabaseWidget::isGroupSelected() const
 {
-    return m_groupView->currentGroup() != nullptr;
+	return this->groupView->getCurrentGroup() != nullptr;
 }
 
-bool DatabaseWidget::currentEntryHasTitle()
+bool DatabaseWidget::currentEntryHasTitle() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return false;
-    }
-    return !currentEntry->title().isEmpty();
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return false;
+	}
+	return !currentEntry_->getTitle().isEmpty();
 }
 
-bool DatabaseWidget::currentEntryHasUsername()
+bool DatabaseWidget::currentEntryHasUsername() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return false;
-    }
-    return !currentEntry->username().isEmpty();
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return false;
+	}
+	return !currentEntry_->getUsername().isEmpty();
 }
 
-bool DatabaseWidget::currentEntryHasPassword()
+bool DatabaseWidget::currentEntryHasPassword() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return false;
-    }
-    return !currentEntry->password().isEmpty();
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return false;
+	}
+	return !currentEntry_->getPassword().isEmpty();
 }
 
-bool DatabaseWidget::currentEntryHasUrl()
+bool DatabaseWidget::currentEntryHasUrl() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return false;
-    }
-    return !currentEntry->url().isEmpty();
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return false;
+	}
+	return !currentEntry_->getURL().isEmpty();
 }
 
-bool DatabaseWidget::currentEntryHasNotes()
+bool DatabaseWidget::currentEntryHasNotes() const
 {
-    Entry* currentEntry = m_entryView->currentEntry();
-    if (!currentEntry) {
-        Q_ASSERT(false);
-        return false;
-    }
-    return !currentEntry->notes().isEmpty();
+	const Entry* currentEntry_ = this->entryView->getCurrentEntry();
+	if(!currentEntry_)
+	{
+		return false;
+	}
+	return !currentEntry_->getNotes().isEmpty();
 }
 
-bool DatabaseWidget::eventFilter(QObject* object, QEvent* event)
+bool DatabaseWidget::eventFilter(
+	QObject* object,
+	QEvent* event
+)
 {
-    if (object == m_searchUi->searchEdit) {
-        if (event->type() == QEvent::KeyPress) {
-            QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
-
-            if (keyEvent->matches(QKeySequence::Copy)) {
-                // If Control+C is pressed in the search edit when no
-                // text is selected, copy the password of the current
-                // entry.
-                Entry* currentEntry = m_entryView->currentEntry();
-                if (currentEntry && !m_searchUi->searchEdit->hasSelectedText()) {
-                    setClipboardTextAndMinimize(currentEntry->password());
-                    return true;
-                }
-            }
-            else if (keyEvent->matches(QKeySequence::MoveToNextLine)) {
-                // If Down is pressed at EOL in the search edit, move
-                // the focus to the entry view.
-                if (!m_searchUi->searchEdit->hasSelectedText()
-                        && m_searchUi->searchEdit->cursorPosition() == m_searchUi->searchEdit->text().size()) {
-                    m_entryView->setFocus();
-                    return true;
-                }
-            }
-        }
-    }
-
-    return false;
+	if(object == this->searchUi->searchEdit)
+	{
+		if(event->type() == QEvent::KeyPress)
+		{
+			if(const auto keyEvent_ = static_cast<QKeyEvent*>(event);
+				keyEvent_->matches(
+					QKeySequence::Copy
+				))
+			{
+				// If Control+C is pressed in the search edit when no
+				// text is selected, copy the password of the current
+				// entry.
+				if(const Entry* currentEntry_ = this->entryView->
+						getCurrentEntry();
+					currentEntry_ && !this->searchUi->searchEdit->
+					hasSelectedText())
+				{
+					this->setClipboardTextAndMinimize(
+						currentEntry_->getPassword()
+					);
+					return true;
+				}
+			}
+			else if(keyEvent_->matches(
+				QKeySequence::MoveToNextLine
+			))
+			{
+				// If Down is pressed at EOL in the search edit, move
+				// the focus to the entry view.
+				if(!this->searchUi->searchEdit->hasSelectedText() && this->
+					searchUi->searchEdit->cursorPosition() == this->searchUi->
+					searchEdit->text().size())
+				{
+					this->entryView->setFocus();
+					return true;
+				}
+			}
+		}
+	}
+	return false;
 }

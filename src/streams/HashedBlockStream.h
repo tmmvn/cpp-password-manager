@@ -14,42 +14,43 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_HASHEDBLOCKSTREAM_H
 #define KEEPASSX_HASHEDBLOCKSTREAM_H
-
 #include <QSysInfo>
-
 #include "streams/LayeredStream.h"
 
-class HashedBlockStream : public LayeredStream
+class HashedBlockStream final:public LayeredStream
 {
-    Q_OBJECT
-
-public:
-    explicit HashedBlockStream(QIODevice* baseDevice);
-    HashedBlockStream(QIODevice* baseDevice, qint32 blockSize);
-    ~HashedBlockStream();
-
-    bool reset() override;
-    void close() override;
-
+	Q_OBJECT public:
+	explicit HashedBlockStream(
+		QIODevice* baseDevice
+	);
+	HashedBlockStream(
+		QIODevice* baseDevice,
+		qint32 blockSize
+	);
+	virtual ~HashedBlockStream() override;
+	virtual bool reset() override;
+	virtual void close() override;
 protected:
-    qint64 readData(char* data, qint64 maxSize) override;
-    qint64 writeData(const char* data, qint64 maxSize) override;
-
+	virtual qint64 readData(
+		char* data,
+		qint64 maxSize
+	) override;
+	virtual qint64 writeData(
+		const char* data,
+		qint64 maxSize
+	) override;
 private:
-    void init();
-    bool readHashedBlock();
-    bool writeHashedBlock();
-
-    static const QSysInfo::Endian ByteOrder;
-    qint32 m_blockSize;
-    QByteArray m_buffer;
-    int m_bufferPos;
-    quint32 m_blockIndex;
-    bool m_eof;
-    bool m_error;
+	void init();
+	bool readHashedBlock();
+	bool writeHashedBlock();
+	static const QSysInfo::Endian ByteOrder;
+	qint32 blockSize;
+	QByteArray buffer;
+	int bufferPos;
+	quint32 blockIndex;
+	bool eof;
+	bool error;
 };
-
 #endif // KEEPASSX_HASHEDBLOCKSTREAM_H

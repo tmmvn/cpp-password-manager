@@ -14,17 +14,13 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "KeePass2Reader.h"
-
 #include <QBuffer>
 #include <QFile>
 #include <QIODevice>
-
 #include "core/Database.h"
 #include "core/Endian.h"
 #include "crypto/CryptoHash.h"
-#include "format/KeePass1.h"
 #include "format/KeePass2.h"
 #include "format/KeePass2RandomStream.h"
 #include "format/KeePass2XmlReader.h"
@@ -34,400 +30,659 @@
 #include "streams/SymmetricCipherStream.h"
 
 KeePass2Reader::KeePass2Reader()
-    : m_device(nullptr)
-    , m_headerStream(nullptr)
-    , m_error(false)
-    , m_headerEnd(false)
-    , m_saveXml(false)
-    , m_db(nullptr)
+	: device(
+		nullptr
+	),
+	headerStream(
+		nullptr
+	),
+	error(
+		false
+	),
+	headerEnd(
+		false
+	),
+	saveXml(
+		true
+	),
+	db(
+		nullptr
+	)
 {
 }
 
-Database* KeePass2Reader::readDatabase(QIODevice* device, const CompositeKey& key, bool keepDatabase)
+Database* KeePass2Reader::readDatabase(
+	QIODevice* device,
+	const CompositeKey &key,
+	bool keepDatabase
+)
 {
-    QScopedPointer<Database> db(new Database());
-    m_db = db.data();
-    m_device = device;
-    m_error = false;
-    m_errorStr.clear();
-    m_headerEnd = false;
-    m_xmlData.clear();
-    m_masterSeed.clear();
-    m_transformSeed.clear();
-    m_encryptionIV.clear();
-    m_streamStartBytes.clear();
-    m_protectedStreamKey.clear();
-
-    StoreDataStream headerStream(m_device);
-    headerStream.open(QIODevice::ReadOnly);
-    m_headerStream = &headerStream;
-
-    bool ok;
-
-    quint32 signature1 = Endian::readUInt32(m_headerStream, KeePass2::BYTEORDER, &ok);
-    if (!ok || signature1 != KeePass2::SIGNATURE_1) {
-        raiseError(tr("Not a KeePass database."));
-        return nullptr;
-    }
-
-    quint32 signature2 = Endian::readUInt32(m_headerStream, KeePass2::BYTEORDER, &ok);
-    if (ok && signature2 == KeePass1::SIGNATURE_2) {
-        raiseError(tr("The selected file is an old KeePass 1 database (.kdb).\n\n"
-                      "You can import it by clicking on Database > 'Import KeePass 1 database'.\n"
-                      "This is a one-way migration. You won't be able to open the imported "
-                      "database with the old KeePassX 0.4 version."));
-        return nullptr;
-    }
-    else if (!ok || signature2 != KeePass2::SIGNATURE_2) {
-        raiseError(tr("Not a KeePass database."));
-        return nullptr;
-    }
-
-    quint32 version = Endian::readUInt32(m_headerStream, KeePass2::BYTEORDER, &ok)
-            & KeePass2::FILE_VERSION_CRITICAL_MASK;
-    quint32 maxVersion = KeePass2::FILE_VERSION & KeePass2::FILE_VERSION_CRITICAL_MASK;
-    if (!ok || (version < KeePass2::FILE_VERSION_MIN) || (version > maxVersion)) {
-        raiseError(tr("Unsupported KeePass database version."));
-        return nullptr;
-    }
-
-    while (readHeaderField() && !hasError()) {
-    }
-
-    headerStream.close();
-
-    if (hasError()) {
-        return nullptr;
-    }
-
-    // check if all required headers were present
-    if (m_masterSeed.isEmpty() || m_transformSeed.isEmpty() || m_encryptionIV.isEmpty()
-            || m_streamStartBytes.isEmpty() || m_protectedStreamKey.isEmpty()
-            || m_db->cipher().isNull()) {
-        raiseError("missing database headers");
-        return nullptr;
-    }
-
-    if (!m_db->setKey(key, m_transformSeed, false)) {
-        raiseError(tr("Unable to calculate master key"));
-        return nullptr;
-    }
-
-    CryptoHash hash(CryptoHash::Sha256);
-    hash.addData(m_masterSeed);
-    hash.addData(m_db->transformedMasterKey());
-    QByteArray finalKey = hash.result();
-
-    SymmetricCipherStream cipherStream(m_device, SymmetricCipher::Aes256,
-                                       SymmetricCipher::Cbc, SymmetricCipher::Decrypt);
-    if (!cipherStream.init(finalKey, m_encryptionIV)) {
-        raiseError(cipherStream.errorString());
-        return nullptr;
-    }
-    if (!cipherStream.open(QIODevice::ReadOnly)) {
-        raiseError(cipherStream.errorString());
-        return nullptr;
-    }
-
-    QByteArray realStart = cipherStream.read(32);
-
-    if (realStart != m_streamStartBytes) {
-        raiseError(tr("Wrong key or database file is corrupt."));
-        return nullptr;
-    }
-
-    HashedBlockStream hashedStream(&cipherStream);
-    if (!hashedStream.open(QIODevice::ReadOnly)) {
-        raiseError(hashedStream.errorString());
-        return nullptr;
-    }
-
-    QIODevice* xmlDevice;
-    QScopedPointer<QtIOCompressor> ioCompressor;
-
-    if (m_db->compressionAlgo() == Database::CompressionNone) {
-        xmlDevice = &hashedStream;
-    }
-    else {
-        ioCompressor.reset(new QtIOCompressor(&hashedStream));
-        ioCompressor->setStreamFormat(QtIOCompressor::GzipFormat);
-        if (!ioCompressor->open(QIODevice::ReadOnly)) {
-            raiseError(ioCompressor->errorString());
-            return nullptr;
-        }
-        xmlDevice = ioCompressor.data();
-    }
-
-    KeePass2RandomStream randomStream;
-    if (!randomStream.init(m_protectedStreamKey)) {
-        raiseError(randomStream.errorString());
-        return nullptr;
-    }
-
-    QScopedPointer<QBuffer> buffer;
-
-    if (m_saveXml) {
-        m_xmlData = xmlDevice->readAll();
-        buffer.reset(new QBuffer(&m_xmlData));
-        buffer->open(QIODevice::ReadOnly);
-        xmlDevice = buffer.data();
-    }
-
-    KeePass2XmlReader xmlReader;
-    xmlReader.readDatabase(xmlDevice, m_db, &randomStream);
-
-    if (xmlReader.hasError()) {
-        raiseError(xmlReader.errorString());
-        if (keepDatabase) {
-            return db.take();
-        }
-        else {
-            return nullptr;
-        }
-    }
-
-    Q_ASSERT(version < 0x00030001 || !xmlReader.headerHash().isEmpty());
-
-    if (!xmlReader.headerHash().isEmpty()) {
-        QByteArray headerHash = CryptoHash::hash(headerStream.storedData(), CryptoHash::Sha256);
-        if (headerHash != xmlReader.headerHash()) {
-            raiseError("Header doesn't match hash");
-            return nullptr;
-        }
-    }
-
-    return db.take();
+	if(device == nullptr)
+	{
+		this->raiseError(
+			"Null device"
+		);
+		return nullptr;
+	}
+	this->db = new Database();
+	this->device = device;
+	this->error = false;
+	this->errorStr.clear();
+	this->headerEnd = false;
+	this->xmlData.clear();
+	this->masterSeed.clear();
+	this->transformSeed.clear();
+	this->encryptionIV.clear();
+	this->streamStartBytes.clear();
+	this->protectedStreamKey.clear();
+	StoreDataStream headerStream_(
+		this->device
+	);
+	headerStream_.open(
+		QIODevice::ReadOnly
+	);
+	this->headerStream = &headerStream_;
+	bool ok_;
+	if(quint32 signature1_ = Endian::readUInt32(
+			this->headerStream,
+			KeePass2::BYTEORDER,
+			&ok_
+		);
+		!ok_ || signature1_ != KeePass2::SIGNATURE_1)
+	{
+		this->raiseError(
+			this->tr(
+				"Not a KeePass database."
+			)
+		);
+		return nullptr;
+	}
+	if(quint32 signature2_ = Endian::readUInt32(
+			this->headerStream,
+			KeePass2::BYTEORDER,
+			&ok_
+		);
+		!ok_ || signature2_ != KeePass2::SIGNATURE_2)
+	{
+		this->raiseError(
+			this->tr(
+				"Not a KeePass database."
+			)
+		);
+		return nullptr;
+	}
+	quint32 version_ = Endian::readUInt32(
+		this->headerStream,
+		KeePass2::BYTEORDER,
+		&ok_
+	) & KeePass2::FILE_VERSION_CRITICAL_MASK;
+	if(quint32 maxVersion_ = KeePass2::FILE_VERSION &
+			KeePass2::FILE_VERSION_CRITICAL_MASK;
+		!ok_ || version_ < KeePass2::FILE_VERSION_MIN || version_ > maxVersion_)
+	{
+		this->raiseError(
+			this->tr(
+				"Unsupported KeePass database version."
+			)
+		);
+		return nullptr;
+	}
+	while(this->readHeaderField() && !this->hasError())
+	{
+	}
+	headerStream_.close();
+	if(this->hasError())
+	{
+		this->raiseError(
+			this->tr(
+				"Error reading header stream"
+			)
+		);
+		return nullptr;
+	}
+	// check if all required headers were present
+	if(this->masterSeed.isEmpty() || this->transformSeed.isEmpty() || this->
+		encryptionIV.isEmpty() || this->streamStartBytes.isEmpty() || this->
+		protectedStreamKey.isEmpty() || this->db->getCipher().isNull())
+	{
+		this->raiseError(
+			"missing database headers"
+		);
+		return nullptr;
+	}
+	if(!this->db->setKey(
+		key,
+		this->transformSeed,
+		false
+	))
+	{
+		this->raiseError(
+			this->tr(
+				"Unable to calculate master key"
+			)
+		);
+		return nullptr;
+	}
+	CryptoHash hash_(
+		CryptoHash::Sha256
+	);
+	hash_.addData(
+		this->masterSeed
+	);
+	hash_.addData(
+		this->db->transformedMasterKey()
+	);
+	QByteArray finalKey_ = hash_.getResult();
+	SymmetricCipherStream cipherStream_(
+		device,
+		SymmetricCipher::Aes256,
+		SymmetricCipher::Cbc,
+		SymmetricCipher::Decrypt
+	);
+	if(!cipherStream_.init(
+		finalKey_,
+		this->encryptionIV
+	))
+	{
+		this->raiseError(
+			cipherStream_.errorString()
+		);
+		return nullptr;
+	}
+	if(!cipherStream_.open(
+		QIODevice::ReadOnly
+	))
+	{
+		this->raiseError(
+			cipherStream_.errorString()
+		);
+		return nullptr;
+	}
+	if(QByteArray realStart_ = cipherStream_.read(
+			32
+		);
+		realStart_ != this->streamStartBytes)
+	{
+		this->raiseError(
+			this->tr(
+				"Wrong key or database file is corrupt."
+			)
+		);
+		return nullptr;
+	}
+	auto hashedStream_ = new HashedBlockStream(
+		&cipherStream_
+	);
+	if(!hashedStream_->open(
+		QIODevice::ReadOnly
+	))
+	{
+		this->raiseError(
+			hashedStream_->errorString()
+		);
+		delete hashedStream_;
+		return nullptr;
+	}
+	QIODevice* xmlDevice_ = nullptr;
+	if(this->db->getCompressionAlgo() == Database::CompressionNone)
+	{
+		xmlDevice_ = hashedStream_;
+	}
+	else
+	{
+		const auto ioCompressor_ = new QtIOCompressor(
+			hashedStream_
+		);
+		ioCompressor_->setStreamFormat(
+			QtIOCompressor::GzipFormat
+		);
+		if(!ioCompressor_->open(
+			QIODevice::ReadOnly
+		))
+		{
+			this->raiseError(
+				ioCompressor_->errorString()
+			);
+			delete ioCompressor_;
+			delete hashedStream_;
+			return nullptr;
+		}
+		xmlDevice_ = ioCompressor_;
+	}
+	KeePass2RandomStream randomStream_;
+	if(!randomStream_.init(
+		this->protectedStreamKey
+	))
+	{
+		this->raiseError(
+			randomStream_.getErrorString()
+		);
+		delete xmlDevice_;
+		return nullptr;
+	}
+	KeePass2XmlReader xmlReader_;
+	if(this->saveXml)
+	{
+		this->xmlData = xmlDevice_->readAll();
+		const auto buffer_ = new QBuffer(
+			&this->xmlData
+		);
+		buffer_->open(
+			QIODevice::ReadOnly
+		);
+		xmlReader_.readDatabase(
+			buffer_,
+			this->db,
+			&randomStream_
+		);
+		delete buffer_;
+	}
+	else
+	{
+		xmlReader_.readDatabase(
+			xmlDevice_,
+			this->db,
+			&randomStream_
+		);
+	}
+	if(xmlReader_.hasError())
+	{
+		this->raiseError(
+			xmlReader_.getErrorString()
+		);
+		if(!keepDatabase)
+		{
+			delete this->db;
+			this->db = nullptr;
+		}
+		delete xmlDevice_;
+		return this->db;
+	}
+	if(!xmlReader_.getHeaderHash().isEmpty())
+	{
+		if(QByteArray headerHash_ = CryptoHash::hash(
+				headerStream_.getStoredData(),
+				CryptoHash::Sha256
+			);
+			headerHash_ != xmlReader_.getHeaderHash())
+		{
+			this->raiseError(
+				"Header doesn't match hash"
+			);
+			if(!keepDatabase)
+			{
+				delete this->db;
+				this->db = nullptr;
+			}
+		}
+	}
+	delete xmlDevice_;
+	return this->db;
 }
 
-Database* KeePass2Reader::readDatabase(const QString& filename, const CompositeKey& key)
+Database* KeePass2Reader::readDatabase(
+	const QString &filename,
+	const CompositeKey &key
+)
 {
-    QFile file(filename);
-    if (!file.open(QFile::ReadOnly)) {
-        raiseError(file.errorString());
-        return nullptr;
-    }
-
-    QScopedPointer<Database> db(readDatabase(&file, key));
-
-    if (file.error() != QFile::NoError) {
-        raiseError(file.errorString());
-        return nullptr;
-    }
-
-    return db.take();
+	QFile file_(
+		filename
+	);
+	if(!file_.open(
+		QFile::ReadOnly
+	))
+	{
+		this->raiseError(
+			file_.errorString()
+		);
+		return nullptr;
+	}
+	Database* db_ = this->readDatabase(
+		&file_,
+		key,
+		false
+	);
+	if(file_.error() != QFile::NoError)
+	{
+		this->raiseError(
+			file_.errorString()
+		);
+		if(db_ != nullptr)
+		{
+			delete db_;
+			db_ = nullptr;
+		}
+	}
+	return db_;
 }
 
-bool KeePass2Reader::hasError()
+bool KeePass2Reader::hasError() const
 {
-    return m_error;
+	return this->error;
 }
 
-QString KeePass2Reader::errorString()
+QString KeePass2Reader::getErrorString()
 {
-    return m_errorStr;
+	return this->errorStr;
 }
 
-void KeePass2Reader::setSaveXml(bool save)
+void KeePass2Reader::setSaveXml(
+	const bool save
+)
 {
-    m_saveXml = save;
+	this->saveXml = save;
 }
 
-QByteArray KeePass2Reader::xmlData()
+QByteArray KeePass2Reader::getXMLData()
 {
-    return m_xmlData;
+	return this->xmlData;
 }
 
-QByteArray KeePass2Reader::streamKey()
+QByteArray KeePass2Reader::getStreamKey()
 {
-    return m_protectedStreamKey;
+	return this->protectedStreamKey;
 }
 
-void KeePass2Reader::raiseError(const QString& errorMessage)
+void KeePass2Reader::raiseError(
+	const QString &errorMessage
+)
 {
-    m_error = true;
-    m_errorStr = errorMessage;
+	qCritical() << errorMessage;
+	this->error = true;
+	this->errorStr = errorMessage;
 }
 
 bool KeePass2Reader::readHeaderField()
 {
-    QByteArray fieldIDArray = m_headerStream->read(1);
-    if (fieldIDArray.size() != 1) {
-        raiseError("Invalid header id size");
-        return false;
-    }
-    quint8 fieldID = fieldIDArray.at(0);
-
-    bool ok;
-    quint16 fieldLen = Endian::readUInt16(m_headerStream, KeePass2::BYTEORDER, &ok);
-    if (!ok) {
-        raiseError("Invalid header field length");
-        return false;
-    }
-
-    QByteArray fieldData;
-    if (fieldLen != 0) {
-        fieldData = m_headerStream->read(fieldLen);
-        if (fieldData.size() != fieldLen) {
-            raiseError("Invalid header data length");
-            return false;
-        }
-    }
-
-    switch (fieldID) {
-    case KeePass2::EndOfHeader:
-        m_headerEnd = true;
-        break;
-
-    case KeePass2::CipherID:
-        setCipher(fieldData);
-        break;
-
-    case KeePass2::CompressionFlags:
-        setCompressionFlags(fieldData);
-        break;
-
-    case KeePass2::MasterSeed:
-        setMasterSeed(fieldData);
-        break;
-
-    case KeePass2::TransformSeed:
-        setTransformSeed(fieldData);
-        break;
-
-    case KeePass2::TransformRounds:
-        setTansformRounds(fieldData);
-        break;
-
-    case KeePass2::EncryptionIV:
-        setEncryptionIV(fieldData);
-        break;
-
-    case KeePass2::ProtectedStreamKey:
-        setProtectedStreamKey(fieldData);
-        break;
-
-    case KeePass2::StreamStartBytes:
-        setStreamStartBytes(fieldData);
-        break;
-
-    case KeePass2::InnerRandomStreamID:
-        setInnerRandomStreamID(fieldData);
-        break;
-
-    default:
-        qWarning("Unknown header field read: id=%d", fieldID);
-        break;
-    }
-
-    return !m_headerEnd;
+	const QByteArray fieldIDArray_ = this->headerStream->read(
+		1
+	);
+	if(fieldIDArray_.size() != 1)
+	{
+		this->raiseError(
+			"Invalid header id size"
+		);
+		return false;
+	}
+	const quint8 fieldID_ = fieldIDArray_.at(
+		0
+	);
+	bool ok_;
+	const quint16 fieldLen_ = Endian::readUInt16(
+		this->headerStream,
+		KeePass2::BYTEORDER,
+		&ok_
+	);
+	if(!ok_)
+	{
+		this->raiseError(
+			"Invalid header field length"
+		);
+		return false;
+	}
+	QByteArray fieldData_;
+	if(fieldLen_ != 0)
+	{
+		fieldData_ = this->headerStream->read(
+			fieldLen_
+		);
+		if(fieldData_.size() != fieldLen_)
+		{
+			this->raiseError(
+				"Invalid header data length"
+			);
+			return false;
+		}
+	}
+	switch(fieldID_)
+	{
+		case KeePass2::EndOfHeader:
+			this->headerEnd = true;
+			break;
+		case KeePass2::CipherID:
+			this->setCipher(
+				fieldData_
+			);
+			break;
+		case KeePass2::CompressionFlags:
+			this->setCompressionFlags(
+				fieldData_
+			);
+			break;
+		case KeePass2::MasterSeed:
+			this->setMasterSeed(
+				fieldData_
+			);
+			break;
+		case KeePass2::TransformSeed:
+			this->setTransformSeed(
+				fieldData_
+			);
+			break;
+		case KeePass2::TransformRounds:
+			this->setTansformRounds(
+				fieldData_
+			);
+			break;
+		case KeePass2::EncryptionIV:
+			this->setEncryptionIV(
+				fieldData_
+			);
+			break;
+		case KeePass2::ProtectedStreamKey:
+			this->setProtectedStreamKey(
+				fieldData_
+			);
+			break;
+		case KeePass2::StreamStartBytes:
+			this->setStreamStartBytes(
+				fieldData_
+			);
+			break;
+		case KeePass2::InnerRandomStreamID:
+			this->setInnerRandomStreamID(
+				fieldData_
+			);
+			break;
+		default: qWarning(
+				"Unknown header field read: id=%d",
+				fieldID_
+			);
+			break;
+	}
+	return !this->headerEnd;
 }
 
-void KeePass2Reader::setCipher(const QByteArray& data)
+void KeePass2Reader::setCipher(
+	const QByteArray &data
+)
 {
-    if (data.size() != Uuid::Length) {
-        raiseError("Invalid cipher uuid length");
-    }
-    else {
-        Uuid uuid(data);
-
-        if (uuid != KeePass2::CIPHER_AES) {
-            raiseError("Unsupported cipher");
-        }
-        else {
-            m_db->setCipher(uuid);
-        }
-    }
+	if(data.size() != UUID::Length)
+	{
+		this->raiseError(
+			"Invalid cipher uuid length"
+		);
+	}
+	else
+	{
+		if(const UUID uuid_(
+				data
+			);
+			uuid_ != KeePass2::CIPHER_AES)
+		{
+			this->raiseError(
+				"Unsupported cipher"
+			);
+		}
+		else
+		{
+			this->db->setCipher(
+				uuid_
+			);
+		}
+	}
 }
 
-void KeePass2Reader::setCompressionFlags(const QByteArray& data)
+void KeePass2Reader::setCompressionFlags(
+	const QByteArray &data
+)
 {
-    if (data.size() != 4) {
-        raiseError("Invalid compression flags length");
-    }
-    else {
-        quint32 id = Endian::bytesToUInt32(data, KeePass2::BYTEORDER);
-
-        if (id > Database::CompressionAlgorithmMax) {
-            raiseError("Unsupported compression algorithm");
-        }
-        else {
-            m_db->setCompressionAlgo(static_cast<Database::CompressionAlgorithm>(id));
-        }
-    }
+	if(data.size() != 4)
+	{
+		this->raiseError(
+			"Invalid compression flags length"
+		);
+	}
+	else
+	{
+		if(quint32 id_ = Endian::bytesToUInt32(
+				data,
+				KeePass2::BYTEORDER
+			);
+			id_ > Database::CompressionAlgorithmMax)
+		{
+			this->raiseError(
+				"Unsupported compression algorithm"
+			);
+		}
+		else
+		{
+			this->db->setCompressionAlgo(
+				static_cast<Database::CompressionAlgorithm>(id_)
+			);
+		}
+	}
 }
 
-void KeePass2Reader::setMasterSeed(const QByteArray& data)
+void KeePass2Reader::setMasterSeed(
+	const QByteArray &data
+)
 {
-    if (data.size() != 32) {
-        raiseError("Invalid master seed size");
-    }
-    else {
-        m_masterSeed = data;
-    }
+	if(data.size() != 32)
+	{
+		this->raiseError(
+			"Invalid master seed size"
+		);
+	}
+	else
+	{
+		this->masterSeed = data;
+	}
 }
 
-void KeePass2Reader::setTransformSeed(const QByteArray& data)
+void KeePass2Reader::setTransformSeed(
+	const QByteArray &data
+)
 {
-    if (data.size() != 32) {
-        raiseError("Invalid transform seed size");
-    }
-    else {
-        m_transformSeed = data;
-    }
+	if(data.size() != 32)
+	{
+		this->raiseError(
+			"Invalid transform seed size"
+		);
+	}
+	else
+	{
+		this->transformSeed = data;
+	}
 }
 
-void KeePass2Reader::setTansformRounds(const QByteArray& data)
+void KeePass2Reader::setTansformRounds(
+	const QByteArray &data
+)
 {
-    if (data.size() != 8) {
-        raiseError("Invalid transform rounds size");
-    }
-    else {
-        if (!m_db->setTransformRounds(Endian::bytesToUInt64(data, KeePass2::BYTEORDER))) {
-            raiseError(tr("Unable to calculate master key"));
-        }
-    }
+	if(data.size() != 8)
+	{
+		this->raiseError(
+			"Invalid transform rounds size"
+		);
+	}
+	else
+	{
+		if(!this->db->setTransformRounds(
+			Endian::bytesToUInt64(
+				data,
+				KeePass2::BYTEORDER
+			)
+		))
+		{
+			this->raiseError(
+				this->tr(
+					"Unable to calculate master key"
+				)
+			);
+		}
+	}
 }
 
-void KeePass2Reader::setEncryptionIV(const QByteArray& data)
+void KeePass2Reader::setEncryptionIV(
+	const QByteArray &data
+)
 {
-    if (data.size() != 16) {
-        raiseError("Invalid encryption iv size");
-    }
-    else {
-        m_encryptionIV = data;
-    }
+	if(data.size() != 16)
+	{
+		this->raiseError(
+			"Invalid encryption iv size"
+		);
+	}
+	else
+	{
+		this->encryptionIV = data;
+	}
 }
 
-void KeePass2Reader::setProtectedStreamKey(const QByteArray& data)
+void KeePass2Reader::setProtectedStreamKey(
+	const QByteArray &data
+)
 {
-    if (data.size() != 32) {
-        raiseError("Invalid stream key size");
-    }
-    else {
-        m_protectedStreamKey = data;
-    }
+	if(data.size() != 32)
+	{
+		this->raiseError(
+			"Invalid stream key size"
+		);
+	}
+	else
+	{
+		this->protectedStreamKey = data;
+	}
 }
 
-void KeePass2Reader::setStreamStartBytes(const QByteArray& data)
+void KeePass2Reader::setStreamStartBytes(
+	const QByteArray &data
+)
 {
-    if (data.size() != 32) {
-        raiseError("Invalid start bytes size");
-    }
-    else {
-        m_streamStartBytes = data;
-    }
+	if(data.size() != 32)
+	{
+		this->raiseError(
+			"Invalid start bytes size"
+		);
+	}
+	else
+	{
+		this->streamStartBytes = data;
+	}
 }
 
-void KeePass2Reader::setInnerRandomStreamID(const QByteArray& data)
+void KeePass2Reader::setInnerRandomStreamID(
+	const QByteArray &data
+)
 {
-    if (data.size() != 4) {
-        raiseError("Invalid random stream id size");
-    }
-    else {
-        quint32 id = Endian::bytesToUInt32(data, KeePass2::BYTEORDER);
-
-        if (id != KeePass2::Salsa20) {
-            raiseError("Unsupported random stream algorithm");
-        }
-    }
+	if(data.size() != 4)
+	{
+		this->raiseError(
+			"Invalid random stream id size"
+		);
+	}
+	else
+	{
+		if(const quint32 id_ = Endian::bytesToUInt32(
+				data,
+				KeePass2::BYTEORDER
+			);
+			id_ != KeePass2::Salsa20)
+		{
+			this->raiseError(
+				"Unsupported random stream algorithm"
+			);
+		}
+	}
 }

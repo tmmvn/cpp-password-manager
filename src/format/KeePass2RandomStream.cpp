@@ -14,98 +14,137 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "KeePass2RandomStream.h"
-
 #include "crypto/CryptoHash.h"
 #include "format/KeePass2.h"
 
 KeePass2RandomStream::KeePass2RandomStream()
-    : m_cipher(SymmetricCipher::Salsa20, SymmetricCipher::Stream, SymmetricCipher::Encrypt)
-    , m_offset(0)
+	: cipher(
+		SymmetricCipher::Salsa20,
+		SymmetricCipher::Stream,
+		SymmetricCipher::Encrypt
+	),
+	offset(
+		0
+	)
 {
 }
 
-bool KeePass2RandomStream::init(const QByteArray& key)
+bool KeePass2RandomStream::init(
+	const QByteArray &key
+)
 {
-    return m_cipher.init(CryptoHash::hash(key, CryptoHash::Sha256),
-                         KeePass2::INNER_STREAM_SALSA20_IV);
+	return this->cipher.init(
+		CryptoHash::hash(
+			key,
+			CryptoHash::Sha256
+		),
+		KeePass2::INNER_STREAM_SALSA20_IV
+	);
 }
 
-QByteArray KeePass2RandomStream::randomBytes(int size, bool* ok)
+QByteArray KeePass2RandomStream::getRandomBytes(
+	const int size,
+	bool* ok
+)
 {
-    QByteArray result;
-
-    int bytesRemaining = size;
-
-    while (bytesRemaining > 0) {
-        if (m_buffer.size() == m_offset) {
-            if (!loadBlock()) {
-                *ok = false;
-                return QByteArray();
-            }
-        }
-
-        int bytesToCopy = qMin(bytesRemaining, m_buffer.size() - m_offset);
-        result.append(m_buffer.mid(m_offset, bytesToCopy));
-        m_offset += bytesToCopy;
-        bytesRemaining -= bytesToCopy;
-    }
-
-    *ok = true;
-    return result;
+	QByteArray result_;
+	int bytesRemaining_ = size;
+	while(bytesRemaining_ > 0)
+	{
+		if(this->buffer.size() == this->offset)
+		{
+			if(!this->loadBlock())
+			{
+				*ok = false;
+				return QByteArray();
+			}
+		}
+		const int bytesToCopy_ = qMin(
+			bytesRemaining_,
+			static_cast<int>(buffer.size()) - offset
+		);
+		result_.append(
+			this->buffer.mid(
+				this->offset,
+				bytesToCopy_
+			)
+		);
+		this->offset += bytesToCopy_;
+		bytesRemaining_ -= bytesToCopy_;
+	}
+	*ok = true;
+	return result_;
 }
 
-QByteArray KeePass2RandomStream::process(const QByteArray& data, bool* ok)
+QByteArray KeePass2RandomStream::process(
+	const QByteArray &data,
+	bool* ok
+)
 {
-    bool randomBytesOk;
-
-    QByteArray randomData = randomBytes(data.size(), &randomBytesOk);
-    if (!randomBytesOk) {
-        *ok = false;
-        return QByteArray();
-    }
-
-    QByteArray result;
-    result.resize(data.size());
-
-    for (int i = 0; i < data.size(); i++) {
-        result[i] = data[i] ^ randomData[i];
-    }
-
-    *ok = true;
-    return result;
+	bool randomBytesOk_;
+	QByteArray randomData_ = this->getRandomBytes(
+		static_cast<int>(data.size()),
+		&randomBytesOk_
+	);
+	if(!randomBytesOk_)
+	{
+		*ok = false;
+		return QByteArray();
+	}
+	QByteArray result_;
+	result_.resize(
+		data.size()
+	);
+	for(auto i_ = 0; i_ < data.size(); i_++)
+	{
+		result_[i_] = static_cast<char>(data[i_] ^ randomData_[i_]);
+	}
+	*ok = true;
+	return result_;
 }
 
-bool KeePass2RandomStream::processInPlace(QByteArray& data)
+bool KeePass2RandomStream::processInPlace(
+	QByteArray &data
+)
 {
-    bool ok;
-    QByteArray randomData = randomBytes(data.size(), &ok);
-    if (!ok) {
-        return false;
-    }
-
-    for (int i = 0; i < data.size(); i++) {
-        data[i] = data[i] ^ randomData[i];
-    }
-
-    return true;
+	bool ok_;
+	QByteArray randomData_ = this->getRandomBytes(
+		static_cast<int>(data.size()),
+		&ok_
+	);
+	if(!ok_)
+	{
+		return false;
+	}
+	for(auto i = 0; i < data.size(); i++)
+	{
+		data[i] = static_cast<char>(data[i] ^ randomData_[i]);
+	}
+	return true;
 }
 
-QString KeePass2RandomStream::errorString() const
+QString KeePass2RandomStream::getErrorString() const
 {
-    return m_cipher.errorString();
+	return this->cipher.getErrorString();
 }
 
 bool KeePass2RandomStream::loadBlock()
 {
-    Q_ASSERT(m_offset == m_buffer.size());
-
-    m_buffer.fill('\0', m_cipher.blockSize());
-    if (!m_cipher.processInPlace(m_buffer)) {
-        return false;
-    }
-    m_offset = 0;
-
-    return true;
+	if(this->offset != this->buffer.size())
+	{
+		return false;
+	}
+	this->buffer.fill(
+		'\0',
+		this->cipher.getBlockSize()
+	);
+	if(!this->cipher.processInPlace(
+		this->buffer
+	))
+	{
+		return false;
+	}
+	this->offset = 0;
+	return true;
 }

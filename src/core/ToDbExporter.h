@@ -15,19 +15,17 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TODBEXPORTER_H
 #define KEEPASSX_TODBEXPORTER_H
-
 #include "core/Exporter.h"
-
 class Database;
 class Group;
 
-class ToDbExporter : Exporter
+class ToDbExporter final:Exporter
 {
 public:
-    Database* exportGroup(Group* group);
+	virtual Database* exportGroup(
+		Group* group
+	) override;
 };
-
 #endif // KEEPASSX_TODBEXPORTER_H

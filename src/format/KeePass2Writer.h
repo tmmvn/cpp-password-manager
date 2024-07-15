@@ -14,33 +14,40 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_KEEPASS2WRITER_H
 #define KEEPASSX_KEEPASS2WRITER_H
-
 #include "format/KeePass2.h"
 #include "keys/CompositeKey.h"
-
 class Database;
 class QIODevice;
 
 class KeePass2Writer
 {
 public:
-    KeePass2Writer();
-    void writeDatabase(QIODevice* device, Database* db);
-    void writeDatabase(const QString& filename, Database* db);
-    bool hasError();
-    QString errorString();
-
+	KeePass2Writer();
+	void writeDatabase(
+		QIODevice* device,
+		Database* db
+	);
+	void writeDatabase(
+		const QString &filename,
+		Database* db
+	);
+	bool hasError() const;
+	QString getErrorString();
 private:
-    bool writeData(const QByteArray& data);
-    bool writeHeaderField(KeePass2::HeaderFieldID fieldId, const QByteArray& data);
-    void raiseError(const QString& errorMessage);
-
-    QIODevice* m_device;
-    bool m_error;
-    QString m_errorStr;
+	bool writeData(
+		const QByteArray &data
+	);
+	bool writeHeaderField(
+		KeePass2::HeaderFieldID fieldId,
+		const QByteArray &data
+	);
+	void raiseError(
+		const QString &errorMessage
+	);
+	QIODevice* device;
+	bool error;
+	QString errorStr;
 };
-
 #endif // KEEPASSX_KEEPASS2WRITER_H

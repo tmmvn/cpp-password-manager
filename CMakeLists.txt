@@ -12,158 +12,121 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
-      "Choose the type of build, options are: None Debug Release RelWithDebInfo Debug Debugfull Profile MinSizeRel."
-      FORCE)
-endif()
-
-project(KeePassX)
-
-cmake_minimum_required(VERSION 2.8.12)
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
-include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
-include(CheckCXXSourceCompiles)
-
-option(WITH_TESTS "Enable building of unit tests" ON)
-option(WITH_GUI_TESTS "Enable building of GUI tests" OFF)
-option(WITH_DEV_BUILD "Use only for development. Disables/warns about deprecated methods." OFF)
-
-set(KEEPASSX_VERSION "2.0.3")
-set(KEEPASSX_VERSION_NUM "2.0.3")
-
-if("${CMAKE_C_COMPILER}" MATCHES "clang$" OR "${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
-  set(CMAKE_COMPILER_IS_CLANG 1)
-endif()
-
-if("${CMAKE_CXX_COMPILER}" MATCHES "clang(\\+\\+)?$" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  set(CMAKE_COMPILER_IS_CLANGXX 1)
-endif()
-
-macro(add_gcc_compiler_cxxflags FLAGS)
-  if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAGS}")
-  endif()
-endmacro(add_gcc_compiler_cxxflags)
-
-macro(add_gcc_compiler_cflags FLAGS)
-  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANG)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS}")
-  endif()
-endmacro(add_gcc_compiler_cflags)
-
-macro(add_gcc_compiler_flags FLAGS)
-  add_gcc_compiler_cxxflags("${FLAGS}")
-  add_gcc_compiler_cflags("${FLAGS}")
-endmacro(add_gcc_compiler_flags)
-
-add_definitions(-DQT_NO_KEYWORDS -DQT_NO_EXCEPTIONS -DQT_STRICT_ITERATORS -DQT_NO_CAST_TO_ASCII)
-
-add_gcc_compiler_flags("-fno-common -fstack-protector --param=ssp-buffer-size=4")
-add_gcc_compiler_flags("-Wall -Wextra -Wundef -Wpointer-arith -Wno-long-long")
-add_gcc_compiler_flags("-Wformat=2 -Wmissing-format-attribute")
-add_gcc_compiler_flags("-fvisibility=hidden")
-add_gcc_compiler_cxxflags("-fvisibility-inlines-hidden")
-
-add_gcc_compiler_cxxflags("-fno-exceptions -fno-rtti")
-add_gcc_compiler_cxxflags("-Wnon-virtual-dtor -Wold-style-cast -Woverloaded-virtual")
-add_gcc_compiler_cflags("-Wchar-subscripts -Wwrite-strings")
-
-string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
-if (CMAKE_BUILD_TYPE_LOWER MATCHES (release|relwithdebinfo|minsizerel))
-  add_gcc_compiler_flags("-D_FORTIFY_SOURCE=2")
-endif()
-
-check_c_compiler_flag("-Werror=format-security -Werror=implicit-function-declaration" WERROR_C_AVAILABLE)
-check_cxx_compiler_flag("-Werror=format-security" WERROR_CXX_AVAILABLE)
-if(WERROR_C_AVAILABLE AND WERROR_CXX_AVAILABLE)
-  add_gcc_compiler_flags("-Werror=format-security")
-  add_gcc_compiler_cflags("-Werror=implicit-function-declaration")
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wcast-align")
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCC)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wcast-align")
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-add-needed -Wl,--as-needed -Wl,--no-undefined")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--no-add-needed -Wl,--as-needed")
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-z,relro")
-endif()
-
-add_gcc_compiler_cxxflags("-std=c++11")
-
-if(APPLE)
-  add_gcc_compiler_cxxflags("-stdlib=libc++")
-endif()
-
-add_gcc_compiler_cflags("-ansi")
-
-if(WITH_DEV_BUILD)
-  add_definitions(-DQT_DEPRECATED_WARNINGS -DGCRYPT_NO_DEPRECATED)
-endif()
-
-if(MINGW)
-  set(CMAKE_RC_COMPILER_INIT windres)
-  enable_language(RC)
-  set(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> <FLAGS> -O coff <DEFINES> -i <SOURCE> -o <OBJECT>")
-endif()
-
-if(APPLE OR MINGW)
-  set(PROGNAME KeePassX)
-else()
-  set(PROGNAME keepassx)
-endif()
-
-if(APPLE AND "${CMAKE_INSTALL_PREFIX}" STREQUAL "/usr/local")
-  set(CMAKE_INSTALL_PREFIX "/Applications")
-endif()
-
-if(MINGW)
-  set(BIN_INSTALL_DIR    ".")
-  set(PLUGIN_INSTALL_DIR ".")
-  set(DATA_INSTALL_DIR   "share")
-elseif(APPLE)
-  set(BIN_INSTALL_DIR    ".")
-  set(PLUGIN_INSTALL_DIR ".")
-  set(DATA_INSTALL_DIR   "${PROGNAME}.app/Contents/Resources")
-else()
-  include(GNUInstallDirs)
-
-  set(BIN_INSTALL_DIR    "${CMAKE_INSTALL_BINDIR}")
-  set(PLUGIN_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/keepassx")
-  set(DATA_INSTALL_DIR   "${CMAKE_INSTALL_DATADIR}/keepassx")
-endif()
-
-if(WITH_TESTS)
-  enable_testing()
-endif(WITH_TESTS)
-
-find_package(Qt5Core          5.2 REQUIRED)
-find_package(Qt5Concurrent    5.2 REQUIRED)
-find_package(Qt5Widgets       5.2 REQUIRED)
-find_package(Qt5Test          5.2 REQUIRED)
-find_package(Qt5LinguistTools 5.2 REQUIRED)
-set(CMAKE_AUTOMOC ON)
-
+IF(NOT CMAKE_BUILD_TYPE)
+	SET(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+		"Choose the type of build, options are: None Debug Release RelWithDebInfo Debug Debugfull Profile MinSizeRel."
+		FORCE)
+ENDIF()
+CMAKE_MINIMUM_REQUIRED(VERSION 3.28.1)
+PROJECT(KeePassX)
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+INCLUDE(CheckCCompilerFlag)
+INCLUDE(CheckCXXCompilerFlag)
+INCLUDE(CheckCXXSourceCompiles)
+OPTION(WITH_TESTS "Enable building of unit tests" ON)
+OPTION(WITH_GUI_TESTS "Enable building of GUI tests" ON)
+OPTION(WITH_DEV_BUILD "Use only for development. Disables/warns about deprecated methods." ON)
+SET(KEEPASSX_VERSION "2.0.3")
+SET(KEEPASSX_VERSION_NUM "2.0.3")
+IF("${CMAKE_C_COMPILER}" MATCHES "clang$" OR "${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+	SET(CMAKE_COMPILER_IS_CLANG 1)
+ENDIF()
+IF("${CMAKE_CXX_COMPILER}" MATCHES "clang(\\+\\+)?$" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+	SET(CMAKE_COMPILER_IS_CLANGXX 1)
+ENDIF()
+MACRO(ADD_GCC_COMPILER_CXXFLAGS FLAGS)
+	IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANGXX)
+		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAGS}")
+	ENDIF()
+ENDMACRO(ADD_GCC_COMPILER_CXXFLAGS)
+MACRO(ADD_GCC_COMPILER_CFLAGS FLAGS)
+	IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANG)
+		SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAGS}")
+	ENDIF()
+ENDMACRO(ADD_GCC_COMPILER_CFLAGS)
+MACRO(ADD_GCC_COMPILER_FLAGS FLAGS)
+	ADD_GCC_COMPILER_CXXFLAGS("${FLAGS}")
+	ADD_GCC_COMPILER_CFLAGS("${FLAGS}")
+ENDMACRO(ADD_GCC_COMPILER_FLAGS)
+ADD_DEFINITIONS(-DQT_NO_KEYWORDS -DQT_NO_EXCEPTIONS -DQT_STRICT_ITERATORS -DQT_NO_CAST_TO_ASCII)
+ADD_GCC_COMPILER_FLAGS("-fno-common -fstack-protector --param=ssp-buffer-size=4")
+ADD_GCC_COMPILER_FLAGS("-Wall -Wextra -Wundef -Wpointer-arith -Wno-long-long")
+ADD_GCC_COMPILER_FLAGS("-Wformat=2 -Wmissing-format-attribute")
+ADD_GCC_COMPILER_FLAGS("-fvisibility=hidden")
+ADD_GCC_COMPILER_CXXFLAGS("-fvisibility-inlines-hidden")
+ADD_GCC_COMPILER_CXXFLAGS("-fno-exceptions -fno-rtti")
+ADD_GCC_COMPILER_CXXFLAGS("-Wnon-virtual-dtor -Wold-style-cast -Woverloaded-virtual")
+ADD_GCC_COMPILER_CFLAGS("-Wchar-subscripts -Wwrite-strings")
+STRING(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+IF(CMAKE_BUILD_TYPE_LOWER MATCHES (release|relwithdebinfo|minsizerel))
+	ADD_GCC_COMPILER_FLAGS("-D_FORTIFY_SOURCE=2")
+ENDIF()
+CHECK_C_COMPILER_FLAG("-Werror=format-security -Werror=implicit-function-declaration" WERROR_C_AVAILABLE)
+CHECK_CXX_COMPILER_FLAG("-Werror=format-security" WERROR_CXX_AVAILABLE)
+IF(WERROR_C_AVAILABLE AND WERROR_CXX_AVAILABLE)
+	ADD_GCC_COMPILER_FLAGS("-Werror=format-security")
+	ADD_GCC_COMPILER_CFLAGS("-Werror=implicit-function-declaration")
+ENDIF()
+IF(CMAKE_COMPILER_IS_GNUCXX)
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wcast-align")
+ENDIF()
+IF(CMAKE_COMPILER_IS_GNUCC)
+	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wcast-align")
+ENDIF()
+IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-add-needed -Wl,--as-needed -Wl,--no-undefined")
+	SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro")
+	SET(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--no-add-needed -Wl,--as-needed")
+	SET(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-z,relro")
+ENDIF()
+ADD_GCC_COMPILER_CXXFLAGS("-std=c++11")
+IF(APPLE)
+	ADD_GCC_COMPILER_CXXFLAGS("-stdlib=libc++")
+ENDIF()
+ADD_GCC_COMPILER_CFLAGS("-ansi")
+IF(WITH_DEV_BUILD)
+	ADD_DEFINITIONS(-DQT_DEPRECATED_WARNINGS -DGCRYPT_NO_DEPRECATED)
+ENDIF()
+IF(MINGW)
+	SET(CMAKE_RC_COMPILER_INIT windres)
+	ENABLE_LANGUAGE(RC)
+	SET(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> <FLAGS> -O coff <DEFINES> -i <SOURCE> -o <OBJECT>")
+ENDIF()
+IF(APPLE OR MINGW)
+	SET(PROGNAME KeePassX)
+ELSE()
+	SET(PROGNAME keepassx)
+ENDIF()
+IF(APPLE AND "${CMAKE_INSTALL_PREFIX}" STREQUAL "/usr/local")
+	SET(CMAKE_INSTALL_PREFIX "/Applications")
+ENDIF()
+IF(MINGW)
+	SET(BIN_INSTALL_DIR ".")
+	SET(PLUGIN_INSTALL_DIR ".")
+	SET(DATA_INSTALL_DIR "share")
+ELSEIF(APPLE)
+	SET(BIN_INSTALL_DIR ".")
+	SET(PLUGIN_INSTALL_DIR ".")
+	SET(DATA_INSTALL_DIR "${PROGNAME}.app/Contents/Resources")
+ELSE()
+	INCLUDE(GNUInstallDirs)
+	SET(BIN_INSTALL_DIR "${CMAKE_INSTALL_BINDIR}")
+	SET(PLUGIN_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/keepassx")
+	SET(DATA_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/keepassx")
+ENDIF()
+IF(WITH_TESTS)
+	INCLUDE(ctest)
+	ENABLE_TESTING()
+ENDIF(WITH_TESTS)
+SET(CMAKE_PREFIX_PATH "~/Qt/6.7.2/macos/")
+FIND_PACKAGE(Qt6 REQUIRED COMPONENTS Core Concurrent Widgets Test LinguistTools)
+SET(CMAKE_AUTOMOC ON)
 # Debian sets the the build type to None for package builds.
 # Make sure we don't enable asserts there.
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:None>:QT_NO_DEBUG>)
-
-find_package(Gcrypt 1.6.0 REQUIRED)
-
-find_package(ZLIB REQUIRED)
-
-check_cxx_source_compiles("
+SET_PROPERTY(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:None>:QT_NO_DEBUG>)
+FIND_PACKAGE(Gcrypt 1.6.0 REQUIRED)
+FIND_PACKAGE(ZLIB REQUIRED)
+CHECK_CXX_SOURCE_COMPILES("
   #include <zlib.h>
 
   #if !defined(ZLIB_VERNUM) || (ZLIB_VERNUM < 0x1200)
@@ -171,17 +134,14 @@ check_cxx_source_compiles("
   #endif
 
   int main() { return 0; }" ZLIB_SUPPORTS_GZIP)
-
-if(NOT ZLIB_SUPPORTS_GZIP)
-  message(FATAL_ERROR "zlib 1.2.x or higher is required to use the gzip format")
-endif()
-
-if(UNIX)
-  check_cxx_source_compiles("#include <sys/prctl.h>
+IF(NOT ZLIB_SUPPORTS_GZIP)
+	MESSAGE(FATAL_ERROR "zlib 1.2.x or higher is required to use the gzip format")
+ENDIF()
+IF(UNIX)
+	CHECK_CXX_SOURCE_COMPILES("#include <sys/prctl.h>
     int main() { prctl(PR_SET_DUMPABLE, 0); return 0; }"
-    HAVE_PR_SET_DUMPABLE)
-
-  check_cxx_source_compiles("#include <sys/resource.h>
+		HAVE_PR_SET_DUMPABLE)
+	CHECK_CXX_SOURCE_COMPILES("#include <sys/resource.h>
     int main() {
       struct rlimit limit;
       limit.rlim_cur = 0;
@@ -189,26 +149,21 @@ if(UNIX)
       setrlimit(RLIMIT_CORE, &limit);
       return 0;
     }" HAVE_RLIMIT_CORE)
-
-  if(APPLE)
-    check_cxx_source_compiles("#include <sys/types.h>
+	IF(APPLE)
+		CHECK_CXX_SOURCE_COMPILES("#include <sys/types.h>
       #include <sys/ptrace.h>
       int main() { ptrace(PT_DENY_ATTACH, 0, 0, 0); return 0; }"
-      HAVE_PT_DENY_ATTACH)
-  endif()
-endif()
-
-include_directories(SYSTEM ${GCRYPT_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR})
-
-include(FeatureSummary)
-
-add_subdirectory(src)
-add_subdirectory(share)
-add_subdirectory(utils)
-if(WITH_TESTS)
-  add_subdirectory(tests)
-endif(WITH_TESTS)
-
-if(PRINT_SUMMARY)
-  feature_summary(WHAT ALL)
-endif()
+			HAVE_PT_DENY_ATTACH)
+	ENDIF()
+ENDIF()
+INCLUDE_DIRECTORIES(SYSTEM ${GCRYPT_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR})
+INCLUDE(FeatureSummary)
+ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(share)
+ADD_SUBDIRECTORY(utils)
+IF(WITH_TESTS)
+	ADD_SUBDIRECTORY(tests)
+ENDIF(WITH_TESTS)
+IF(PRINT_SUMMARY)
+	FEATURE_SUMMARY(WHAT ALL)
+ENDIF()

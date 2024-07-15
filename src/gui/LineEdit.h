@@ -16,29 +16,26 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_LINEEDIT_H
 #define KEEPASSX_LINEEDIT_H
-
 #include <QLineEdit>
-
 class QToolButton;
 
-class LineEdit : public QLineEdit
+class LineEdit final:public QLineEdit
 {
-    Q_OBJECT
-
-public:
-    explicit LineEdit(QWidget* parent = nullptr);
-
+	Q_OBJECT public:
+	explicit LineEdit(
+		QWidget* parent = nullptr
+	);
 protected:
-    void resizeEvent(QResizeEvent* event) override;
-
+	virtual void resizeEvent(
+		QResizeEvent* event
+	) override;
 private Q_SLOTS:
-    void updateCloseButton(const QString& text);
-
+	void do_updateCloseButton(
+		const QString &text
+	) const;
 private:
-    QToolButton* const m_clearButton;
+	QToolButton* const clearButton;
 };
-
 #endif // KEEPASSX_LINEEDIT_H

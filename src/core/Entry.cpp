@@ -14,590 +14,881 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "Entry.h"
-
 #include "core/Database.h"
 #include "core/DatabaseIcons.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
-
 const int Entry::DefaultIconNumber = 0;
 
 Entry::Entry()
-    : m_attributes(new EntryAttributes(this))
-    , m_attachments(new EntryAttachments(this))
-    , m_autoTypeAssociations(new AutoTypeAssociations(this))
-    , m_tmpHistoryItem(nullptr)
-    , m_modifiedSinceBegin(false)
-    , m_updateTimeinfo(true)
+	: attributes(
+		new EntryAttributes(
+			this
+		)
+	),
+	attachments(
+		new EntryAttachments(
+			this
+		)
+	),
+	tmpHistoryItem(
+		nullptr
+	),
+	modifiedSinceBegin(
+		false
+	),
+	updateTimeinfo(
+		true
+	)
 {
-    m_data.iconNumber = DefaultIconNumber;
-    m_data.autoTypeEnabled = true;
-    m_data.autoTypeObfuscation = 0;
-
-    connect(m_attributes, SIGNAL(modified()), this, SIGNAL(modified()));
-    connect(m_attributes, SIGNAL(defaultKeyModified()), SLOT(emitDataChanged()));
-    connect(m_attachments, SIGNAL(modified()), this, SIGNAL(modified()));
-    connect(m_autoTypeAssociations, SIGNAL(modified()), SIGNAL(modified()));
-
-    connect(this, SIGNAL(modified()), SLOT(updateTimeinfo()));
-    connect(this, SIGNAL(modified()), SLOT(updateModifiedSinceBegin()));
+	this->data.iconNumber = this->DefaultIconNumber;
+	this->data.autoTypeEnabled = true;
+	this->data.autoTypeObfuscation = 0;
+	this->connect(
+		this->attributes,
+		&EntryAttributes::sig_modified,
+		this,
+		&Entry::sig_modified
+	);
+	this->connect(
+		this->attributes,
+		&EntryAttributes::sig_defaultKeyModified,
+		this,
+		&Entry::do_emitDataChanged
+	);
+	this->connect(
+		this->attachments,
+		&EntryAttachments::sig_modified,
+		this,
+		&Entry::sig_modified
+	);
+	this->connect(
+		this,
+		&Entry::sig_modified,
+		this,
+		&Entry::do_updateTimeinfo
+	);
+	this->connect(
+		this,
+		&Entry::sig_modified,
+		this,
+		&Entry::do_updateModifiedSinceBegin
+	);
 }
 
 Entry::~Entry()
 {
-    if (m_group) {
-        m_group->removeEntry(this);
-
-        if (m_group->database()) {
-            m_group->database()->addDeletedObject(m_uuid);
-        }
-    }
-
-    qDeleteAll(m_history);
+	if(this->group)
+	{
+		this->group->removeEntry(
+			this
+		);
+		if(this->group->getDatabase())
+		{
+			this->group->getDatabase()->addDeletedObject(
+				uuid
+			);
+		}
+	}
+	qDeleteAll(
+		this->history
+	);
 }
 
-template <class T> inline bool Entry::set(T& property, const T& value)
+template<class T> inline bool Entry::set(
+	T &property,
+	const T &value
+)
 {
-    if (property != value) {
-        property = value;
-        Q_EMIT modified();
-        return true;
-    }
-    else {
-        return false;
-    }
+	if(property != value)
+	{
+		property = value;
+		 sig_modified();
+		return true;
+	}
+	return false;
 }
 
-void Entry::updateTimeinfo()
+void Entry::do_updateTimeinfo()
 {
-    if (m_updateTimeinfo) {
-        m_data.timeInfo.setLastModificationTime(QDateTime::currentDateTimeUtc());
-        m_data.timeInfo.setLastAccessTime(QDateTime::currentDateTimeUtc());
-    }
+	if(this->updateTimeinfo)
+	{
+		this->data.timeInfo.setLastModificationTime(
+			QDateTime::currentDateTimeUtc()
+		);
+		this->data.timeInfo.setLastAccessTime(
+			QDateTime::currentDateTimeUtc()
+		);
+	}
 }
 
-void Entry::setUpdateTimeinfo(bool value)
+void Entry::setUpdateTimeinfo(
+	const bool value
+)
 {
-    m_updateTimeinfo = value;
+	this->updateTimeinfo = value;
 }
 
-Uuid Entry::uuid() const
+UUID Entry::getUUID() const
 {
-    return m_uuid;
+	return this->uuid;
 }
 
-QImage Entry::icon() const
+QImage Entry::getIcon() const
 {
-    if (m_data.customIcon.isNull()) {
-        return databaseIcons()->icon(m_data.iconNumber);
-    }
-    else {
-        Q_ASSERT(database());
-
-        if (database()) {
-            return database()->metadata()->customIcon(m_data.customIcon);
-        }
-        else {
-            return QImage();
-        }
-    }
+	if(this->data.customIcon.isNull())
+	{
+		return DatabaseIcons::getInstance()->icon(
+			this->data.iconNumber
+		);
+	}
+	if(this->getDatabase() == nullptr)
+	{
+		return QImage();
+	};
+	if(this->getDatabase())
+	{
+		return this->getDatabase()->getMetadata()->getCustomIcon(
+			data.customIcon
+		);
+	}
+	return QImage();
 }
 
-QPixmap Entry::iconPixmap() const
+QPixmap Entry::getIconPixmap() const
 {
-    if (m_data.customIcon.isNull()) {
-        return databaseIcons()->iconPixmap(m_data.iconNumber);
-    }
-    else {
-        Q_ASSERT(database());
-
-        if (database()) {
-            return database()->metadata()->customIconPixmap(m_data.customIcon);
-        }
-        else {
-            return QPixmap();
-        }
-    }
+	if(this->data.customIcon.isNull())
+	{
+		return DatabaseIcons::getInstance()->iconPixmap(
+			this->data.iconNumber
+		);
+	}
+	if(this->getDatabase() == nullptr)
+	{
+		return QPixmap();
+	};
+	if(this->getDatabase())
+	{
+		return this->getDatabase()->getMetadata()->getCustomIconPixmap(
+			this->data.customIcon
+		);
+	}
+	return QPixmap();
 }
 
-QPixmap Entry::iconScaledPixmap() const
+QPixmap Entry::getIconScaledPixmap() const
 {
-    if (m_data.customIcon.isNull()) {
-        // built-in icons are 16x16 so don't need to be scaled
-        return databaseIcons()->iconPixmap(m_data.iconNumber);
-    }
-    else {
-        Q_ASSERT(database());
-
-        return database()->metadata()->customIconScaledPixmap(m_data.customIcon);
-    }
+	if(this->data.customIcon.isNull())
+	{
+		// built-in icons are 16x16 so don't need to be scaled
+		return DatabaseIcons::getInstance()->iconPixmap(
+			this->data.iconNumber
+		);
+	}
+	if(this->getDatabase() == nullptr)
+	{
+		return QPixmap();
+	}
+	return this->getDatabase()->getMetadata()->getCustomIconScaledPixmap(
+		this->data.customIcon
+	);
 }
 
-int Entry::iconNumber() const
+int Entry::getIconNumber() const
 {
-    return m_data.iconNumber;
+	return this->data.iconNumber;
 }
 
-Uuid Entry::iconUuid() const
+UUID Entry::getIconUUID() const
 {
-    return m_data.customIcon;
+	return this->data.customIcon;
 }
 
-QColor Entry::foregroundColor() const
+QColor Entry::getForegroundColor() const
 {
-    return m_data.foregroundColor;
+	return this->data.foregroundColor;
 }
 
-QColor Entry::backgroundColor() const
+QColor Entry::getBackgroundColor() const
 {
-    return m_data.backgroundColor;
+	return this->data.backgroundColor;
 }
 
-QString Entry::overrideUrl() const
+QString Entry::getOverrideURL() const
 {
-    return m_data.overrideUrl;
+	return this->data.overrideUrl;
 }
 
-QString Entry::tags() const
+QString Entry::getTags() const
 {
-    return m_data.tags;
+	return this->data.tags;
 }
 
-TimeInfo Entry::timeInfo() const
+TimeInfo Entry::getTimeInfo() const
 {
-    return m_data.timeInfo;
+	return this->data.timeInfo;
 }
 
-bool Entry::autoTypeEnabled() const
+bool Entry::isAutoTypeEnabled() const
 {
-    return m_data.autoTypeEnabled;
+	return this->data.autoTypeEnabled;
 }
 
-int Entry::autoTypeObfuscation() const
+int Entry::getAutoTypeObfuscation() const
 {
-    return m_data.autoTypeObfuscation;
+	return this->data.autoTypeObfuscation;
 }
 
 QString Entry::defaultAutoTypeSequence() const
 {
-    return m_data.defaultAutoTypeSequence;
+	return this->data.defaultAutoTypeSequence;
 }
 
-AutoTypeAssociations* Entry::autoTypeAssociations()
+QString Entry::getTitle() const
 {
-    return m_autoTypeAssociations;
+	return this->attributes->getValue(
+		EntryAttributes::TitleKey
+	);
 }
 
-const AutoTypeAssociations* Entry::autoTypeAssociations() const
+QString Entry::getURL() const
 {
-    return m_autoTypeAssociations;
+	return this->attributes->getValue(
+		EntryAttributes::URLKey
+	);
 }
 
-QString Entry::title() const
+QString Entry::getUsername() const
 {
-    return m_attributes->value(EntryAttributes::TitleKey);
+	return this->attributes->getValue(
+		EntryAttributes::UserNameKey
+	);
 }
 
-QString Entry::url() const
+QString Entry::getPassword() const
 {
-    return m_attributes->value(EntryAttributes::URLKey);
+	return this->attributes->getValue(
+		EntryAttributes::PasswordKey
+	);
 }
 
-QString Entry::username() const
+QString Entry::getNotes() const
 {
-    return m_attributes->value(EntryAttributes::UserNameKey);
-}
-
-QString Entry::password() const
-{
-    return m_attributes->value(EntryAttributes::PasswordKey);
-}
-
-QString Entry::notes() const
-{
-    return m_attributes->value(EntryAttributes::NotesKey);
+	return this->attributes->getValue(
+		EntryAttributes::NotesKey
+	);
 }
 
 bool Entry::isExpired() const
 {
-    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < QDateTime::currentDateTimeUtc();
+	return this->data.timeInfo.getExpires() && this->data.timeInfo.
+		getExpiryTime() < QDateTime::currentDateTimeUtc();
 }
 
-EntryAttributes* Entry::attributes()
+EntryAttributes* Entry::getAttributes()
 {
-    return m_attributes;
+	return this->attributes;
 }
 
-const EntryAttributes* Entry::attributes() const
+const EntryAttributes* Entry::getAttributes() const
 {
-    return m_attributes;
+	return this->attributes;
 }
 
-EntryAttachments* Entry::attachments()
+EntryAttachments* Entry::getAttachments()
 {
-    return m_attachments;
+	return this->attachments;
 }
 
-const EntryAttachments* Entry::attachments() const
+const EntryAttachments* Entry::getAttachments() const
 {
-    return m_attachments;
+	return this->attachments;
 }
 
-void Entry::setUuid(const Uuid& uuid)
+void Entry::setUUID(
+	const UUID &uuid
+)
 {
-    Q_ASSERT(!uuid.isNull());
-    set(m_uuid, uuid);
+	if(uuid.isNull())
+	{
+		return;
+	};
+	this->set(
+		this->uuid,
+		uuid
+	);
 }
 
-void Entry::setIcon(int iconNumber)
+void Entry::setIcon(
+	const int iconNumber
+)
 {
-    Q_ASSERT(iconNumber >= 0);
-
-    if (m_data.iconNumber != iconNumber || !m_data.customIcon.isNull()) {
-        m_data.iconNumber = iconNumber;
-        m_data.customIcon = Uuid();
-
-        Q_EMIT modified();
-        emitDataChanged();
-    }
+	if(iconNumber < 0)
+	{
+		return;
+	};
+	if(this->data.iconNumber != iconNumber || !this->data.customIcon.isNull())
+	{
+		this->data.iconNumber = iconNumber;
+		this->data.customIcon = UUID();
+		 sig_modified();
+		this->do_emitDataChanged();
+	}
 }
 
-void Entry::setIcon(const Uuid& uuid)
+void Entry::setIcon(
+	const UUID &uuid
+)
 {
-    Q_ASSERT(!uuid.isNull());
-
-    if (m_data.customIcon != uuid) {
-        m_data.customIcon = uuid;
-        m_data.iconNumber = 0;
-
-        Q_EMIT modified();
-        emitDataChanged();
-    }
+	if(uuid.isNull())
+	{
+		return;
+	};
+	if(this->data.customIcon != uuid)
+	{
+		this->data.customIcon = uuid;
+		this->data.iconNumber = 0;
+		 sig_modified();
+		this->do_emitDataChanged();
+	}
 }
 
-void Entry::setForegroundColor(const QColor& color)
+void Entry::setForegroundColor(
+	const QColor &color
+)
 {
-    set(m_data.foregroundColor, color);
+	this->set(
+		this->data.foregroundColor,
+		color
+	);
 }
 
-void Entry::setBackgroundColor(const QColor& color)
+void Entry::setBackgroundColor(
+	const QColor &color
+)
 {
-    set(m_data.backgroundColor, color);
+	this->set(
+		this->data.backgroundColor,
+		color
+	);
 }
 
-void Entry::setOverrideUrl(const QString& url)
+void Entry::setOverrideURL(
+	const QString &url
+)
 {
-    set(m_data.overrideUrl, url);
+	this->set(
+		this->data.overrideUrl,
+		url
+	);
 }
 
-void Entry::setTags(const QString& tags)
+void Entry::setTags(
+	const QString &tags
+)
 {
-    set(m_data.tags, tags);
+	this->set(
+		this->data.tags,
+		tags
+	);
 }
 
-void Entry::setTimeInfo(const TimeInfo& timeInfo)
+void Entry::setTimeInfo(
+	const TimeInfo &timeInfo
+)
 {
-    m_data.timeInfo = timeInfo;
+	this->data.timeInfo = timeInfo;
 }
 
-void Entry::setAutoTypeEnabled(bool enable)
+void Entry::setAutoTypeEnabled(
+	const bool enable
+)
 {
-    set(m_data.autoTypeEnabled, enable);
+	this->set(
+		this->data.autoTypeEnabled,
+		enable
+	);
 }
 
-void Entry::setAutoTypeObfuscation(int obfuscation)
+void Entry::setAutoTypeObfuscation(
+	const int obfuscation
+)
 {
-    set(m_data.autoTypeObfuscation, obfuscation);
+	this->set(
+		this->data.autoTypeObfuscation,
+		obfuscation
+	);
 }
 
-void Entry::setDefaultAutoTypeSequence(const QString& sequence)
+void Entry::setDefaultAutoTypeSequence(
+	const QString &sequence
+)
 {
-    set(m_data.defaultAutoTypeSequence, sequence);
+	this->set(
+		this->data.defaultAutoTypeSequence,
+		sequence
+	);
 }
 
-void Entry::setTitle(const QString& title)
+void Entry::setTitle(
+	const QString &title
+) const
 {
-    m_attributes->set(EntryAttributes::TitleKey, title, m_attributes->isProtected(EntryAttributes::TitleKey));
+	this->attributes->set(
+		EntryAttributes::TitleKey,
+		title,
+		this->attributes->isProtected(
+			EntryAttributes::TitleKey
+		)
+	);
 }
 
-void Entry::setUrl(const QString& url)
+void Entry::setURL(
+	const QString &url
+) const
 {
-    m_attributes->set(EntryAttributes::URLKey, url, m_attributes->isProtected(EntryAttributes::URLKey));
+	this->attributes->set(
+		EntryAttributes::URLKey,
+		url,
+		this->attributes->isProtected(
+			EntryAttributes::URLKey
+		)
+	);
 }
 
-void Entry::setUsername(const QString& username)
+void Entry::setUsername(
+	const QString &username
+) const
 {
-    m_attributes->set(EntryAttributes::UserNameKey, username, m_attributes->isProtected(EntryAttributes::UserNameKey));
+	this->attributes->set(
+		EntryAttributes::UserNameKey,
+		username,
+		this->attributes->isProtected(
+			EntryAttributes::UserNameKey
+		)
+	);
 }
 
-void Entry::setPassword(const QString& password)
+void Entry::setPassword(
+	const QString &password
+) const
 {
-    m_attributes->set(EntryAttributes::PasswordKey, password, m_attributes->isProtected(EntryAttributes::PasswordKey));
+	this->attributes->set(
+		EntryAttributes::PasswordKey,
+		password,
+		this->attributes->isProtected(
+			EntryAttributes::PasswordKey
+		)
+	);
 }
 
-void Entry::setNotes(const QString& notes)
+void Entry::setNotes(
+	const QString &notes
+) const
 {
-    m_attributes->set(EntryAttributes::NotesKey, notes, m_attributes->isProtected(EntryAttributes::NotesKey));
+	this->attributes->set(
+		EntryAttributes::NotesKey,
+		notes,
+		this->attributes->isProtected(
+			EntryAttributes::NotesKey
+		)
+	);
 }
 
-void Entry::setExpires(const bool& value)
+void Entry::setExpires(
+	const bool &value
+)
 {
-    if (m_data.timeInfo.expires() != value) {
-        m_data.timeInfo.setExpires(value);
-        Q_EMIT modified();
-    }
+	if(this->data.timeInfo.getExpires() != value)
+	{
+		this->data.timeInfo.setExpires(
+			value
+		);
+		 sig_modified();
+	}
 }
 
-void Entry::setExpiryTime(const QDateTime& dateTime)
+void Entry::setExpiryTime(
+	const QDateTime &dateTime
+)
 {
-    if (m_data.timeInfo.expiryTime() != dateTime) {
-        m_data.timeInfo.setExpiryTime(dateTime);
-        Q_EMIT modified();
-    }
+	if(this->data.timeInfo.getExpiryTime() != dateTime)
+	{
+		this->data.timeInfo.setExpiryTime(
+			dateTime
+		);
+		 sig_modified();
+	}
 }
 
-QList<Entry*> Entry::historyItems()
+QList<Entry*> Entry::getHistoryItems()
 {
-    return m_history;
+	return this->history;
 }
 
-const QList<Entry*>& Entry::historyItems() const
+const QList<Entry*> &Entry::getHistoryItems() const
 {
-    return m_history;
+	return this->history;
 }
 
-void Entry::addHistoryItem(Entry* entry)
+void Entry::addHistoryItem(
+	Entry* entry
+)
 {
-    Q_ASSERT(!entry->parent());
-
-    m_history.append(entry);
-    Q_EMIT modified();
+	if(entry->parent())
+	{
+		return;
+	};
+	this->history.append(
+		entry
+	);
+	 sig_modified();
 }
 
-void Entry::removeHistoryItems(const QList<Entry*>& historyEntries)
+void Entry::removeHistoryItems(
+	const QList<Entry*> &historyEntries
+)
 {
-    if (historyEntries.isEmpty()) {
-        return;
-    }
-
-    for (Entry* entry : historyEntries) {
-        Q_ASSERT(!entry->parent());
-        Q_ASSERT(entry->uuid() == uuid());
-        Q_ASSERT(m_history.contains(entry));
-
-        m_history.removeOne(entry);
-        delete entry;
-    }
-
-    Q_EMIT modified();
+	if(historyEntries.isEmpty())
+	{
+		return;
+	}
+	for(Entry* entry_: historyEntries)
+	{
+		if(entry_->parent())
+		{
+			return;
+		};
+		if(entry_->getUUID() != getUUID())
+		{
+			return;
+		}
+		if(!this->history.contains(
+			entry_
+		))
+		{
+			return;
+		}
+		this->history.removeOne(
+			entry_
+		);
+		delete entry_;
+	}
+	 sig_modified();
 }
 
 void Entry::truncateHistory()
 {
-    const Database* db = database();
-
-    if (!db) {
-        return;
-    }
-
-    int histMaxItems = db->metadata()->historyMaxItems();
-    if (histMaxItems > -1) {
-        int historyCount = 0;
-        QMutableListIterator<Entry*> i(m_history);
-        i.toBack();
-        while (i.hasPrevious()) {
-            historyCount++;
-            Entry* entry = i.previous();
-            if (historyCount > histMaxItems) {
-                delete entry;
-                i.remove();
-            }
-        }
-    }
-
-    int histMaxSize = db->metadata()->historyMaxSize();
-    if (histMaxSize > -1) {
-        int size = 0;
-        QSet<QByteArray> foundAttachements = attachments()->values().toSet();
-
-        QMutableListIterator<Entry*> i(m_history);
-        i.toBack();
-        while (i.hasPrevious()) {
-            Entry* historyItem = i.previous();
-
-            // don't calculate size if it's already above the maximum
-            if (size <= histMaxSize) {
-                size += historyItem->attributes()->attributesSize();
-
-                const QSet<QByteArray> newAttachments = historyItem->attachments()->values().toSet() - foundAttachements;
-                for (const QByteArray& attachment : newAttachments) {
-                    size += attachment.size();
-                }
-                foundAttachements += newAttachments;
-            }
-
-            if (size > histMaxSize) {
-                delete historyItem;
-                i.remove();
-            }
-        }
-    }
+	const Database* db_ = this->getDatabase();
+	if(!db_)
+	{
+		return;
+	}
+	if(const int histMaxItems_ = db_->getMetadata()->getHistoryMaxItems();
+		histMaxItems_ > -1)
+	{
+		auto historyCount_ = 0;
+		QMutableListIterator i_(
+			history
+		);
+		i_.toBack();
+		while(i_.hasPrevious())
+		{
+			historyCount_++;
+			const Entry* entry_ = i_.previous();
+			if(historyCount_ > histMaxItems_)
+			{
+				delete entry_;
+				i_.remove();
+			}
+		}
+	}
+	if(const int histMaxSize_ = db_->getMetadata()->getHistoryMaxSize();
+		histMaxSize_ > -1)
+	{
+		auto size_ = 0;
+		auto foundAttachements_ = QSet(
+			this->getAttachments()->getValues().constBegin(),
+			this->getAttachments()->getValues().constEnd()
+		);
+		QMutableListIterator i_(
+			this->history
+		);
+		i_.toBack();
+		while(i_.hasPrevious())
+		{
+			Entry* historyItem_ = i_.previous();
+			// don't calculate size if it's already above the maximum
+			if(size_ <= histMaxSize_)
+			{
+				size_ += historyItem_->getAttributes()->getAttributesSize();
+				const QSet<QByteArray> newAttachments_ = QSet(
+					historyItem_->getAttachments()->getValues().constBegin(),
+					historyItem_->getAttachments()->getValues().constEnd()
+				) - foundAttachements_;
+				for(const QByteArray &attachment: newAttachments_)
+				{
+					size_ += static_cast<int>(attachment.size());
+				}
+				foundAttachements_ += newAttachments_;
+			}
+			if(size_ > histMaxSize_)
+			{
+				delete historyItem_;
+				i_.remove();
+			}
+		}
+	}
 }
 
-Entry* Entry::clone(CloneFlags flags) const
+Entry* Entry::clone(
+	const CloneFlags flags
+) const
 {
-    Entry* entry = new Entry();
-    entry->setUpdateTimeinfo(false);
-    if (flags & CloneNewUuid) {
-        entry->m_uuid = Uuid::random();
-    }
-    else {
-        entry->m_uuid = m_uuid;
-    }
-    entry->m_data = m_data;
-    entry->m_attributes->copyDataFrom(m_attributes);
-    entry->m_attachments->copyDataFrom(m_attachments);
-    entry->m_autoTypeAssociations->copyDataFrom(this->m_autoTypeAssociations);
-    if (flags & CloneIncludeHistory) {
-        for (Entry* historyItem : m_history) {
-            Entry* historyItemClone = historyItem->clone(flags & ~CloneIncludeHistory & ~CloneNewUuid);
-            historyItemClone->setUpdateTimeinfo(false);
-            historyItemClone->setUuid(entry->uuid());
-            historyItemClone->setUpdateTimeinfo(true);
-            entry->addHistoryItem(historyItemClone);
-        }
-    }
-    entry->setUpdateTimeinfo(true);
-
-    if (flags & CloneResetTimeInfo) {
-        QDateTime now = QDateTime::currentDateTimeUtc();
-        entry->m_data.timeInfo.setCreationTime(now);
-        entry->m_data.timeInfo.setLastModificationTime(now);
-        entry->m_data.timeInfo.setLastAccessTime(now);
-        entry->m_data.timeInfo.setLocationChanged(now);
-    }
-
-
-
-    return entry;
+	const auto entry_ = new Entry();
+	entry_->setUpdateTimeinfo(
+		false
+	);
+	if(flags & this->CloneNewUuid)
+	{
+		entry_->uuid = UUID::random();
+	}
+	else
+	{
+		entry_->uuid = uuid;
+	}
+	entry_->data = this->data;
+	entry_->attributes->copyDataFrom(
+		this->attributes
+	);
+	entry_->attachments->copyDataFrom(
+		this->attachments
+	);
+	if(flags & this->CloneIncludeHistory)
+	{
+		for(const Entry* historyItem_: history)
+		{
+			Entry* historyItemClone_ = historyItem_->clone(
+				flags & ~this->CloneIncludeHistory & ~this->CloneNewUuid
+			);
+			historyItemClone_->setUpdateTimeinfo(
+				false
+			);
+			historyItemClone_->setUUID(
+				entry_->getUUID()
+			);
+			historyItemClone_->setUpdateTimeinfo(
+				true
+			);
+			entry_->addHistoryItem(
+				historyItemClone_
+			);
+		}
+	}
+	entry_->setUpdateTimeinfo(
+		true
+	);
+	if(flags & this->CloneResetTimeInfo)
+	{
+		const QDateTime now_ = QDateTime::currentDateTimeUtc();
+		entry_->data.timeInfo.setCreationTime(
+			now_
+		);
+		entry_->data.timeInfo.setLastModificationTime(
+			now_
+		);
+		entry_->data.timeInfo.setLastAccessTime(
+			now_
+		);
+		entry_->data.timeInfo.setLocationChanged(
+			now_
+		);
+	}
+	return entry_;
 }
 
-void Entry::copyDataFrom(const Entry* other)
+void Entry::copyDataFrom(
+	const Entry* other
+)
 {
-    setUpdateTimeinfo(false);
-    m_data = other->m_data;
-    m_attributes->copyDataFrom(other->m_attributes);
-    m_attachments->copyDataFrom(other->m_attachments);
-    m_autoTypeAssociations->copyDataFrom(other->m_autoTypeAssociations);
-    setUpdateTimeinfo(true);
+	this->setUpdateTimeinfo(
+		false
+	);
+	this->data = other->data;
+	this->attributes->copyDataFrom(
+		other->attributes
+	);
+	this->attachments->copyDataFrom(
+		other->attachments
+	);
+	this->setUpdateTimeinfo(
+		true
+	);
 }
 
 void Entry::beginUpdate()
 {
-    Q_ASSERT(!m_tmpHistoryItem);
-
-    m_tmpHistoryItem = new Entry();
-    m_tmpHistoryItem->setUpdateTimeinfo(false);
-    m_tmpHistoryItem->m_uuid = m_uuid;
-    m_tmpHistoryItem->m_data = m_data;
-    m_tmpHistoryItem->m_attributes->copyDataFrom(m_attributes);
-    m_tmpHistoryItem->m_attachments->copyDataFrom(m_attachments);
-
-    m_modifiedSinceBegin = false;
+	if(this->tmpHistoryItem)
+	{
+		return;
+	};
+	this->tmpHistoryItem = new Entry();
+	this->tmpHistoryItem->setUpdateTimeinfo(
+		false
+	);
+	this->tmpHistoryItem->uuid = this->uuid;
+	this->tmpHistoryItem->data = this->data;
+	this->tmpHistoryItem->attributes->copyDataFrom(
+		this->attributes
+	);
+	this->tmpHistoryItem->attachments->copyDataFrom(
+		this->attachments
+	);
+	this->modifiedSinceBegin = false;
 }
 
 bool Entry::endUpdate()
 {
-    Q_ASSERT(m_tmpHistoryItem);
-    if (m_modifiedSinceBegin) {
-        m_tmpHistoryItem->setUpdateTimeinfo(true);
-        addHistoryItem(m_tmpHistoryItem);
-        truncateHistory();
-    }
-    else {
-        delete m_tmpHistoryItem;
-    }
-
-    m_tmpHistoryItem = nullptr;
-
-    return m_modifiedSinceBegin;
+	if(!this->tmpHistoryItem)
+	{
+		return false;
+	};
+	if(this->modifiedSinceBegin)
+	{
+		this->tmpHistoryItem->setUpdateTimeinfo(
+			true
+		);
+		this->addHistoryItem(
+			this->tmpHistoryItem
+		);
+		this->truncateHistory();
+	}
+	else
+	{
+		delete this->tmpHistoryItem;
+	}
+	this->tmpHistoryItem = nullptr;
+	return this->modifiedSinceBegin;
 }
 
-void Entry::updateModifiedSinceBegin()
+void Entry::do_updateModifiedSinceBegin()
 {
-    m_modifiedSinceBegin = true;
+	this->modifiedSinceBegin = true;
 }
 
-Group* Entry::group()
+Group* Entry::getGroup()
 {
-    return m_group;
+	return this->group;
 }
 
-const Group* Entry::group() const
+const Group* Entry::getGroup() const
 {
-    return m_group;
+	return this->group;
 }
 
-void Entry::setGroup(Group* group)
+void Entry::setGroup(
+	Group* group
+)
 {
-    Q_ASSERT(group);
-
-    if (m_group == group) {
-        return;
-    }
-
-    if (m_group) {
-        m_group->removeEntry(this);
-        if (m_group->database() && m_group->database() != group->database()) {
-            m_group->database()->addDeletedObject(m_uuid);
-
-            // copy custom icon to the new database
-            if (!iconUuid().isNull() && group->database()
-                    && m_group->database()->metadata()->containsCustomIcon(iconUuid())
-                    && !group->database()->metadata()->containsCustomIcon(iconUuid())) {
-                group->database()->metadata()->addCustomIcon(iconUuid(), icon());
-            }
-        }
-    }
-
-    m_group = group;
-    group->addEntry(this);
-
-    QObject::setParent(group);
-
-    if (m_updateTimeinfo) {
-        m_data.timeInfo.setLocationChanged(QDateTime::currentDateTimeUtc());
-    }
+	if(!group)
+	{
+		return;
+	}
+	if(this->group == group)
+	{
+		return;
+	}
+	if(this->group)
+	{
+		this->group->removeEntry(
+			this
+		);
+		if(this->group->getDatabase() && this->group->getDatabase() != group->
+			getDatabase())
+		{
+			this->group->getDatabase()->addDeletedObject(
+				uuid
+			);
+			// copy custom icon to the new database
+			if(!getIconUUID().isNull() && group->getDatabase() && this->group->
+				getDatabase()->getMetadata()->containsCustomIcon(
+					this->getIconUUID()
+				) && !group->getDatabase()->getMetadata()->containsCustomIcon(
+					this->getIconUUID()
+				))
+			{
+				group->getDatabase()->getMetadata()->addCustomIcon(
+					this->getIconUUID(),
+					this->getIcon()
+				);
+			}
+		}
+	}
+	this->group = group;
+	group->addEntry(
+		this
+	);
+	setParent(
+		group
+	);
+	if(this->updateTimeinfo)
+	{
+		this->data.timeInfo.setLocationChanged(
+			QDateTime::currentDateTimeUtc()
+		);
+	}
 }
 
-void Entry::emitDataChanged()
+void Entry::do_emitDataChanged()
 {
-    Q_EMIT dataChanged(this);
+	 sig_dataChanged(
+		this
+	);
 }
 
-const Database* Entry::database() const
+const Database* Entry::getDatabase() const
 {
-    if (m_group) {
-        return m_group->database();
-    }
-    else {
-        return nullptr;
-    }
+	if(this->group)
+	{
+		return this->group->getDatabase();
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
-QString Entry::resolvePlaceholders(const QString& str) const
+QString Entry::resolvePlaceholders(
+	const QString &str
+) const
 {
-    QString result = str;
-
-    result.replace("{TITLE}", title(), Qt::CaseInsensitive);
-    result.replace("{USERNAME}", username(), Qt::CaseInsensitive);
-    result.replace("{URL}", url(), Qt::CaseInsensitive);
-    result.replace("{PASSWORD}", password(), Qt::CaseInsensitive);
-    result.replace("{NOTES}", notes(), Qt::CaseInsensitive);
-
-    // TODO: lots of other placeholders missing
-
-    return result;
+	QString result_ = str;
+	result_.replace(
+		"{TITLE}",
+		this->getTitle(),
+		Qt::CaseInsensitive
+	);
+	result_.replace(
+		"{USERNAME}",
+		this->getUsername(),
+		Qt::CaseInsensitive
+	);
+	result_.replace(
+		"{URL}",
+		this->getURL(),
+		Qt::CaseInsensitive
+	);
+	result_.replace(
+		"{PASSWORD}",
+		this->getPassword(),
+		Qt::CaseInsensitive
+	);
+	result_.replace(
+		"{NOTES}",
+		this->getNotes(),
+		Qt::CaseInsensitive
+	);
+	// TODO: lots of other placeholders missing
+	return result_;
 }

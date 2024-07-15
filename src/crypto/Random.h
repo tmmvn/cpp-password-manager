@@ -14,50 +14,58 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_RANDOM_H
 #define KEEPASSX_RANDOM_H
-
 #include <QByteArray>
 #include <QScopedPointer>
 
 class RandomBackend
 {
 public:
-    virtual void randomize(void* data, int len) = 0;
-    virtual ~RandomBackend() {}
+	virtual void randomize(
+		void* data,
+		int len
+	) = 0;
+
+	virtual ~RandomBackend()
+	{
+	}
 };
 
 class Random
 {
 public:
-    void randomize(QByteArray& ba);
-    QByteArray randomArray(int len);
-
-    /**
-     * Generate a random quint32 in the range [0, @p limit)
-     */
-    quint32 randomUInt(quint32 limit);
-
-    /**
-     * Generate a random quint32 in the range [@p min, @p max)
-     */
-    quint32 randomUIntRange(quint32 min, quint32 max);
-
-    static Random* instance();
-    static void createWithBackend(RandomBackend* backend);
-
+	void randomize(
+		QByteArray &ba
+	) const;
+	QByteArray getRandomArray(
+		int len
+	) const;
+	/**
+	* Generate a random quint32 in the range [0, @p limit)
+	*/
+	quint32 getRandomUInt(
+		quint32 limit
+	) const;
+	/**
+	* Generate a random quint32 in the range [@p min, @p max)
+	*/
+	quint32 getRandomUIntRange(
+		quint32 min,
+		quint32 max
+	) const;
+	static Random* getInstance();
+	static void createWithBackend(
+		RandomBackend* backend
+	);
 private:
-    explicit Random(RandomBackend* backend);
-
-    QScopedPointer<RandomBackend> m_backend;
-    static Random* m_instance;
-
-    Q_DISABLE_COPY(Random)
+	explicit Random(
+		RandomBackend* backend
+	);
+	QScopedPointer<RandomBackend> backend;
+	static Random* instance;
+	Q_DISABLE_COPY(
+		Random
+	)
 };
-
-inline Random* randomGen() {
-    return Random::instance();
-}
-
 #endif // KEEPASSX_RANDOM_H

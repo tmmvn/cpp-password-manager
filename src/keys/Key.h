@@ -14,18 +14,18 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_KEY_H
 #define KEEPASSX_KEY_H
-
 #include <QByteArray>
 
 class Key
 {
 public:
-    virtual ~Key() {}
-    virtual QByteArray rawKey() const = 0;
-    virtual Key* clone() const = 0;
-};
+	virtual ~Key()
+	{
+	}
 
+	virtual QByteArray rawKey() const = 0;
+	virtual Key* clone() const = 0;
+};
 #endif // KEEPASSX_KEY_H

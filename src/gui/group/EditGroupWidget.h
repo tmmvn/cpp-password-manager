@@ -14,55 +14,60 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_EDITGROUPWIDGET_H
 #define KEEPASSX_EDITGROUPWIDGET_H
-
 #include <QComboBox>
 #include <QScopedPointer>
-
 #include "core/Group.h"
 #include "gui/EditWidget.h"
-
 class EditWidgetIcons;
 class EditWidgetProperties;
 
-namespace Ui {
-    class EditGroupWidgetMain;
-    class EditWidget;
+namespace Ui
+{
+	class EditGroupWidgetMain;
+	class EditWidget;
 }
 
-class EditGroupWidget : public EditWidget
+class EditGroupWidget final:public EditWidget
 {
-    Q_OBJECT
-
-public:
-    explicit EditGroupWidget(QWidget* parent = nullptr);
-    ~EditGroupWidget();
-
-    void loadGroup(Group* group, bool create, Database* database);
-    void clear();
-
+	Q_OBJECT public:
+	explicit EditGroupWidget(
+		QWidget* parent = nullptr
+	);
+	virtual ~EditGroupWidget() override;
+	void loadGroup(
+		Group* group,
+		bool create,
+		Database* database
+	);
+	void clear();
 Q_SIGNALS:
-    void editFinished(bool accepted);
-
+	void sig_editFinished(
+		bool accepted
+	);
 private Q_SLOTS:
-    void save();
-    void cancel();
-
+	void do_save();
+	void do_cancel();
 private:
-    void addTriStateItems(QComboBox* comboBox, bool inheritValue);
-    int indexFromTriState(Group::TriState triState);
-    Group::TriState triStateFromIndex(int index);
-
-    const QScopedPointer<Ui::EditGroupWidgetMain> m_mainUi;
-    QWidget* const m_editGroupWidgetMain;
-    EditWidgetIcons* const m_editGroupWidgetIcons;
-    EditWidgetProperties* const m_editWidgetProperties;
-    Group* m_group;
-    Database* m_database;
-
-    Q_DISABLE_COPY(EditGroupWidget)
+	static void addTriStateItems(
+		QComboBox* comboBox,
+		bool inheritValue
+	);
+	static int indexFromTriState(
+		Group::TriState triState
+	);
+	static Group::TriState triStateFromIndex(
+		int index
+	);
+	const QScopedPointer<Ui::EditGroupWidgetMain> mainUi;
+	QWidget* const editGroupWidgetMain;
+	EditWidgetIcons* const editGroupWidgetIcons;
+	EditWidgetProperties* const editWidgetProperties;
+	Group* group;
+	Database* database;
+	Q_DISABLE_COPY(
+		EditGroupWidget
+	)
 };
-
 #endif // KEEPASSX_EDITGROUPWIDGET_H

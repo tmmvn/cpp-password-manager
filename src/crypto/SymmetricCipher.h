@@ -14,71 +14,91 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_SYMMETRICCIPHER_H
 #define KEEPASSX_SYMMETRICCIPHER_H
-
 #include <QByteArray>
 #include <QScopedPointer>
 #include <QString>
-
 #include "crypto/SymmetricCipherBackend.h"
 
 class SymmetricCipher
 {
 public:
-    enum Algorithm
-    {
-        Aes256,
-        Twofish,
-        Salsa20
-    };
+	enum Algorithm: uint8_t
+	{
+		Aes256,
+		Twofish,
+		Salsa20
+	};
 
-    enum Mode
-    {
-        Cbc,
-        Ecb,
-        Stream
-    };
+	enum Mode: uint8_t
+	{
+		Cbc,
+		Ecb,
+		Stream
+	};
 
-    enum Direction
-    {
-        Decrypt,
-        Encrypt
-    };
+	enum Direction: uint8_t
+	{
+		Decrypt,
+		Encrypt
+	};
 
-    SymmetricCipher(SymmetricCipher::Algorithm algo, SymmetricCipher::Mode mode,
-                    SymmetricCipher::Direction direction);
-    ~SymmetricCipher();
+	SymmetricCipher(
+		Algorithm algo,
+		Mode mode,
+		Direction direction
+	);
+	~SymmetricCipher();
+	bool init(
+		const QByteArray &key,
+		const QByteArray &iv
+	);
+	bool isInitalized() const;
 
-    bool init(const QByteArray& key, const QByteArray& iv);
-    bool isInitalized() const;
+	QByteArray process(
+		const QByteArray &data,
+		bool* ok
+	) const
+	{
+		return backend->process(
+			data,
+			ok
+		);
+	}
 
-    inline QByteArray process(const QByteArray& data, bool* ok) {
-        return m_backend->process(data, ok);
-    }
+	Q_REQUIRED_RESULT bool processInPlace(
+		QByteArray &data
+	) const
+	{
+		return backend->processInPlace(
+			data
+		);
+	}
 
-    Q_REQUIRED_RESULT inline bool processInPlace(QByteArray& data) {
-        return m_backend->processInPlace(data);
-    }
+	Q_REQUIRED_RESULT bool processInPlace(
+		QByteArray &data,
+		const quint64 rounds
+	) const
+	{
+		if(rounds == 0)
+		{
+			return false;
+		}
+		return backend->processInPlace(
+			data,
+			rounds
+		);
+	}
 
-    Q_REQUIRED_RESULT inline bool processInPlace(QByteArray& data, quint64 rounds) {
-        Q_ASSERT(rounds > 0);
-        return m_backend->processInPlace(data, rounds);
-    }
-
-    bool reset();
-    int blockSize() const;
-    QString errorString() const;
-
+	bool reset() const;
+	qint64 getBlockSize() const;
+	QString getErrorString() const;
 private:
-    static SymmetricCipherBackend* createBackend(SymmetricCipher::Algorithm algo, SymmetricCipher::Mode mode,
-                                                 SymmetricCipher::Direction direction);
-
-    const QScopedPointer<SymmetricCipherBackend> m_backend;
-    bool m_initialized;
-
-    Q_DISABLE_COPY(SymmetricCipher)
+	const QScopedPointer<SymmetricCipherBackend> backend;
+	bool initialized;
+	Q_DISABLE_COPY(
+		SymmetricCipher
+	)
 };
-
 #endif // KEEPASSX_SYMMETRICCIPHER_H

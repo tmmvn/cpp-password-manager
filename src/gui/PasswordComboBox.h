@@ -15,32 +15,31 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_PASSWORDCOMBOBOX_H
 #define KEEPASSX_PASSWORDCOMBOBOX_H
-
 #include <QComboBox>
-
 class PasswordGenerator;
 
-class PasswordComboBox : public QComboBox
+class PasswordComboBox final:public QComboBox
 {
-    Q_OBJECT
-
-public:
-    explicit PasswordComboBox(QWidget* parent = nullptr);
-    ~PasswordComboBox();
-
-    void setGenerator(PasswordGenerator* generator);
-    void setNumberAlternatives(int alternatives);
-    void showPopup();
-
+	Q_OBJECT public:
+	explicit PasswordComboBox(
+		QWidget* parent = nullptr
+	);
+	virtual ~PasswordComboBox() override;
+	void setGenerator(
+		PasswordGenerator* generator
+	);
+	void setNumberAlternatives(
+		int alternatives
+	);
+	virtual void showPopup() override;
 public Q_SLOTS:
-    void setEcho(bool echo);
-
+	void do_setEcho(
+		bool echo
+	);
 private:
-    PasswordGenerator* m_generator;
-    int m_alternatives;
+	PasswordGenerator* generator;
+	int alternatives;
 };
-
 #endif // KEEPASSX_PASSWORDCOMBOBOX_H

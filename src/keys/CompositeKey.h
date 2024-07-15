@@ -14,37 +14,46 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_COMPOSITEKEY_H
 #define KEEPASSX_COMPOSITEKEY_H
-
 #include <QList>
-
 #include "keys/Key.h"
 
-class CompositeKey : public Key
+class CompositeKey:public Key
 {
 public:
-    CompositeKey();
-    CompositeKey(const CompositeKey& key);
-    ~CompositeKey();
-    void clear();
-    bool isEmpty() const;
-    CompositeKey* clone() const;
-    CompositeKey& operator=(const CompositeKey& key);
-
-    QByteArray rawKey() const;
-    QByteArray transform(const QByteArray& seed, quint64 rounds,
-                         bool* ok, QString* errorString) const;
-    void addKey(const Key& key);
-
-    static int transformKeyBenchmark(int msec);
-
+	CompositeKey();
+	CompositeKey(
+		const CompositeKey &key
+	);
+	virtual ~CompositeKey() override;
+	virtual void clear();
+	bool isEmpty() const;
+	virtual CompositeKey* clone() const override;
+	CompositeKey &operator=(
+		const CompositeKey &key
+	);
+	virtual QByteArray rawKey() const override;
+	QByteArray transform(
+		const QByteArray &seed,
+		quint64 rounds,
+		bool* ok,
+		QString* errorString
+	) const;
+	void addKey(
+		const Key &key
+	);
+	static int transformKeyBenchmark(
+		int msec
+	);
 private:
-    static QByteArray transformKeyRaw(const QByteArray& key, const QByteArray& seed,
-                                      quint64 rounds, bool* ok, QString* errorString);
-
-    QList<Key*> m_keys;
+	static QByteArray transformKeyRaw(
+		const QByteArray &key,
+		const QByteArray &seed,
+		quint64 rounds,
+		bool* ok,
+		QString* errorString
+	);
+	QList<Key*> keys;
 };
-
 #endif // KEEPASSX_COMPOSITEKEY_H

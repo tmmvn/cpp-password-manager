@@ -14,107 +14,151 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "EntryAttachments.h"
 
-EntryAttachments::EntryAttachments(QObject* parent)
-    : QObject(parent)
+EntryAttachments::EntryAttachments(
+	QObject* parent
+)
+	: QObject(
+		parent
+	)
 {
 }
 
-QList<QString> EntryAttachments::keys() const
+QList<QString> EntryAttachments::getKeys() const
 {
-    return m_attachments.keys();
+	return this->attachments.keys();
 }
 
-bool EntryAttachments::hasKey(const QString& key) const
+bool EntryAttachments::hasKey(
+	const QString &key
+) const
 {
-    return m_attachments.keys().contains(key);
+	return this->attachments.keys().contains(
+		key
+	);
 }
 
-QList<QByteArray> EntryAttachments::values() const
+QList<QByteArray> EntryAttachments::getValues() const
 {
-    return m_attachments.values();
+	return this->attachments.values();
 }
 
-QByteArray EntryAttachments::value(const QString& key) const
+QByteArray EntryAttachments::getValue(
+	const QString &key
+) const
 {
-    return m_attachments.value(key);
+	return this->attachments.value(
+		key
+	);
 }
 
-void EntryAttachments::set(const QString& key, const QByteArray& value)
+void EntryAttachments::set(
+	const QString &key,
+	const QByteArray &value
+)
 {
-    bool emitModified = false;
-    bool addAttachment = !m_attachments.contains(key);
-
-    if (addAttachment) {
-        Q_EMIT aboutToBeAdded(key);
-    }
-
-    if (addAttachment || m_attachments.value(key) != value) {
-        m_attachments.insert(key, value);
-        emitModified = true;
-    }
-
-    if (addAttachment) {
-        Q_EMIT added(key);
-    }
-    else {
-        Q_EMIT keyModified(key);
-    }
-
-    if (emitModified) {
-        Q_EMIT modified();
-    }
+	auto emitModified_ = false;
+	const bool addAttachment_ = !this->attachments.contains(
+		key
+	);
+	if(addAttachment_)
+	{
+		 sig_aboutToBeAdded(
+			key
+		);
+	}
+	if(addAttachment_ || this->attachments.value(
+		key
+	) != value)
+	{
+		this->attachments.insert(
+			key,
+			value
+		);
+		emitModified_ = true;
+	}
+	if(addAttachment_)
+	{
+		 sig_added(
+			key
+		);
+	}
+	else
+	{
+		 sig_keyModified(
+			key
+		);
+	}
+	if(emitModified_)
+	{
+		 sig_modified();
+	}
 }
 
-void EntryAttachments::remove(const QString& key)
+void EntryAttachments::remove(
+	const QString &key
+)
 {
-    if (!m_attachments.contains(key)) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    Q_EMIT aboutToBeRemoved(key);
-
-    m_attachments.remove(key);
-
-    Q_EMIT removed(key);
-    Q_EMIT modified();
+	if(this->attachments.contains(
+		key
+	))
+	{
+		return;
+	};
+	if(!this->attachments.contains(
+		key
+	))
+	{
+		return;
+	}
+	 sig_aboutToBeRemoved(
+		key
+	);
+	this->attachments.remove(
+		key
+	);
+	 sig_removed(
+		key
+	);
+	 sig_modified();
 }
 
 void EntryAttachments::clear()
 {
-    if (m_attachments.isEmpty()) {
-        return;
-    }
-
-    Q_EMIT aboutToBeReset();
-
-    m_attachments.clear();
-
-    Q_EMIT reset();
-    Q_EMIT modified();
+	if(this->attachments.isEmpty())
+	{
+		return;
+	}
+	 sig_aboutToBeReset();
+	this->attachments.clear();
+	 sig_reset();
+	 sig_modified();
 }
 
-void EntryAttachments::copyDataFrom(const EntryAttachments* other)
+void EntryAttachments::copyDataFrom(
+	const EntryAttachments* other
+)
 {
-    if (*this != *other) {
-        Q_EMIT aboutToBeReset();
-
-        m_attachments = other->m_attachments;
-
-        Q_EMIT reset();
-        Q_EMIT modified();
-    }
+	if(*this != *other)
+	{
+		 sig_aboutToBeReset();
+		this->attachments = other->attachments;
+		 sig_reset();
+		 sig_modified();
+	}
 }
 
-bool EntryAttachments::operator==(const EntryAttachments& other) const
+bool EntryAttachments::operator==(
+	const EntryAttachments &other
+) const
 {
-    return m_attachments == other.m_attachments;
+	return this->attachments == other.attachments;
 }
 
-bool EntryAttachments::operator!=(const EntryAttachments& other) const
+bool EntryAttachments::operator!=(
+	const EntryAttachments &other
+) const
 {
-    return m_attachments != other.m_attachments;
+	return this->attachments != other.attachments;
 }

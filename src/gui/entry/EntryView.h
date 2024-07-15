@@ -14,53 +14,66 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_ENTRYVIEW_H
 #define KEEPASSX_ENTRYVIEW_H
-
 #include <QTreeView>
-
 #include "gui/entry/EntryModel.h"
-
 class Entry;
 class EntryModel;
 class Group;
 class SortFilterHideProxyModel;
 
-class EntryView : public QTreeView
+class EntryView:public QTreeView
 {
-    Q_OBJECT
+	Q_OBJECT public:
+	explicit EntryView(
+		QWidget* parent = nullptr
+	);
+	virtual void setModel(
+		QAbstractItemModel* model
+	) override;
+	Entry* getCurrentEntry() const;
+	void setCurrentEntry(
+		Entry* entry
+	) const;
+	Entry* entryFromIndex(
+		const QModelIndex &index
+	) const;
+	void setEntryList(
+		const QList<Entry*> &entries
+	);
+	bool isInEntryListMode() const;
+	qsizetype numberOfSelectedEntries() const;
+	void setFirstEntryActive();
 
-public:
-    explicit EntryView(QWidget* parent = nullptr);
-    void setModel(QAbstractItemModel* model) override;
-    Entry* currentEntry();
-    void setCurrentEntry(Entry* entry);
-    Entry* entryFromIndex(const QModelIndex& index);
-    void setEntryList(const QList<Entry*>& entries);
-    bool inEntryListMode();
-    int numberOfSelectedEntries();
-    void setFirstEntryActive();
-
+	EntryModel* getModel() const
+	{
+		return model;
+	};
 public Q_SLOTS:
-    void setGroup(Group* group);
-
+	void do_setGroup(
+		Group* group
+	);
+	void do_setFocus();
 Q_SIGNALS:
-    void entryActivated(Entry* entry, EntryModel::ModelColumn column);
-    void entrySelectionChanged();
-
+	void sig_entryActivated(
+		Entry* entry,
+		EntryModel::ModelColumn column
+	);
+	void sig_entrySelectionChanged();
 protected:
-    void keyPressEvent(QKeyEvent* event) override;
-
+	virtual void keyPressEvent(
+		QKeyEvent* event
+	) override;
 private Q_SLOTS:
-    void emitEntryActivated(const QModelIndex& index);
-    void switchToEntryListMode();
-    void switchToGroupMode();
-
+	void do_emitEntryActivated(
+		const QModelIndex &index
+	);
+	void do_switchToEntryListMode();
+	void do_switchToGroupMode();
 private:
-    EntryModel* const m_model;
-    SortFilterHideProxyModel* const m_sortModel;
-    bool m_inEntryListMode;
+	EntryModel* const model;
+	SortFilterHideProxyModel* const sortModel;
+	bool inEntryListMode;
 };
-
 #endif // KEEPASSX_ENTRYVIEW_H

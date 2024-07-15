@@ -14,28 +14,37 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_SYMMETRICCIPHERBACKEND_H
 #define KEEPASSX_SYMMETRICCIPHERBACKEND_H
-
 #include <QByteArray>
 
 class SymmetricCipherBackend
 {
 public:
-    virtual ~SymmetricCipherBackend() {}
-    virtual bool init() = 0;
-    virtual bool setKey(const QByteArray& key) = 0;
-    virtual bool setIv(const QByteArray& iv) = 0;
+	virtual ~SymmetricCipherBackend()
+	{
+	}
 
-    virtual QByteArray process(const QByteArray& data, bool* ok) = 0;
-    Q_REQUIRED_RESULT virtual bool processInPlace(QByteArray& data) = 0;
-    Q_REQUIRED_RESULT virtual bool processInPlace(QByteArray& data, quint64 rounds) = 0;
-
-    virtual bool reset() = 0;
-    virtual int blockSize() const = 0;
-
-    virtual QString errorString() const = 0;
+	virtual bool init() = 0;
+	virtual bool setKey(
+		const QByteArray &key
+	) = 0;
+	virtual bool setIv(
+		const QByteArray &iv
+	) = 0;
+	virtual QByteArray process(
+		const QByteArray &data,
+		bool* ok
+	) = 0;
+	Q_REQUIRED_RESULT virtual bool processInPlace(
+		QByteArray &data
+	) = 0;
+	Q_REQUIRED_RESULT virtual bool processInPlace(
+		QByteArray &data,
+		quint64 rounds
+	) = 0;
+	virtual bool reset() = 0;
+	virtual qint64 getBlockSize() const = 0;
+	virtual QString getErrorString() const = 0;
 };
-
 #endif // KEEPASSX_SYMMETRICCIPHERBACKEND_H

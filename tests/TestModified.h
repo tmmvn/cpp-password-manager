@@ -14,22 +14,17 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTMODIFIED_H
 #define KEEPASSX_TESTMODIFIED_H
-
 #include <QObject>
 
-class TestModified : public QObject
+class TestModified:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testSignals();
-    void testGroupSets();
-    void testEntrySets();
-    void testHistoryItem();
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testSignals();
+	void testGroupSets();
+	void testEntrySets();
+	void testHistoryItem();
 };
-
 #endif // KEEPASSX_TESTMODIFIED_H

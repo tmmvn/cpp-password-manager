@@ -15,27 +15,28 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_APPLICATION_H
 #define KEEPASSX_APPLICATION_H
-
 #include <QApplication>
 
-class Application : public QApplication
+class Application final:public QApplication
 {
-    Q_OBJECT
-
-public:
-    Application(int& argc, char** argv);
-    void setMainWindow(QWidget* mainWindow);
-
-    bool event(QEvent* event) override;
-
+	Q_OBJECT public:
+	Application(
+		int &argc,
+		char** argv
+	);
+	void setMainWindow(
+		QWidget* mainWindow
+	);
+	virtual bool event(
+		QEvent* event
+	) override;
 Q_SIGNALS:
-    void openFile(const QString& filename);
-
+	void sig_openFile(
+		const QString &filename
+	);
 private:
-    QWidget* m_mainWindow;
+	QWidget* mainWindow;
 };
-
 #endif // KEEPASSX_APPLICATION_H

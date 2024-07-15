@@ -14,32 +14,23 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-
 #ifndef KEEPASSX_TESTENTRYSEARCHER_H
 #define KEEPASSX_TESTENTRYSEARCHER_H
-
 #include <QObject>
-
 #include "core/EntrySearcher.h"
 #include "core/Group.h"
 
-class TestEntrySearcher : public QObject
+class TestEntrySearcher:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void cleanupTestCase();
-
-    void testAndConcatenationInSearch();
-    void testSearch();
-    void testAllAttributesAreSearched();
-
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void cleanupTestCase();
+	void testAndConcatenationInSearch();
+	void testSearch();
+	void testAllAttributesAreSearched();
 private:
-    Group* m_groupRoot;
-    EntrySearcher m_entrySearcher;
-    QList<Entry*> m_searchResult;
+	Group* m_groupRoot;
+	EntrySearcher m_entrySearcher;
+	QList<Entry*> m_searchResult;
 };
-
 #endif // KEEPASSX_TESTENTRYSEARCHER_H

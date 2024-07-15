@@ -14,15 +14,22 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "WelcomeWidget.h"
 #include "ui_WelcomeWidget.h"
 
-WelcomeWidget::WelcomeWidget(QWidget* parent)
-    : QWidget(parent)
-    , m_ui(new Ui::WelcomeWidget())
+WelcomeWidget::WelcomeWidget(
+	QWidget* parent
+)
+	: QWidget(
+		parent
+	),
+	ui(
+		new Ui::WelcomeWidget()
+	)
 {
-    m_ui->setupUi(this);
+	this->ui->setupUi(
+		this
+	);
 }
 
 WelcomeWidget::~WelcomeWidget()

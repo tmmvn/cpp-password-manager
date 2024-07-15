@@ -14,23 +14,18 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTSYMMETRICCIPHER_H
 #define KEEPASSX_TESTSYMMETRICCIPHER_H
-
 #include <QObject>
 
-class TestSymmetricCipher : public QObject
+class TestSymmetricCipher:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testAes256CbcEncryption();
-    void testAes256CbcDecryption();
-    void testSalsa20();
-    void testPadding();
-    void testStreamReset();
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testAes256CbcEncryption();
+	void testAes256CbcDecryption();
+	void testSalsa20();
+	void testPadding();
+	void testStreamReset();
 };
-
 #endif // KEEPASSX_TESTSYMMETRICCIPHER_H

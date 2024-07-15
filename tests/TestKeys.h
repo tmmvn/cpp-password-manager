@@ -14,24 +14,19 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTKEYS_H
 #define KEEPASSX_TESTKEYS_H
-
 #include <QObject>
 
-class TestKeys : public QObject
+class TestKeys:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testComposite();
-    void testFileKey();
-    void testFileKey_data();
-    void testCreateFileKey();
-    void testFileKeyError();
-    void benchmarkTransformKey();
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testComposite();
+	void testFileKey();
+	void testFileKey_data();
+	void testCreateFileKey();
+	void testFileKeyError();
+	void benchmarkTransformKey();
 };
-
 #endif // KEEPASSX_TESTKEYS_H

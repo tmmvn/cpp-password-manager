@@ -14,16 +14,25 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "SymmetricCipher.h"
-
 #include "config-keepassx.h"
 #include "crypto/SymmetricCipherGcrypt.h"
 
-SymmetricCipher::SymmetricCipher(SymmetricCipher::Algorithm algo, SymmetricCipher::Mode mode,
-                                 SymmetricCipher::Direction direction)
-    : m_backend(createBackend(algo, mode, direction))
-    , m_initialized(false)
+SymmetricCipher::SymmetricCipher(
+	const Algorithm algo,
+	const Mode mode,
+	const Direction direction
+)
+	: backend(
+		new SymmetricCipherGcrypt(
+			algo,
+			mode,
+			direction
+		)
+	),
+	initialized(
+		false
+	)
 {
 }
 
@@ -31,55 +40,47 @@ SymmetricCipher::~SymmetricCipher()
 {
 }
 
-bool SymmetricCipher::init(const QByteArray& key, const QByteArray& iv)
+bool SymmetricCipher::init(
+	const QByteArray &key,
+	const QByteArray &iv
+)
 {
-    if (!m_backend->init()) {
-        return false;
-    }
-
-    if (!m_backend->setKey(key)) {
-        return false;
-    }
-
-    if (!m_backend->setIv(iv)) {
-        return false;
-    }
-
-    m_initialized = true;
-    return true;
+	if(!this->backend->init())
+	{
+		return false;
+	}
+	if(!this->backend->setKey(
+		key
+	))
+	{
+		return false;
+	}
+	if(!this->backend->setIv(
+		iv
+	))
+	{
+		return false;
+	}
+	this->initialized = true;
+	return true;
 }
 
 bool SymmetricCipher::isInitalized() const
 {
-    return m_initialized;
+	return this->initialized;
 }
 
-SymmetricCipherBackend* SymmetricCipher::createBackend(SymmetricCipher::Algorithm algo, SymmetricCipher::Mode mode,
-                                                       SymmetricCipher::Direction direction)
+bool SymmetricCipher::reset() const
 {
-    switch (algo) {
-    case SymmetricCipher::Aes256:
-    case SymmetricCipher::Twofish:
-    case SymmetricCipher::Salsa20:
-        return new SymmetricCipherGcrypt(algo, mode, direction);
-
-    default:
-        Q_ASSERT(false);
-        return nullptr;
-    }
+	return this->backend->reset();
 }
 
-bool SymmetricCipher::reset()
+qint64 SymmetricCipher::getBlockSize() const
 {
-    return m_backend->reset();
+	return this->backend->getBlockSize();
 }
 
-int SymmetricCipher::blockSize() const
+QString SymmetricCipher::getErrorString() const
 {
-    return m_backend->blockSize();
-}
-
-QString SymmetricCipher::errorString() const
-{
-    return m_backend->errorString();
+	return this->backend->getErrorString();
 }

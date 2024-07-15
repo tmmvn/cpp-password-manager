@@ -14,94 +14,125 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "TimeInfo.h"
-
 #include "core/Tools.h"
 
 TimeInfo::TimeInfo()
-    : m_expires(false)
-    , m_usageCount(0)
+	: expires(
+		false
+	),
+	usageCount(
+		0
+	)
 {
-    QDateTime now = QDateTime::currentDateTimeUtc();
-    m_lastModificationTime = now;
-    m_creationTime = now;
-    m_lastAccessTime = now;
-    m_expiryTime = now;
-    m_locationChanged = now;
+	const QDateTime now_ = QDateTime::currentDateTimeUtc();
+	this->lastModificationTime = now_;
+	this->creationTime = now_;
+	this->lastAccessTime = now_;
+	this->expiryTime = now_;
+	this->locationChanged = now_;
 }
 
-QDateTime TimeInfo::lastModificationTime() const
+QDateTime TimeInfo::getLastModificationTime() const
 {
-    return m_lastModificationTime;
+	return this->lastModificationTime;
 }
 
-QDateTime TimeInfo::creationTime() const
+QDateTime TimeInfo::getCreationTime() const
 {
-    return m_creationTime;
+	return this->creationTime;
 }
 
-QDateTime TimeInfo::lastAccessTime() const
+QDateTime TimeInfo::getLastAccessTime() const
 {
-    return m_lastAccessTime;
+	return this->lastAccessTime;
 }
 
-QDateTime TimeInfo::expiryTime() const
+QDateTime TimeInfo::getExpiryTime() const
 {
-    return m_expiryTime;
+	return this->expiryTime;
 }
 
-bool TimeInfo::expires() const
+bool TimeInfo::getExpires() const
 {
-    return m_expires;
+	return this->expires;
 }
 
-int TimeInfo::usageCount() const
+int TimeInfo::getUsageCount() const
 {
-    return m_usageCount;
+	return this->usageCount;
 }
 
-QDateTime TimeInfo::locationChanged() const
+QDateTime TimeInfo::getLocationChanged() const
 {
-    return m_locationChanged;
+	return this->locationChanged;
 }
 
-void TimeInfo::setLastModificationTime(const QDateTime& dateTime)
+void TimeInfo::setLastModificationTime(
+	const QDateTime &dateTime
+)
 {
-    Q_ASSERT(dateTime.timeSpec() == Qt::UTC);
-    m_lastModificationTime = dateTime;
+	if(dateTime.timeSpec() != Qt::UTC)
+	{
+		return;
+	}
+	this->lastModificationTime = dateTime;
 }
 
-void TimeInfo::setCreationTime(const QDateTime& dateTime)
+void TimeInfo::setCreationTime(
+	const QDateTime &dateTime
+)
 {
-    Q_ASSERT(dateTime.timeSpec() == Qt::UTC);
-    m_creationTime = dateTime;
+	if(dateTime.timeSpec() != Qt::UTC)
+	{
+		return;
+	}
+	this->creationTime = dateTime;
 }
 
-void TimeInfo::setLastAccessTime(const QDateTime& dateTime)
+void TimeInfo::setLastAccessTime(
+	const QDateTime &dateTime
+)
 {
-    Q_ASSERT(dateTime.timeSpec() == Qt::UTC);
-    m_lastAccessTime = dateTime;
+	if(dateTime.timeSpec() != Qt::UTC)
+	{
+		return;
+	}
+	this->lastAccessTime = dateTime;
 }
 
-void TimeInfo::setExpiryTime(const QDateTime& dateTime)
+void TimeInfo::setExpiryTime(
+	const QDateTime &dateTime
+)
 {
-    Q_ASSERT(dateTime.timeSpec() == Qt::UTC);
-    m_expiryTime = dateTime;
+	if(dateTime.timeSpec() != Qt::UTC)
+	{
+		return;
+	}
+	this->expiryTime = dateTime;
 }
 
-void TimeInfo::setExpires(bool expires)
+void TimeInfo::setExpires(
+	const bool expires
+)
 {
-    m_expires = expires;
+	this->expires = expires;
 }
 
-void TimeInfo::setUsageCount(int count)
+void TimeInfo::setUsageCount(
+	const int count
+)
 {
-    m_usageCount = count;
+	this->usageCount = count;
 }
 
-void TimeInfo::setLocationChanged(const QDateTime& dateTime)
+void TimeInfo::setLocationChanged(
+	const QDateTime &dateTime
+)
 {
-    Q_ASSERT(dateTime.timeSpec() == Qt::UTC);
-    m_locationChanged = dateTime;
+	if(dateTime.timeSpec() != Qt::UTC)
+	{
+		return;
+	}
+	this->locationChanged = dateTime;
 }

@@ -14,28 +14,32 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_FAILDEVICE_H
 #define KEEPASSX_FAILDEVICE_H
-
 #include <QBuffer>
 
-class FailDevice : public QBuffer
+class FailDevice:public QBuffer
 {
-    Q_OBJECT
-
-public:
-    explicit FailDevice(int failAfter, QObject* parent = nullptr);
-    bool open(QIODevice::OpenMode openMode) override;
-
+	Q_OBJECT public:
+	explicit FailDevice(
+		int failAfter,
+		QObject* parent = nullptr
+	);
+	bool open(
+		QIODevice::OpenMode openMode
+	) override;
 protected:
-    qint64 readData(char* data, qint64 len) override;
-    qint64 writeData(const char* data, qint64 len) override;
-
+	qint64 readData(
+		char* data,
+		qint64 len
+	) override;
+	qint64 writeData(
+		const char* data,
+		qint64 len
+	) override;
 private:
-    int m_failAfter;
-    int m_readCount;
-    int m_writeCount;
+	int failAfter;
+	qint64 readCount;
+	qint64 writeCount;
 };
-
 #endif // KEEPASSX_FAILDEVICE_H

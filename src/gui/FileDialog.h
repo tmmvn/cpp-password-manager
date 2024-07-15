@@ -14,42 +14,42 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_FILEDIALOG_H
 #define KEEPASSX_FILEDIALOG_H
-
 #include <QFileDialog>
 
 class FileDialog
 {
 public:
-    QString getOpenFileName(QWidget* parent = nullptr, const QString& caption = QString(),
-                            QString dir = QString(), const QString& filter = QString(),
-                            QString* selectedFilter = nullptr, QFileDialog::Options options = 0);
-    QString getSaveFileName(QWidget* parent = nullptr, const QString& caption = QString(),
-                            QString dir = QString(), const QString& filter = QString(),
-                            QString* selectedFilter = nullptr, QFileDialog::Options options = 0,
-                            const QString& defaultExtension = QString());
-
-    /**
-     * Sets the result of the next get* method call.
-     * Use only for testing.
-     */
-    void setNextFileName(const QString& fileName);
-
-    static FileDialog* instance();
-
+	QString getOpenFileName(
+		QWidget* parent = nullptr,
+		const QString &caption = QString(),
+		QString dir = QString(),
+		const QString &filter = QString(),
+		QString* selectedFilter = nullptr
+	);
+	QString getSaveFileName(
+		QWidget* parent = nullptr,
+		const QString &caption = QString(),
+		QString dir = QString(),
+		const QString &filter = QString(),
+		QString* selectedFilter = nullptr,
+		const QString &defaultExtension = QString()
+	);
+	/**
+	* Sets the result of the next get* method call.
+	* Use only for testing.
+	*/
+	void setNextFileName(
+		const QString &fileName
+	);
+	static FileDialog* getInstance();
 private:
-    FileDialog();
-    QString m_nextFileName;
-
-    static FileDialog* m_instance;
-
-    Q_DISABLE_COPY(FileDialog)
+	FileDialog();
+	QString nextFileName;
+	static FileDialog* instance;
+	Q_DISABLE_COPY(
+		FileDialog
+	)
 };
-
-inline FileDialog* fileDialog() {
-    return FileDialog::instance();
-}
-
 #endif // KEEPASSX_FILEDIALOG_H

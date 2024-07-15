@@ -14,27 +14,26 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_ABOUTDIALOG_H
 #define KEEPASSX_ABOUTDIALOG_H
-
 #include <QDialog>
 #include <QScopedPointer>
 
-namespace Ui {
-    class AboutDialog;
+namespace Ui
+{
+	class AboutDialog;
 }
 
-class AboutDialog : public QDialog
+class AboutDialog final:public QDialog
 {
-    Q_OBJECT
+	Q_OBJECT public:
+	explicit AboutDialog(
+		QWidget* parent = nullptr
+	);
 
-public:
-    explicit AboutDialog(QWidget* parent = nullptr);
-    ~AboutDialog();
+	virtual ~AboutDialog() override;
 
 private:
-    QScopedPointer<Ui::AboutDialog> m_ui;
+	QScopedPointer<Ui::AboutDialog> ui;
 };
-
 #endif // KEEPASSX_ABOUTDIALOG_H

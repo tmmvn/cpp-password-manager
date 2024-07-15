@@ -14,652 +14,1018 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "Group.h"
-
 #include "core/Config.h"
 #include "core/Global.h"
 #include "core/DatabaseIcons.h"
 #include "core/Metadata.h"
-
 const int Group::DefaultIconNumber = 48;
 const int Group::RecycleBinIconNumber = 43;
 
 Group::Group()
-    : m_updateTimeinfo(true)
+	: updateTimeinfo(
+		true
+	)
 {
-    m_data.iconNumber = DefaultIconNumber;
-    m_data.isExpanded = true;
-    m_data.autoTypeEnabled = Inherit;
-    m_data.searchingEnabled = Inherit;
+	this->data.iconNumber = this->DefaultIconNumber;
+	this->data.isExpanded = true;
+	this->data.autoTypeEnabled = this->Inherit;
+	this->data.searchingEnabled = this->Inherit;
 }
 
 Group::~Group()
 {
-    // Destroy entries and children manually so DeletedObjects can be added
-    // to database.
-    const QList<Entry*> entries = m_entries;
-    for (Entry* entry : entries) {
-        delete entry;
-    }
-
-    const QList<Group*> children = m_children;
-    for (Group* group : children) {
-        delete group;
-    }
-
-    if (m_db && m_parent) {
-        DeletedObject delGroup;
-        delGroup.deletionTime = QDateTime::currentDateTimeUtc();
-        delGroup.uuid = m_uuid;
-        m_db->addDeletedObject(delGroup);
-    }
-
-    cleanupParent();
+	// Destroy entries and children manually so DeletedObjects can be added
+	// to database.
+	const QList<Entry*> entries_ = this->entries;
+	for(const Entry* entry_: entries_)
+	{
+		delete entry_;
+	}
+	const QList<Group*> children_ = this->children;
+	for(const Group* group_: children_)
+	{
+		delete group_;
+	}
+	if(this->db && this->parent)
+	{
+		DeletedObject delGroup_;
+		delGroup_.deletionTime = QDateTime::currentDateTimeUtc();
+		delGroup_.uuid = uuid;
+		this->db->addDeletedObject(
+			delGroup_
+		);
+	}
+	this->cleanupParent();
 }
 
 Group* Group::createRecycleBin()
 {
-    Group* recycleBin = new Group();
-    recycleBin->setUuid(Uuid::random());
-    recycleBin->setName(tr("Recycle Bin"));
-    recycleBin->setIcon(RecycleBinIconNumber);
-    recycleBin->setSearchingEnabled(Group::Disable);
-    recycleBin->setAutoTypeEnabled(Group::Disable);
-    return recycleBin;
+	const auto recycleBin_ = new Group();
+	recycleBin_->setUuid(
+		UUID::random()
+	);
+	recycleBin_->setName(
+		tr(
+			"Recycle Bin"
+		)
+	);
+	recycleBin_->setIcon(
+		RecycleBinIconNumber
+	);
+	recycleBin_->setSearchingEnabled(
+		Disable
+	);
+	recycleBin_->setAutoTypeEnabled(
+		Disable
+	);
+	return recycleBin_;
 }
 
-template <class P, class V> inline bool Group::set(P& property, const V& value) {
-    if (property != value) {
-        property = value;
-        updateTimeinfo();
-        Q_EMIT modified();
-        return true;
-    }
-    else {
-        return false;
-    }
-}
-
-void Group::updateTimeinfo()
+template<class P, class V> bool Group::set(
+	P &property,
+	const V &value
+)
 {
-    if (m_updateTimeinfo) {
-        m_data.timeInfo.setLastModificationTime(QDateTime::currentDateTimeUtc());
-        m_data.timeInfo.setLastAccessTime(QDateTime::currentDateTimeUtc());
-    }
+	if(property != value)
+	{
+		property = value;
+		this->getUpdateTimeinfo();
+		sig_modified();
+		return true;
+	}
+	return false;
 }
 
-void Group::setUpdateTimeinfo(bool value)
+void Group::getUpdateTimeinfo()
 {
-    m_updateTimeinfo = value;
+	if(this->updateTimeinfo)
+	{
+		this->data.timeInfo.setLastModificationTime(
+			QDateTime::currentDateTimeUtc()
+		);
+		this->data.timeInfo.setLastAccessTime(
+			QDateTime::currentDateTimeUtc()
+		);
+	}
 }
 
-Uuid Group::uuid() const
+void Group::setUpdateTimeinfo(
+	const bool value
+)
 {
-    return m_uuid;
+	this->updateTimeinfo = value;
 }
 
-QString Group::name() const
+UUID Group::getUUID() const
 {
-    return m_data.name;
+	return this->uuid;
 }
 
-QString Group::notes() const
+QString Group::getName() const
 {
-    return m_data.notes;
+	return this->data.name;
 }
 
-QImage Group::icon() const
+QString Group::getNotes() const
 {
-    if (m_data.customIcon.isNull()) {
-        return databaseIcons()->icon(m_data.iconNumber);
-    }
-    else {
-        Q_ASSERT(m_db);
-
-        if (m_db) {
-            return m_db->metadata()->customIcon(m_data.customIcon);
-        }
-        else {
-            return QImage();
-        }
-    }
+	return this->data.notes;
 }
 
-QPixmap Group::iconPixmap() const
+QImage Group::getIcon() const
 {
-    if (m_data.customIcon.isNull()) {
-        return databaseIcons()->iconPixmap(m_data.iconNumber);
-    }
-    else {
-        Q_ASSERT(m_db);
-
-        if (m_db) {
-            return m_db->metadata()->customIconPixmap(m_data.customIcon);
-        }
-        else {
-            return QPixmap();
-        }
-    }
+	if(this->data.customIcon.isNull())
+	{
+		return DatabaseIcons::getInstance()->icon(
+			this->data.iconNumber
+		);
+	}
+	if(this->db == nullptr)
+	{
+		return QImage();
+	}
+	if(this->db)
+	{
+		return this->db->getMetadata()->getCustomIcon(
+			this->data.customIcon
+		);
+	}
+	return QImage();
 }
 
-QPixmap Group::iconScaledPixmap() const
+QPixmap Group::getIconPixmap() const
 {
-    if (m_data.customIcon.isNull()) {
-        // built-in icons are 16x16 so don't need to be scaled
-        return databaseIcons()->iconPixmap(m_data.iconNumber);
-    }
-    else {
-        Q_ASSERT(m_db);
-
-        if (m_db) {
-            return m_db->metadata()->customIconScaledPixmap(m_data.customIcon);
-        }
-        else {
-            return QPixmap();
-        }
-    }
+	if(this->data.customIcon.isNull())
+	{
+		return DatabaseIcons::getInstance()->iconPixmap(
+			this->data.iconNumber
+		);
+	}
+	if(this->db == nullptr)
+	{
+		return QPixmap();
+	}
+	if(this->db)
+	{
+		return this->db->getMetadata()->getCustomIconPixmap(
+			this->data.customIcon
+		);
+	}
+	return QPixmap();
 }
 
-int Group::iconNumber() const
+QPixmap Group::getIconScaledPixmap() const
 {
-    return m_data.iconNumber;
+	if(this->data.customIcon.isNull())
+	{
+		// built-in icons are 16x16 so don't need to be scaled
+		return DatabaseIcons::getInstance()->iconPixmap(
+			this->data.iconNumber
+		);
+	}
+	if(this->db == nullptr)
+	{
+		return QPixmap();
+	}
+	if(this->db)
+	{
+		return this->db->getMetadata()->getCustomIconScaledPixmap(
+			this->data.customIcon
+		);
+	}
+	return QPixmap();
 }
 
-Uuid Group::iconUuid() const
+int Group::getIconNumber() const
 {
-    return m_data.customIcon;
+	return this->data.iconNumber;
 }
 
-TimeInfo Group::timeInfo() const
+UUID Group::getIconUUID() const
 {
-    return m_data.timeInfo;
+	return this->data.customIcon;
+}
+
+TimeInfo Group::getTimeInfo() const
+{
+	return this->data.timeInfo;
 }
 
 bool Group::isExpanded() const
 {
-    return m_data.isExpanded;
+	return this->data.isExpanded;
 }
 
-QString Group::defaultAutoTypeSequence() const
+QString Group::getDefaultAutoTypeSequence() const
 {
-    return m_data.defaultAutoTypeSequence;
+	return this->data.defaultAutoTypeSequence;
 }
 
-Group::TriState Group::autoTypeEnabled() const
+Group::TriState Group::isAutoTypeEnabled() const
 {
-    return m_data.autoTypeEnabled;
+	return this->data.autoTypeEnabled;
 }
 
-Group::TriState Group::searchingEnabled() const
+Group::TriState Group::isSearchingEnabled() const
 {
-    return m_data.searchingEnabled;
+	return this->data.searchingEnabled;
 }
 
-Entry* Group::lastTopVisibleEntry() const
+Entry* Group::getLastTopVisibleEntry() const
 {
-    return m_lastTopVisibleEntry;
+	return this->lastTopVisibleEntry;
 }
 
 bool Group::isExpired() const
 {
-    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < QDateTime::currentDateTimeUtc();
+	return this->data.timeInfo.getExpires() && this->data.timeInfo.
+		getExpiryTime() < QDateTime::currentDateTimeUtc();
 }
 
-void Group::setUuid(const Uuid& uuid)
+void Group::setUuid(
+	const UUID &uuid
+)
 {
-    set(m_uuid, uuid);
+	this->set(
+		this->uuid,
+		uuid
+	);
 }
 
-void Group::setName(const QString& name)
+void Group::setName(
+	const QString &name
+)
 {
-    if (set(m_data.name, name)) {
-        Q_EMIT dataChanged(this);
-    }
+	if(this->set(
+		this->data.name,
+		name
+	))
+	{
+		sig_dataChanged(
+			this
+		);
+	}
 }
 
-void Group::setNotes(const QString& notes)
+void Group::setNotes(
+	const QString &notes
+)
 {
-    set(m_data.notes, notes);
+	this->set(
+		this->data.notes,
+		notes
+	);
 }
 
-void Group::setIcon(int iconNumber)
+void Group::setIcon(
+	const int iconNumber
+)
 {
-    Q_ASSERT(iconNumber >= 0);
-
-    if (m_data.iconNumber != iconNumber || !m_data.customIcon.isNull()) {
-        m_data.iconNumber = iconNumber;
-        m_data.customIcon = Uuid();
-
-        updateTimeinfo();
-        Q_EMIT modified();
-        Q_EMIT dataChanged(this);
-    }
+	if(iconNumber <= 0)
+	{
+		return;
+	}
+	if(this->data.iconNumber != iconNumber || !this->data.customIcon.isNull())
+	{
+		this->data.iconNumber = iconNumber;
+		this->data.customIcon = UUID();
+		this->getUpdateTimeinfo();
+		sig_modified();
+		sig_dataChanged(
+			this
+		);
+	}
 }
 
-void Group::setIcon(const Uuid& uuid)
+void Group::setIcon(
+	const UUID &uuid
+)
 {
-    Q_ASSERT(!uuid.isNull());
-
-    if (m_data.customIcon != uuid) {
-        m_data.customIcon = uuid;
-        m_data.iconNumber = 0;
-
-        updateTimeinfo();
-        Q_EMIT modified();
-        Q_EMIT dataChanged(this);
-    }
+	if(uuid.isNull())
+	{
+		return;
+	}
+	if(this->data.customIcon != uuid)
+	{
+		this->data.customIcon = uuid;
+		this->data.iconNumber = 0;
+		this->getUpdateTimeinfo();
+		sig_modified();
+		sig_dataChanged(
+			this
+		);
+	}
 }
 
-void Group::setTimeInfo(const TimeInfo& timeInfo)
+void Group::setTimeInfo(
+	const TimeInfo &timeInfo
+)
 {
-    m_data.timeInfo = timeInfo;
+	this->data.timeInfo = timeInfo;
 }
 
-void Group::setExpanded(bool expanded)
+void Group::setExpanded(
+	const bool expanded
+)
 {
-    if (m_data.isExpanded != expanded) {
-        m_data.isExpanded = expanded;
-        updateTimeinfo();
-        Q_EMIT modified();
-    }
+	if(this->data.isExpanded != expanded)
+	{
+		this->data.isExpanded = expanded;
+		this->getUpdateTimeinfo();
+		sig_modified();
+	}
 }
 
-void Group::setDefaultAutoTypeSequence(const QString& sequence)
+void Group::setDefaultAutoTypeSequence(
+	const QString &sequence
+)
 {
-    set(m_data.defaultAutoTypeSequence, sequence);
+	this->set(
+		this->data.defaultAutoTypeSequence,
+		sequence
+	);
 }
 
-void Group::setAutoTypeEnabled(TriState enable)
+void Group::setAutoTypeEnabled(
+	const TriState enable
+)
 {
-    set(m_data.autoTypeEnabled, enable);
+	this->set(
+		this->data.autoTypeEnabled,
+		enable
+	);
 }
 
-void Group::setSearchingEnabled(TriState enable)
+void Group::setSearchingEnabled(
+	const TriState enable
+)
 {
-    set(m_data.searchingEnabled, enable);
+	this->set(
+		this->data.searchingEnabled,
+		enable
+	);
 }
 
-void Group::setLastTopVisibleEntry(Entry* entry)
+void Group::setLastTopVisibleEntry(
+	Entry* entry
+)
 {
-    set(m_lastTopVisibleEntry, entry);
+	this->set(
+		this->lastTopVisibleEntry,
+		entry
+	);
 }
 
-void Group::setExpires(bool value)
+void Group::setExpires(
+	const bool value
+)
 {
-    if (m_data.timeInfo.expires() != value) {
-        m_data.timeInfo.setExpires(value);
-        updateTimeinfo();
-        Q_EMIT modified();
-    }
+	if(this->data.timeInfo.getExpires() != value)
+	{
+		this->data.timeInfo.setExpires(
+			value
+		);
+		this->getUpdateTimeinfo();
+		sig_modified();
+	}
 }
 
-void Group::setExpiryTime(const QDateTime& dateTime)
+void Group::setExpiryTime(
+	const QDateTime &dateTime
+)
 {
-    if (m_data.timeInfo.expiryTime() != dateTime) {
-        m_data.timeInfo.setExpiryTime(dateTime);
-        updateTimeinfo();
-        Q_EMIT modified();
-    }
+	if(this->data.timeInfo.getExpiryTime() != dateTime)
+	{
+		this->data.timeInfo.setExpiryTime(
+			dateTime
+		);
+		this->getUpdateTimeinfo();
+		sig_modified();
+	}
 }
 
-Group* Group::parentGroup()
+Group* Group::getParentGroup()
 {
-    return m_parent;
+	return this->parent;
 }
 
-const Group* Group::parentGroup() const
+const Group* Group::getParentGroup() const
 {
-    return m_parent;
+	return this->parent;
 }
 
-void Group::setParent(Group* parent, int index)
+void Group::setParent(
+	Group* parent,
+	int index
+)
 {
-    Q_ASSERT(parent);
-    Q_ASSERT(index >= -1 && index <= parent->children().size());
-    // setting a new parent for root groups is not allowed
-    Q_ASSERT(!m_db || (m_db->rootGroup() != this));
-
-    bool moveWithinDatabase = (m_db && m_db == parent->m_db);
-
-    if (index == -1) {
-        index = parent->children().size();
-
-        if (parentGroup() == parent) {
-            index--;
-        }
-    }
-
-    if (m_parent == parent && parent->children().indexOf(this) == index) {
-        return;
-    }
-
-    if (!moveWithinDatabase) {
-        cleanupParent();
-        m_parent = parent;
-        if (m_db) {
-            recCreateDelObjects();
-
-            // copy custom icon to the new database
-            if (!iconUuid().isNull() && parent->m_db
-                    && m_db->metadata()->containsCustomIcon(iconUuid())
-                    && !parent->m_db->metadata()->containsCustomIcon(iconUuid())) {
-                parent->m_db->metadata()->addCustomIcon(iconUuid(), icon());
-            }
-        }
-        if (m_db != parent->m_db) {
-            recSetDatabase(parent->m_db);
-        }
-        QObject::setParent(parent);
-        Q_EMIT aboutToAdd(this, index);
-        Q_ASSERT(index <= parent->m_children.size());
-        parent->m_children.insert(index, this);
-    }
-    else {
-        Q_EMIT aboutToMove(this, parent, index);
-        m_parent->m_children.removeAll(this);
-        m_parent = parent;
-        QObject::setParent(parent);
-        Q_ASSERT(index <= parent->m_children.size());
-        parent->m_children.insert(index, this);
-    }
-
-    if (m_updateTimeinfo) {
-        m_data.timeInfo.setLocationChanged(QDateTime::currentDateTimeUtc());
-    }
-
-    Q_EMIT modified();
-
-    if (!moveWithinDatabase) {
-        Q_EMIT added();
-    }
-    else {
-        Q_EMIT moved();
-    }
+	if(parent == nullptr)
+	{
+		return;
+	}
+	if(!(index >= -1 && index <= parent->getChildren().size()))
+	{
+		qWarning() << "Invalid index for adding a group to a parent group.";
+		return; // Or return an error code
+	}
+	if(this->db && this->db->getRootGroup() == this)
+	{
+		qWarning() << "Cannot set a new parent for a root group.";
+		return; // Or return an error code
+	}
+	const bool moveWithinDatabase_ = this->db && this->db == parent->db;
+	if(index == -1)
+	{
+		index = static_cast<int>(parent->getChildren().size());
+		if(this->getParentGroup() == parent)
+		{
+			index--;
+		}
+	}
+	if(this->parent == parent && parent->getChildren().indexOf(
+		this
+	) == index)
+	{
+		return;
+	}
+	if(!moveWithinDatabase_)
+	{
+		this->cleanupParent();
+		this->parent = parent;
+		if(this->db)
+		{
+			this->recCreateDelObjects();
+			// copy custom icon to the new database
+			if(!this->getIconUUID().isNull() && this->parent->db && this->db->
+				getMetadata()->containsCustomIcon(
+					this->getIconUUID()
+				) && !this->parent->db->getMetadata()->containsCustomIcon(
+					this->getIconUUID()
+				))
+			{
+				this->parent->db->getMetadata()->addCustomIcon(
+					this->getIconUUID(),
+					this->getIcon()
+				);
+			}
+		}
+		if(this->db != this->parent->db)
+		{
+			this->recSetDatabase(
+				this->parent->db
+			);
+		}
+		QObject::setParent(
+			this->parent
+		);
+		sig_aboutToAdd(
+			this,
+			index
+		);
+		if(index > this->parent->children.size())
+		{
+			return;
+		};
+		this->parent->children.insert(
+			index,
+			this
+		);
+	}
+	else
+	{
+		sig_aboutToMove(
+			this,
+			parent,
+			index
+		);
+		parent->children.removeAll(
+			this
+		);
+		this->parent = parent;
+		QObject::setParent(
+			this->parent
+		);
+		if(index > this->parent->children.size())
+		{
+			return;
+		}
+		this->parent->children.insert(
+			index,
+			this
+		);
+	}
+	if(this->updateTimeinfo)
+	{
+		this->data.timeInfo.setLocationChanged(
+			QDateTime::currentDateTimeUtc()
+		);
+	}
+	sig_modified();
+	if(!moveWithinDatabase_)
+	{
+		sig_added();
+	}
+	else
+	{
+		sig_moved();
+	}
 }
 
-void Group::setParent(Database* db)
+void Group::setParent(
+	Database* db
+)
 {
-    Q_ASSERT(db);
-    Q_ASSERT(db->rootGroup() == this);
-
-    cleanupParent();
-
-    m_parent = nullptr;
-    recSetDatabase(db);
-
-    QObject::setParent(db);
+	if(db == nullptr)
+	{
+		return;
+	};
+	if(db->getRootGroup() != this)
+	{
+		return;
+	}
+	this->cleanupParent();
+	this->parent = nullptr;
+	this->recSetDatabase(
+		db
+	);
+	QObject::setParent(
+		db
+	);
 }
 
-Database* Group::database()
+Database* Group::getDatabase()
 {
-    return m_db;
+	return this->db;
 }
 
-const Database* Group::database() const
+const Database* Group::getDatabase() const
 {
-    return m_db;
+	return this->db;
 }
 
-QList<Group*> Group::children()
+QList<Group*> Group::getChildren()
 {
-    return m_children;
+	return this->children;
 }
 
-const QList<Group*>& Group::children() const
+const QList<Group*> &Group::getChildren() const
 {
-    return m_children;
+	return this->children;
 }
 
-QList<Entry*> Group::entries()
+QList<Entry*> Group::getEntries()
 {
-    return m_entries;
+	return this->entries;
 }
 
-const QList<Entry*>& Group::entries() const
+const QList<Entry*> &Group::getEntries() const
 {
-    return m_entries;
+	return this->entries;
 }
 
-QList<Entry*> Group::entriesRecursive(bool includeHistoryItems) const
+QList<Entry*> Group::getEntriesRecursive(
+	const bool includeHistoryItems
+) const
 {
-    QList<Entry*> entryList;
-
-    entryList.append(m_entries);
-
-    if (includeHistoryItems) {
-        for (Entry* entry : m_entries) {
-            entryList.append(entry->historyItems());
-        }
-    }
-
-    for (Group* group : m_children) {
-        entryList.append(group->entriesRecursive(includeHistoryItems));
-    }
-
-    return entryList;
+	QList<Entry*> entryList_;
+	entryList_.append(
+		entries
+	);
+	if(includeHistoryItems)
+	{
+		for(Entry* entry_: this->entries)
+		{
+			entryList_.append(
+				entry_->getHistoryItems()
+			);
+		}
+	}
+	for(const Group* group_: this->children)
+	{
+		entryList_.append(
+			group_->getEntriesRecursive(
+				includeHistoryItems
+			)
+		);
+	}
+	return entryList_;
 }
 
-QList<const Group*> Group::groupsRecursive(bool includeSelf) const
+QList<const Group*> Group::getGroupsRecursive(
+	const bool includeSelf
+) const
 {
-    QList<const Group*> groupList;
-    if (includeSelf) {
-        groupList.append(this);
-    }
-
-    for (const Group* group : m_children) {
-        groupList.append(group->groupsRecursive(true));
-    }
-
-    return groupList;
+	QList<const Group*> groupList_;
+	if(includeSelf)
+	{
+		groupList_.append(
+			this
+		);
+	}
+	for(const Group* group_: children)
+	{
+		groupList_.append(
+			group_->getGroupsRecursive(
+				true
+			)
+		);
+	}
+	return groupList_;
 }
 
-QList<Group*> Group::groupsRecursive(bool includeSelf)
+QList<Group*> Group::getGroupsRecursive(
+	const bool includeSelf
+)
 {
-    QList<Group*> groupList;
-    if (includeSelf) {
-        groupList.append(this);
-    }
-
-    for (Group* group : asConst(m_children)) {
-        groupList.append(group->groupsRecursive(true));
-    }
-
-    return groupList;
+	QList<Group*> groupList_;
+	if(includeSelf)
+	{
+		groupList_.append(
+			this
+		);
+	}
+	for(Group* group_: asConst(
+			children
+		))
+	{
+		groupList_.append(
+			group_->getGroupsRecursive(
+				true
+			)
+		);
+	}
+	return groupList_;
 }
 
-QSet<Uuid> Group::customIconsRecursive() const
+QSet<UUID> Group::getCustomIconsRecursive() const
 {
-    QSet<Uuid> result;
-
-    if (!iconUuid().isNull()) {
-        result.insert(iconUuid());
-    }
-
-    const QList<Entry*> entryList = entriesRecursive(true);
-    for (Entry* entry : entryList) {
-        if (!entry->iconUuid().isNull()) {
-            result.insert(entry->iconUuid());
-        }
-    }
-
-    for (Group* group : m_children) {
-        result.unite(group->customIconsRecursive());
-    }
-
-    return result;
+	QSet<UUID> result_;
+	if(!this->getIconUUID().isNull())
+	{
+		result_.insert(
+			this->getIconUUID()
+		);
+	}
+	const QList<Entry*> entryList_ = this->getEntriesRecursive(
+		true
+	);
+	for(const Entry* entry_: entryList_)
+	{
+		if(!entry_->getIconUUID().isNull())
+		{
+			result_.insert(
+				entry_->getIconUUID()
+			);
+		}
+	}
+	for(const Group* group_: children)
+	{
+		result_.unite(
+			group_->getCustomIconsRecursive()
+		);
+	}
+	return result_;
 }
 
-Group* Group::clone(Entry::CloneFlags entryFlags) const
+Group* Group::clone(
+	const Entry::CloneFlags entryFlags
+) const
 {
-    Group* clonedGroup = new Group();
-
-    clonedGroup->setUpdateTimeinfo(false);
-
-    clonedGroup->setUuid(Uuid::random());
-    clonedGroup->m_data = m_data;
-
-    const QList<Entry*> entryList = entries();
-    for (Entry* entry : entryList) {
-        Entry* clonedEntry = entry->clone(entryFlags);
-        clonedEntry->setGroup(clonedGroup);
-    }
-
-    const QList<Group*> childrenGroups = children();
-    for (Group* groupChild : childrenGroups) {
-        Group* clonedGroupChild = groupChild->clone(entryFlags);
-        clonedGroupChild->setParent(clonedGroup);
-    }
-
-    clonedGroup->setUpdateTimeinfo(true);
-
-    QDateTime now = QDateTime::currentDateTimeUtc();
-    clonedGroup->m_data.timeInfo.setCreationTime(now);
-    clonedGroup->m_data.timeInfo.setLastModificationTime(now);
-    clonedGroup->m_data.timeInfo.setLastAccessTime(now);
-    clonedGroup->m_data.timeInfo.setLocationChanged(now);
-
-    return clonedGroup;
+	const auto clonedGroup_ = new Group();
+	clonedGroup_->setUpdateTimeinfo(
+		false
+	);
+	clonedGroup_->setUuid(
+		UUID::random()
+	);
+	clonedGroup_->data = this->data;
+	const QList<Entry*> entryList_ = this->getEntries();
+	for(const Entry* entry_: entryList_)
+	{
+		Entry* clonedEntry = entry_->clone(
+			entryFlags
+		);
+		clonedEntry->setGroup(
+			clonedGroup_
+		);
+	}
+	const QList<Group*> childrenGroups_ = this->getChildren();
+	for(const Group* groupChild_: childrenGroups_)
+	{
+		Group* clonedGroupChild = groupChild_->clone(
+			entryFlags
+		);
+		clonedGroupChild->setParent(
+			clonedGroup_
+		);
+	}
+	clonedGroup_->setUpdateTimeinfo(
+		true
+	);
+	const QDateTime now_ = QDateTime::currentDateTimeUtc();
+	clonedGroup_->data.timeInfo.setCreationTime(
+		now_
+	);
+	clonedGroup_->data.timeInfo.setLastModificationTime(
+		now_
+	);
+	clonedGroup_->data.timeInfo.setLastAccessTime(
+		now_
+	);
+	clonedGroup_->data.timeInfo.setLocationChanged(
+		now_
+	);
+	return clonedGroup_;
 }
 
-void Group::copyDataFrom(const Group* other)
+void Group::copyDataFrom(
+	const Group* other
+)
 {
-    m_data = other->m_data;
-    m_lastTopVisibleEntry = other->m_lastTopVisibleEntry;
+	this->data = other->data;
+	this->lastTopVisibleEntry = other->lastTopVisibleEntry;
 }
 
-void Group::addEntry(Entry* entry)
+void Group::addEntry(
+	Entry* entry
+)
 {
-    Q_ASSERT(entry);
-    Q_ASSERT(!m_entries.contains(entry));
-
-    Q_EMIT entryAboutToAdd(entry);
-
-    m_entries << entry;
-    connect(entry, SIGNAL(dataChanged(Entry*)), SIGNAL(entryDataChanged(Entry*)));
-    if (m_db) {
-        connect(entry, SIGNAL(modified()), m_db, SIGNAL(modifiedImmediate()));
-    }
-
-    Q_EMIT modified();
-    Q_EMIT entryAdded(entry);
+	if(entry == nullptr)
+	{
+		return;
+	};
+	if(this->entries.contains(
+		entry
+	))
+	{
+		return;
+	}
+	sig_entryAboutToAdd(
+		entry
+	);
+	this->entries << entry;
+	this->connect(
+		entry,
+		&Entry::sig_dataChanged,
+		this,
+		&Group::sig_entryDataChanged
+	);
+	if(this->db)
+	{
+		this->connect(
+			entry,
+			&Entry::sig_modified,
+			this->db,
+			&Database::sig_modifiedImmediate
+		);
+	}
+	sig_modified();
+	sig_entryAdded(
+		entry
+	);
 }
 
-void Group::removeEntry(Entry* entry)
+void Group::removeEntry(
+	Entry* entry
+)
 {
-    Q_ASSERT(m_entries.contains(entry));
-
-    Q_EMIT entryAboutToRemove(entry);
-
-    entry->disconnect(this);
-    if (m_db) {
-        entry->disconnect(m_db);
-    }
-    m_entries.removeAll(entry);
-    Q_EMIT modified();
-    Q_EMIT entryRemoved(entry);
+	if(!this->entries.contains(
+		entry
+	))
+	{
+		return;
+	}
+	sig_entryAboutToRemove(
+		entry
+	);
+	entry->disconnect(
+		this
+	);
+	if(this->db)
+	{
+		entry->disconnect(
+			this->db
+		);
+	}
+	this->entries.removeAll(
+		entry
+	);
+	sig_modified();
+	sig_entryRemoved(
+		entry
+	);
 }
 
-void Group::recSetDatabase(Database* db)
+void Group::recSetDatabase(
+	Database* db
+)
 {
-    if (m_db) {
-        disconnect(SIGNAL(dataChanged(Group*)), m_db);
-        disconnect(SIGNAL(aboutToRemove(Group*)), m_db);
-        disconnect(SIGNAL(removed()), m_db);
-        disconnect(SIGNAL(aboutToAdd(Group*,int)), m_db);
-        disconnect(SIGNAL(added()), m_db);
-        disconnect(SIGNAL(aboutToMove(Group*,Group*,int)), m_db);
-        disconnect(SIGNAL(moved()), m_db);
-        disconnect(SIGNAL(modified()), m_db);
-    }
-
-    for (Entry* entry : asConst(m_entries)) {
-        if (m_db) {
-            entry->disconnect(m_db);
-        }
-        if (db) {
-            connect(entry, SIGNAL(modified()), db, SIGNAL(modifiedImmediate()));
-        }
-    }
-
-    if (db) {
-        connect(this, SIGNAL(dataChanged(Group*)), db, SIGNAL(groupDataChanged(Group*)));
-        connect(this, SIGNAL(aboutToRemove(Group*)), db, SIGNAL(groupAboutToRemove(Group*)));
-        connect(this, SIGNAL(removed()), db, SIGNAL(groupRemoved()));
-        connect(this, SIGNAL(aboutToAdd(Group*,int)), db, SIGNAL(groupAboutToAdd(Group*,int)));
-        connect(this, SIGNAL(added()), db, SIGNAL(groupAdded()));
-        connect(this, SIGNAL(aboutToMove(Group*,Group*,int)), db, SIGNAL(groupAboutToMove(Group*,Group*,int)));
-        connect(this, SIGNAL(moved()), db, SIGNAL(groupMoved()));
-        connect(this, SIGNAL(modified()), db, SIGNAL(modifiedImmediate()));
-    }
-
-    m_db = db;
-
-    for (Group* group : asConst(m_children)) {
-        group->recSetDatabase(db);
-    }
+	if(db)
+	{
+		this->disconnect(
+			this,
+			&Group::sig_dataChanged,
+			db,
+			nullptr
+		);
+		this->disconnect(
+			this,
+			&Group::sig_aboutToRemove,
+			db,
+			nullptr
+		);
+		this->disconnect(
+			this,
+			&Group::sig_removed,
+			db,
+			nullptr
+		);
+		this->disconnect(
+			this,
+			&Group::sig_aboutToAdd,
+			db,
+			nullptr
+		);
+		this->disconnect(
+			this,
+			&Group::sig_added,
+			db,
+			nullptr
+		);
+		this->disconnect(
+			this,
+			&Group::sig_aboutToMove,
+			db,
+			nullptr
+		);
+		this->disconnect(
+			this,
+			&Group::sig_moved,
+			db,
+			nullptr
+		);
+		this->disconnect(
+			this,
+			&Group::sig_modified,
+			db,
+			nullptr
+		);
+	}
+	for(const Entry* entry_: asConst(
+			this->entries
+		))
+	{
+		if(this->db)
+		{
+			entry_->disconnect(
+				this->db
+			);
+		}
+		if(db)
+		{
+			this->connect(
+				entry_,
+				&Entry::sig_modified,
+				db,
+				&Database::sig_modifiedImmediate
+			);
+		}
+	}
+	if(db)
+	{
+		this->connect(
+			this,
+			&Group::sig_dataChanged,
+			db,
+			&Database::sig_groupDataChanged
+		);
+		this->connect(
+			this,
+			&Group::sig_aboutToRemove,
+			db,
+			&Database::sig_groupAboutToRemove
+		);
+		this->connect(
+			this,
+			&Group::sig_removed,
+			db,
+			&Database::sig_groupRemoved
+		);
+		this->connect(
+			this,
+			&Group::sig_aboutToAdd,
+			db,
+			&Database::sig_groupAboutToAdd
+		);
+		this->connect(
+			this,
+			&Group::sig_added,
+			db,
+			&Database::sig_groupAdded
+		);
+		this->connect(
+			this,
+			&Group::sig_aboutToMove,
+			db,
+			&Database::sig_groupAboutToMove
+		);
+		this->connect(
+			this,
+			&Group::sig_moved,
+			db,
+			&Database::sig_groupMoved
+		);
+		this->connect(
+			this,
+			&Group::sig_modified,
+			db,
+			&Database::sig_modifiedImmediate
+		);
+	}
+	this->db = db;
+	for(Group* group_: asConst(
+			this->children
+		))
+	{
+		group_->recSetDatabase(
+			db
+		);
+	}
 }
 
 void Group::cleanupParent()
 {
-    if (m_parent) {
-        Q_EMIT aboutToRemove(this);
-        m_parent->m_children.removeAll(this);
-        Q_EMIT modified();
-        Q_EMIT removed();
-    }
+	if(this->parent)
+	{
+		sig_aboutToRemove(
+			this
+		);
+		this->parent->children.removeAll(
+			this
+		);
+		sig_modified();
+		sig_removed();
+	}
 }
 
 void Group::recCreateDelObjects()
 {
-    if (m_db) {
-        for (Entry* entry : asConst(m_entries)) {
-            m_db->addDeletedObject(entry->uuid());
-        }
-
-        for (Group* group : asConst(m_children)) {
-            group->recCreateDelObjects();
-        }
-        m_db->addDeletedObject(m_uuid);
-    }
+	if(this->db)
+	{
+		for(const Entry* entry_: asConst(
+				this->entries
+			))
+		{
+			this->db->addDeletedObject(
+				entry_->getUUID()
+			);
+		}
+		for(Group* group_: asConst(
+				this->children
+			))
+		{
+			group_->recCreateDelObjects();
+		}
+		this->db->addDeletedObject(
+			this->uuid
+		);
+	}
 }
 
-bool Group::resolveSearchingEnabled() const
+bool Group::isResolveSearchingEnabled() const
 {
-    switch (m_data.searchingEnabled) {
-    case Inherit:
-        if (!m_parent) {
-            return true;
-        }
-        else {
-            return m_parent->resolveSearchingEnabled();
-        }
-    case Enable:
-        return true;
-    case Disable:
-        return false;
-    default:
-        Q_ASSERT(false);
-        return false;
-    }
+	switch(this->data.searchingEnabled)
+	{
+		case Inherit:
+			if(!this->parent)
+			{
+				return true;
+			}
+			return this->parent->isResolveSearchingEnabled();
+		case Enable:
+			return true;
+		case Disable:
+			return false;
+		default:
+			return false;
+	}
 }
 
-bool Group::resolveAutoTypeEnabled() const
+bool Group::isResolveAutoTypeEnabled() const
 {
-    switch (m_data.autoTypeEnabled) {
-    case Inherit:
-        if (!m_parent) {
-            return true;
-        }
-        else {
-            return m_parent->resolveAutoTypeEnabled();
-        }
-    case Enable:
-        return true;
-    case Disable:
-        return false;
-    default:
-        Q_ASSERT(false);
-        return false;
-    }
+	switch(this->data.autoTypeEnabled)
+	{
+		case Inherit:
+			if(!this->parent)
+			{
+				return true;
+			}
+			return this->parent->isResolveAutoTypeEnabled();
+		case Enable:
+			return true;
+		case Disable:
+			return false;
+		default:
+			return false;
+	}
 }

@@ -14,44 +14,47 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_CONFIG_H
 #define KEEPASSX_CONFIG_H
-
-#include <QScopedPointer>
 #include <QVariant>
-
 class QSettings;
 
-class Config : public QObject
+class Config final:public QObject
 {
-    Q_OBJECT
-
-public:
-    ~Config();
-    QVariant get(const QString& key);
-    QVariant get(const QString& key, const QVariant& defaultValue);
-    void set(const QString& key, const QVariant& value);
-
-    static Config* instance();
-    static void createConfigFromFile(const QString& file);
-    static void createTempFileInstance();
-
+	Q_OBJECT public:
+	virtual ~Config() override;
+	QVariant get(
+		const QString &key
+	) const;
+	QVariant get(
+		const QString &key,
+		const QVariant &defaultValue
+	) const;
+	void set(
+		const QString &key,
+		const QVariant &value
+	) const;
+	static Config* getInstance();
+	static void createConfigFromFile(
+		const QString &file
+	);
+	static void createTempFileInstance();
 private:
-    Config(const QString& fileName, QObject* parent);
-    explicit Config(QObject* parent);
-    void init(const QString& fileName);
-
-    static Config* m_instance;
-
-    QScopedPointer<QSettings> m_settings;
-    QHash<QString, QVariant> m_defaults;
-
-    Q_DISABLE_COPY(Config)
+	Config(
+		const QString &fileName,
+		QObject* parent
+	);
+	explicit Config(
+		QObject* parent
+	);
+	void init(
+		const QString &fileName
+	);
+	static Config* instance;
+	QScopedPointer<QSettings> settings;
+	QHash<QString, QVariant> defaults;
+	Q_DISABLE_COPY(
+		Config
+	)
 };
-
-inline Config* config() {
-    return Config::instance();
-}
-
 #endif // KEEPASSX_CONFIG_H

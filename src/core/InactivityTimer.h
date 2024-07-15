@@ -14,38 +14,35 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_INACTIVITYTIMER_H
 #define KEEPASSX_INACTIVITYTIMER_H
-
 #include <QMutex>
 #include <QObject>
-
 class QTimer;
 
-class InactivityTimer : public QObject
+class InactivityTimer final:public QObject
 {
-    Q_OBJECT
-
-public:
-    explicit InactivityTimer(QObject* parent = nullptr);
-    void setInactivityTimeout(int inactivityTimeout);
-    void activate();
-    void deactivate();
-
+	Q_OBJECT public:
+	explicit InactivityTimer(
+		QObject* parent = nullptr
+	);
+	void setInactivityTimeout(
+		int inactivityTimeout
+	) const;
+	void activate();
+	void deactivate();
 Q_SIGNALS:
-    void inactivityDetected();
-
+	void sig_inactivityDetected();
 protected:
-    bool eventFilter(QObject* watched, QEvent* event);
-
+	virtual bool eventFilter(
+		QObject* watched,
+		QEvent* event
+	) override;
 private Q_SLOTS:
-    void timeout();
-
+	void do_timeout();
 private:
-    QTimer* m_timer;
-    bool m_active;
-    QMutex m_emitMutx;
+	QTimer* timer;
+	bool active;
+	QMutex emitMutx;
 };
-
 #endif // KEEPASSX_INACTIVITYTIMER_H

@@ -15,64 +15,133 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "TestExporter.h"
-
 #include <QTest>
-
 #include "core/ToDbExporter.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "crypto/Crypto.h"
-
-QTEST_GUILESS_MAIN(TestExporter)
+QTEST_GUILESS_MAIN(
+	TestExporter
+)
 
 void TestExporter::initTestCase()
 {
-    QVERIFY(Crypto::init());
+	QVERIFY(
+		Crypto::init()
+	);
 }
 
 void TestExporter::testToDbExporter()
 {
-    QImage iconImage(1, 1, QImage::Format_RGB32);
-    iconImage.setPixel(0, 0, qRgb(1, 2, 3));
-    Uuid iconUuid = Uuid::random();
-
-    QImage iconUnusedImage(1, 1, QImage::Format_RGB32);
-    iconUnusedImage.setPixel(0, 0, qRgb(1, 2, 3));
-    Uuid iconUnusedUuid = Uuid::random();
-
-    Database* dbOrg = new Database();
-    Group* groupOrg = new Group();
-    groupOrg->setParent(dbOrg->rootGroup());
-    groupOrg->setName("GTEST");
-    Entry* entryOrg = new Entry();
-    entryOrg->setGroup(groupOrg);
-    entryOrg->setTitle("ETEST");
-    dbOrg->metadata()->addCustomIcon(iconUuid, iconImage);
-    dbOrg->metadata()->addCustomIcon(iconUnusedUuid, iconUnusedImage);
-    entryOrg->setIcon(iconUuid);
-    entryOrg->beginUpdate();
-    entryOrg->setIcon(Entry::DefaultIconNumber);
-    entryOrg->endUpdate();
-
-    Database* dbExp = ToDbExporter().exportGroup(groupOrg);
-
-    QCOMPARE(dbExp->rootGroup()->children().size(), 1);
-    Group* groupExp = dbExp->rootGroup()->children().at(0);
-    QVERIFY(groupExp != groupOrg);
-    QCOMPARE(groupExp->name(), groupOrg->name());
-    QCOMPARE(groupExp->entries().size(), 1);
-
-    Entry* entryExp = groupExp->entries().at(0);
-    QCOMPARE(entryExp->title(), entryOrg->title());
-    QCOMPARE(dbExp->metadata()->customIcons().size(), 1);
-    QVERIFY(dbExp->metadata()->containsCustomIcon(iconUuid));
-    QCOMPARE(entryExp->iconNumber(), entryOrg->iconNumber());
-
-    QCOMPARE(entryExp->historyItems().size(), 1);
-    QCOMPARE(entryExp->historyItems().at(0)->iconUuid(), iconUuid);
-
-    delete dbOrg;
-    delete dbExp;
+	QImage iconImage(
+		1,
+		1,
+		QImage::Format_RGB32
+	);
+	iconImage.setPixel(
+		0,
+		0,
+		qRgb(
+			1,
+			2,
+			3
+		)
+	);
+	UUID iconUuid = UUID::random();
+	QImage iconUnusedImage(
+		1,
+		1,
+		QImage::Format_RGB32
+	);
+	iconUnusedImage.setPixel(
+		0,
+		0,
+		qRgb(
+			1,
+			2,
+			3
+		)
+	);
+	UUID iconUnusedUuid = UUID::random();
+	Database* dbOrg = new Database();
+	Group* groupOrg = new Group();
+	groupOrg->setParent(
+		dbOrg->getRootGroup()
+	);
+	groupOrg->setName(
+		"GTEST"
+	);
+	Entry* entryOrg = new Entry();
+	entryOrg->setGroup(
+		groupOrg
+	);
+	entryOrg->setTitle(
+		"ETEST"
+	);
+	dbOrg->getMetadata()->addCustomIcon(
+		iconUuid,
+		iconImage
+	);
+	dbOrg->getMetadata()->addCustomIcon(
+		iconUnusedUuid,
+		iconUnusedImage
+	);
+	entryOrg->setIcon(
+		iconUuid
+	);
+	entryOrg->beginUpdate();
+	entryOrg->setIcon(
+		Entry::DefaultIconNumber
+	);
+	entryOrg->endUpdate();
+	Database* dbExp = ToDbExporter().exportGroup(
+		groupOrg
+	);
+	QCOMPARE(
+		dbExp->getRootGroup()->getChildren().size(),
+		1
+	);
+	Group* groupExp = dbExp->getRootGroup()->getChildren().at(
+		0
+	);
+	QVERIFY(
+		groupExp != groupOrg
+	);
+	QCOMPARE(
+		groupExp->getName(),
+		groupOrg->getName()
+	);
+	QCOMPARE(
+		groupExp->getEntries().size(),
+		1
+	);
+	Entry* entryExp = groupExp->getEntries().at(
+		0
+	);
+	QCOMPARE(
+		entryExp->getTitle(),
+		entryOrg->getTitle()
+	);
+	QCOMPARE(
+		dbExp->getMetadata()->getCustomIcons().size(),
+		1
+	);
+	QVERIFY(
+		dbExp->getMetadata()->containsCustomIcon(iconUuid)
+	);
+	QCOMPARE(
+		entryExp->getIconNumber(),
+		entryOrg->getIconNumber()
+	);
+	QCOMPARE(
+		entryExp->getHistoryItems().size(),
+		1
+	);
+	QCOMPARE(
+		entryExp->getHistoryItems().at(0)->getIconUUID(),
+		iconUuid
+	);
+	delete dbOrg;
+	delete dbExp;
 }

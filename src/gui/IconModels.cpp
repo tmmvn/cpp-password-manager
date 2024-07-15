@@ -14,95 +14,135 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "IconModels.h"
-
 #include "core/DatabaseIcons.h"
 
-DefaultIconModel::DefaultIconModel(QObject* parent)
-    : QAbstractListModel(parent)
+DefaultIconModel::DefaultIconModel(
+	QObject* parent
+)
+	: QAbstractListModel(
+		parent
+	)
 {
 }
 
-int DefaultIconModel::rowCount(const QModelIndex& parent) const
+int DefaultIconModel::rowCount(
+	const QModelIndex &parent
+) const
 {
-    if (!parent.isValid()) {
-        return DatabaseIcons::IconCount;
-    }
-    else {
-        return 0;
-    }
+	if(!parent.isValid())
+	{
+		return DatabaseIcons::IconCount;
+	}
+	return 0;
 }
 
-QVariant DefaultIconModel::data(const QModelIndex& index, int role) const
+QVariant DefaultIconModel::data(
+	const QModelIndex &index,
+	const int role
+) const
 {
-    if (!index.isValid()) {
-        return QVariant();
-    }
-
-    Q_ASSERT(index.row() < DatabaseIcons::IconCount);
-
-    if (role == Qt::DecorationRole) {
-        return databaseIcons()->iconPixmap(index.row());
-    }
-
-    return QVariant();
+	if(!index.isValid())
+	{
+		return QVariant();
+	}
+	if(index.row() >= DatabaseIcons::IconCount)
+	{
+		return QVariant();
+	}
+	if(role == Qt::DecorationRole)
+	{
+		return DatabaseIcons::getInstance()->iconPixmap(
+			index.row()
+		);
+	}
+	return QVariant();
 }
 
-CustomIconModel::CustomIconModel(QObject* parent)
-    : QAbstractListModel(parent)
+CustomIconModel::CustomIconModel(
+	QObject* parent
+)
+	: QAbstractListModel(
+		parent
+	)
 {
 }
 
-void CustomIconModel::setIcons(const QHash<Uuid, QPixmap>& icons, const QList<Uuid>& iconsOrder)
+void CustomIconModel::setIcons(
+	const QHash<UUID, QPixmap> &icons,
+	const QList<UUID> &iconsOrder
+)
 {
-    beginResetModel();
-
-    m_icons = icons;
-    m_iconsOrder = iconsOrder;
-    Q_ASSERT(m_icons.count() == m_iconsOrder.count());
-
-    endResetModel();
+	if(icons.count() != iconsOrder.count())
+	{
+		// TODO: Do an error message
+		return;
+	}
+	this->beginResetModel();
+	this->icons = icons;
+	this->iconsOrder = iconsOrder;
+	this->endResetModel();
 }
 
-int CustomIconModel::rowCount(const QModelIndex& parent) const
+int CustomIconModel::rowCount(
+	const QModelIndex &parent
+) const
 {
-    if (!parent.isValid()) {
-        return m_icons.size();
-    }
-    else {
-        return 0;
-    }
+	if(!parent.isValid())
+	{
+		return static_cast<int>(this->icons.size());
+	}
+	return 0;
 }
 
-QVariant CustomIconModel::data(const QModelIndex& index, int role) const
+QVariant CustomIconModel::data(
+	const QModelIndex &index,
+	const int role
+) const
 {
-    if (!index.isValid()) {
-        return QVariant();
-    }
-
-    if (role == Qt::DecorationRole) {
-        Uuid uuid = uuidFromIndex(index);
-        return m_icons.value(uuid);
-    }
-
-    return QVariant();
+	if(!index.isValid())
+	{
+		return QVariant();
+	}
+	if(role == Qt::DecorationRole)
+	{
+		const UUID uuid_ = this->uuidFromIndex(
+			index
+		);
+		return this->icons.value(
+			uuid_
+		);
+	}
+	return QVariant();
 }
 
-Uuid CustomIconModel::uuidFromIndex(const QModelIndex& index) const
+UUID CustomIconModel::uuidFromIndex(
+	const QModelIndex &index
+) const
 {
-    Q_ASSERT(index.isValid());
-
-    return m_iconsOrder.value(index.row());
+	if(!index.isValid())
+	{
+		// TODO: Do an error message
+		return UUID();
+	}
+	return this->iconsOrder.value(
+		index.row()
+	);
 }
 
-QModelIndex CustomIconModel::indexFromUuid(const Uuid& uuid) const
+QModelIndex CustomIconModel::indexFromUuid(
+	const UUID &uuid
+) const
 {
-    int idx = m_iconsOrder.indexOf(uuid);
-    if (idx > -1) {
-        return index(idx, 0);
-    }
-    else {
-        return QModelIndex();
-    }
+	if(const auto idx_ = static_cast<int>(this->iconsOrder.indexOf(
+			uuid
+		));
+		idx_ > -1)
+	{
+		return this->index(
+			idx_,
+			0
+		);
+	}
+	return QModelIndex();
 }

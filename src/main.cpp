@@ -14,10 +14,8 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <QCommandLineParser>
 #include <QFile>
-
 #include "config-keepassx.h"
 #include "core/Config.h"
 #include "core/Tools.h"
@@ -27,81 +25,158 @@
 #include "gui/MainWindow.h"
 #include "gui/MessageBox.h"
 
-int main(int argc, char** argv)
+int main(
+	int argc,
+	char** argv
+)
 {
 #ifdef QT_NO_DEBUG
     Tools::disableCoreDumps();
 #endif
-    Tools::setupSearchPaths();
-
-    Application app(argc, argv);
-    Application::setApplicationName("keepassx");
-    Application::setApplicationVersion(KEEPASSX_VERSION);
-    // don't set organizationName as that changes the return value of
-    // QStandardPaths::writableLocation(QDesktopServices::DataLocation)
-
-    QApplication::setQuitOnLastWindowClosed(false);
-
-    if (!Crypto::init()) {
-        QString error = QCoreApplication::translate("Main",
-                                                    "Fatal error while testing the cryptographic functions.");
-        error.append("\n");
-        error.append(Crypto::errorString());
-        MessageBox::critical(nullptr, QCoreApplication::translate("Main", "KeePassX - Error"), error);
-        return 1;
-    }
-
-    QCommandLineParser parser;
-    parser.setApplicationDescription(QCoreApplication::translate("main", "KeePassX - cross-platform password manager"));
-    parser.addPositionalArgument("filename", QCoreApplication::translate("main", "filename of the password database to open (*.kdbx)"));
-
-    QCommandLineOption configOption("config",
-                                    QCoreApplication::translate("main", "path to a custom config file"),
-                                    "config");
-    QCommandLineOption keyfileOption("keyfile",
-                                     QCoreApplication::translate("main", "key file of the database"),
-                                     "keyfile");
-
-    parser.addHelpOption();
-    parser.addVersionOption();
-    parser.addOption(configOption);
-    parser.addOption(keyfileOption);
-
-    parser.process(app);
-    const QStringList args = parser.positionalArguments();
-
-    if (parser.isSet(configOption)) {
-        Config::createConfigFromFile(parser.value(configOption));
-    }
-
-    Translator::installTranslator();
-
+	Tools::setupSearchPaths();
+	Application app_(
+		argc,
+		argv
+	);
+	Application::setApplicationName(
+		"keepassx"
+	);
+	Application::setApplicationVersion(
+		KEEPASSX_VERSION
+	);
+	// don't set organizationName as that changes the return value of
+	// QStandardPaths::writableLocation(QDesktopServices::DataLocation)
+	QApplication::setQuitOnLastWindowClosed(
+		false
+	);
+	if(!Crypto::init())
+	{
+		QString error_ = QCoreApplication::translate(
+			"Main",
+			"Fatal error while testing the cryptographic functions."
+		);
+		error_.append(
+			"\n"
+		);
+		error_.append(
+			Crypto::getErrorString()
+		);
+		MessageBox::critical(
+			nullptr,
+			QCoreApplication::translate(
+				"Main",
+				"KeePassX - Error"
+			),
+			error_
+		);
+		return 1;
+	}
+	QCommandLineParser parser_;
+	parser_.setApplicationDescription(
+		QCoreApplication::translate(
+			"main",
+			"KeePassX - cross-platform password manager"
+		)
+	);
+	parser_.addPositionalArgument(
+		"filename",
+		QCoreApplication::translate(
+			"main",
+			"filename of the password database to open (*.kdbx)"
+		)
+	);
+	const QCommandLineOption configOption_(
+		"config",
+		QCoreApplication::translate(
+			"main",
+			"path to a custom config file"
+		),
+		"config"
+	);
+	const QCommandLineOption keyfileOption_(
+		"keyfile",
+		QCoreApplication::translate(
+			"main",
+			"key file of the database"
+		),
+		"keyfile"
+	);
+	parser_.addHelpOption();
+	parser_.addVersionOption();
+	parser_.addOption(
+		configOption_
+	);
+	parser_.addOption(
+		keyfileOption_
+	);
+	parser_.process(
+		app_
+	);
+	const QStringList args_ = parser_.positionalArguments();
+	if(parser_.isSet(
+		configOption_
+	))
+	{
+		Config::createConfigFromFile(
+			parser_.value(
+				configOption_
+			)
+		);
+	}
+	Translator::installTranslator();
 #ifdef Q_OS_MAC
-    // Don't show menu icons on OSX
-    QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
+	// Don't show menu icons on OSX
+	QApplication::setAttribute(
+		Qt::AA_DontShowIconsInMenus
+	);
 #endif
-
-    MainWindow mainWindow;
-    mainWindow.show();
-    app.setMainWindow(&mainWindow);
-
-    QObject::connect(&app, SIGNAL(openFile(QString)), &mainWindow, SLOT(openDatabase(QString)));
-
-    if (!args.isEmpty()) {
-        QString filename = args[0];
-        if (!filename.isEmpty() && QFile::exists(filename)) {
-            mainWindow.openDatabase(filename, QString(), parser.value(keyfileOption));
-        }
-    }
-
-    if (config()->get("OpenPreviousDatabasesOnStartup").toBool()) {
-        const QStringList filenames = config()->get("LastOpenedDatabases").toStringList();
-        for (const QString& filename : filenames) {
-            if (!filename.isEmpty() && QFile::exists(filename)) {
-                mainWindow.openDatabase(filename, QString(), QString());
-            }
-        }
-    }
-
-    return app.exec();
+	MainWindow mainWindow_;
+	mainWindow_.show();
+	app_.setMainWindow(
+		&mainWindow_
+	);
+	QObject::connect(
+		&app_,
+		&Application::sig_openFile,
+		&mainWindow_,
+		&MainWindow::do_openDatabase
+	);
+	if(!args_.isEmpty())
+	{
+		if(const QString &filename_ = args_[0];
+			!filename_.isEmpty() && QFile::exists(
+				filename_
+			))
+		{
+			mainWindow_.openDatabase(
+				filename_,
+				QString(),
+				parser_.value(
+					keyfileOption_
+				)
+			);
+		}
+	}
+	if(Config::getInstance()->get(
+		"OpenPreviousDatabasesOnStartup"
+	).toBool())
+	{
+		const QStringList filenames_ = Config::getInstance()->get(
+			"LastOpenedDatabases"
+		).toStringList();
+		for(const QString &filename_: filenames_)
+		{
+			if(!filename_.isEmpty() && QFile::exists(
+				filename_
+			))
+			{
+				mainWindow_.openDatabase(
+					filename_,
+					QString(),
+					QString()
+				);
+			}
+		}
+	}
+	return Application::exec();
 }

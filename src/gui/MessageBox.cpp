@@ -14,72 +14,106 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "MessageBox.h"
+QMessageBox::StandardButton MessageBox::nextAnswer(
+	QMessageBox::NoButton
+);
 
-QMessageBox::StandardButton MessageBox::m_nextAnswer(QMessageBox::NoButton);
-
-QMessageBox::StandardButton MessageBox::critical(QWidget* parent,
-                                                 const QString& title, const QString& text,
-                                                 QMessageBox::StandardButtons buttons,
-                                                 QMessageBox::StandardButton defaultButton)
+QMessageBox::StandardButton MessageBox::critical(
+	QWidget* parent,
+	const QString &title,
+	const QString &text,
+	const QMessageBox::StandardButtons buttons,
+	const QMessageBox::StandardButton defaultButton
+)
 {
-    if (m_nextAnswer == QMessageBox::NoButton) {
-        return QMessageBox::critical(parent, title, text, buttons, defaultButton);
-    }
-    else {
-        QMessageBox::StandardButton returnButton = m_nextAnswer;
-        m_nextAnswer = QMessageBox::NoButton;
-        return returnButton;
-    }
+	if(nextAnswer == QMessageBox::NoButton)
+	{
+		return QMessageBox::critical(
+			parent,
+			title,
+			text,
+			buttons,
+			defaultButton
+		);
+	}
+	const QMessageBox::StandardButton returnButton_ = nextAnswer;
+	nextAnswer = QMessageBox::NoButton;
+	return returnButton_;
 }
 
-QMessageBox::StandardButton MessageBox::information(QWidget* parent,
-                                                    const QString& title, const QString& text,
-                                                    QMessageBox::StandardButtons buttons,
-                                                    QMessageBox::StandardButton defaultButton)
+QMessageBox::StandardButton MessageBox::information(
+	QWidget* parent,
+	const QString &title,
+	const QString &text,
+	const QMessageBox::StandardButtons buttons,
+	const QMessageBox::StandardButton defaultButton
+)
 {
-    if (m_nextAnswer == QMessageBox::NoButton) {
-        return QMessageBox::information(parent, title, text, buttons, defaultButton);
-    }
-    else {
-        QMessageBox::StandardButton returnButton = m_nextAnswer;
-        m_nextAnswer = QMessageBox::NoButton;
-        return returnButton;
-    }
+	if(nextAnswer == QMessageBox::NoButton)
+	{
+		return QMessageBox::information(
+			parent,
+			title,
+			text,
+			buttons,
+			defaultButton
+		);
+	}
+	const QMessageBox::StandardButton returnButton_ = nextAnswer;
+	nextAnswer = QMessageBox::NoButton;
+	return returnButton_;
 }
 
-QMessageBox::StandardButton MessageBox::question(QWidget* parent,
-                                                 const QString& title, const QString& text,
-                                                 QMessageBox::StandardButtons buttons,
-                                                 QMessageBox::StandardButton defaultButton)
+QMessageBox::StandardButton MessageBox::question(
+	QWidget* parent,
+	const QString &title,
+	const QString &text,
+	const QMessageBox::StandardButtons buttons,
+	const QMessageBox::StandardButton defaultButton
+)
 {
-    if (m_nextAnswer == QMessageBox::NoButton) {
-        return QMessageBox::question(parent, title, text, buttons, defaultButton);
-    }
-    else {
-        QMessageBox::StandardButton returnButton = m_nextAnswer;
-        m_nextAnswer = QMessageBox::NoButton;
-        return returnButton;
-    }
+	if(nextAnswer == QMessageBox::NoButton)
+	{
+		return QMessageBox::question(
+			parent,
+			title,
+			text,
+			buttons,
+			defaultButton
+		);
+	}
+	const QMessageBox::StandardButton returnButton_ = nextAnswer;
+	nextAnswer = QMessageBox::NoButton;
+	return returnButton_;
 }
 
-QMessageBox::StandardButton MessageBox::warning(QWidget* parent,
-                                                const QString& title, const QString& text,
-                                                QMessageBox::StandardButtons buttons,
-                                                QMessageBox::StandardButton defaultButton)
+QMessageBox::StandardButton MessageBox::warning(
+	QWidget* parent,
+	const QString &title,
+	const QString &text,
+	const QMessageBox::StandardButtons buttons,
+	const QMessageBox::StandardButton defaultButton
+)
 {
-    if (m_nextAnswer == QMessageBox::NoButton) {
-        return QMessageBox::warning(parent, title, text, buttons, defaultButton);
-    }
-    else {
-        QMessageBox::StandardButton returnButton = m_nextAnswer;
-        m_nextAnswer = QMessageBox::NoButton;
-        return returnButton;
-    }
+	if(nextAnswer == QMessageBox::NoButton)
+	{
+		return QMessageBox::warning(
+			parent,
+			title,
+			text,
+			buttons,
+			defaultButton
+		);
+	}
+	const QMessageBox::StandardButton returnButton_ = nextAnswer;
+	nextAnswer = QMessageBox::NoButton;
+	return returnButton_;
 }
 
-void MessageBox::setNextAnswer(QMessageBox::StandardButton button)
+void MessageBox::setNextAnswer(
+	const QMessageBox::StandardButton button
+)
 {
-    m_nextAnswer = button;
+	nextAnswer = button;
 }

@@ -14,25 +14,20 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTGROUP_H
 #define KEEPASSX_TESTGROUP_H
-
 #include <QObject>
 
-class TestGroup : public QObject
+class TestGroup:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testParenting();
-    void testSignals();
-    void testEntries();
-    void testDeleteSignals();
-    void testCopyCustomIcon();
-    void testClone();
-    void testCopyCustomIcons();
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testParenting();
+	void testSignals();
+	void testEntries();
+	void testDeleteSignals();
+	void testCopyCustomIcon();
+	void testClone();
+	void testCopyCustomIcons();
 };
-
 #endif // KEEPASSX_TESTGROUP_H

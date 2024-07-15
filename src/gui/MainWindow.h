@@ -14,81 +14,121 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_MAINWINDOW_H
 #define KEEPASSX_MAINWINDOW_H
-
 #include <QActionGroup>
 #include <QMainWindow>
 #include <QSystemTrayIcon>
-
-#include "core/SignalMultiplexer.h"
 #include "gui/DatabaseWidget.h"
 
-namespace Ui {
-    class MainWindow;
+namespace Ui
+{
+	class MainWindow;
 }
 
 class InactivityTimer;
 
-class MainWindow : public QMainWindow
+class MainWindow final:public QMainWindow
 {
-    Q_OBJECT
-
-public:
-    MainWindow();
-    ~MainWindow();
-
+	Q_OBJECT public:
+	MainWindow();
+	virtual ~MainWindow() override;
+	void setCurrentDatabaseWidget(
+		DatabaseWidget* widget
+	);
+	void openDatabase(
+		const QString &fileName,
+		const QString &pw = QString(),
+		const QString &keyFile = QString()
+	) const;
 public Q_SLOTS:
-    void openDatabase(const QString& fileName, const QString& pw = QString(),
-                      const QString& keyFile = QString());
-
+	void do_openDatabase(
+		const QString &fileName
+	) const;
 protected:
-     void closeEvent(QCloseEvent* event) override;
-     void changeEvent(QEvent* event) override;
-
+	virtual void closeEvent(
+		QCloseEvent* event
+	) override;
+	virtual void changeEvent(
+		QEvent* event
+	) override;
 private Q_SLOTS:
-    void setMenuActionState(DatabaseWidget::Mode mode = DatabaseWidget::None);
-    void updateWindowTitle();
-    void showAboutDialog();
-    void switchToDatabases();
-    void switchToSettings();
-    void databaseTabChanged(int tabIndex);
-    void openRecentDatabase(QAction* action);
-    void clearLastDatabases();
-    void updateLastDatabasesMenu();
-    void updateCopyAttributesMenu();
-    void showEntryContextMenu(const QPoint& globalPos);
-    void showGroupContextMenu(const QPoint& globalPos);
-    void saveToolbarState(bool value);
-    void rememberOpenDatabases(const QString& filePath);
-    void applySettingsChanges();
-    void trayIconTriggered(QSystemTrayIcon::ActivationReason reason);
-    void toggleWindow();
-    void lockDatabasesAfterInactivity();
-    void repairDatabase();
-
+	void do_setMenuActionState() const;
+	void do_updateWindowTitle();
+	void do_showAboutDialog();
+	void do_switchToDatabases() const;
+	void do_switchToSettings() const;
+	void do_databaseTabChanged(
+		int tabIndex
+	);
+	void do_openRecentDatabase(
+		const QAction* action
+	) const;
+	static void do_clearLastDatabases();
+	void do_updateLastDatabasesMenu() const;
+	void do_updateCopyAttributesMenu() const;
+	void do_showEntryContextMenu(
+		const QPoint &globalPos
+	) const;
+	void do_showGroupContextMenu(
+		const QPoint &globalPos
+	) const;
+	static void do_saveToolbarState(
+		bool value
+	);
+	void do_rememberOpenDatabases(
+		const QString &filePath
+	);
+	void do_applySettingsChanges();
+	void do_trayIconTriggered(
+		QSystemTrayIcon::ActivationReason reason
+	);
+	void do_toggleWindow();
+	void do_lockDatabasesAfterInactivity() const;
+	void do_repairDatabase();
+	void do_createEntry() const;
+	void do_cloneEntry() const;
+	void do_switchToEntryEdit() const;
+	void do_deleteEntries() const;
+	void do_copyTitle() const;
+	void do_copyUsername() const;
+	void do_copyPassword() const;
+	void do_copyURL() const;
+	void do_copyNotes() const;
+	void do_copyAttribute(
+		const QAction* action
+	) const;
+	void do_performAutoType() const;
+	void do_openUrl() const;
+	void do_createGroup() const;
+	void do_switchToGroupEdit() const;
+	void do_deleteGroup() const;
+	void do_openSearch() const;
 private:
-    static void setShortcut(QAction* action, QKeySequence::StandardKey standard, int fallback = 0);
-
-    static const QString BaseWindowTitle;
-
-    void saveWindowInformation();
-    bool saveLastDatabases();
-    void updateTrayIcon();
-    bool isTrayIconEnabled() const;
-
-    const QScopedPointer<Ui::MainWindow> m_ui;
-    SignalMultiplexer m_actionMultiplexer;
-    QAction* m_clearHistoryAction;
-    QActionGroup* m_lastDatabasesActions;
-    QActionGroup* m_copyAdditionalAttributeActions;
-    QStringList m_openDatabases;
-    InactivityTimer* m_inactivityTimer;
-    int m_countDefaultAttributes;
-    QSystemTrayIcon* m_trayIcon;
-
-    Q_DISABLE_COPY(MainWindow)
+	static void setShortcut(
+		QAction* action,
+		QKeySequence::StandardKey standard,
+		QKeyCombination fallback
+	);
+	static const QString BaseWindowTitle;
+	void saveWindowInformation() const;
+	bool saveLastDatabases();
+	void updateTrayIcon();
+	static bool isTrayIconEnabled();
+	void copyAttribute(
+		const QAction* action
+	) const;
+	const QScopedPointer<Ui::MainWindow> ui;
+	QAction* clearHistoryAction;
+	QActionGroup* lastDatabasesActions;
+	QActionGroup* copyAdditionalAttributeActions;
+	QStringList openDatabases;
+	InactivityTimer* inactivityTimer;
+	int countDefaultAttributes;
+	QSystemTrayIcon* trayIcon;
+	DatabaseWidget* currentDatabaseWidget;
+	Q_DISABLE_COPY(
+		MainWindow
+	)
 };
-
 #endif // KEEPASSX_MAINWINDOW_H

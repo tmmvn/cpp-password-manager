@@ -14,53 +14,47 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_PASSWORDGENERATORWIDGET_H
 #define KEEPASSX_PASSWORDGENERATORWIDGET_H
-
 #include <QWidget>
 #include <QComboBox>
-
 #include "core/PasswordGenerator.h"
 
-namespace Ui {
-    class PasswordGeneratorWidget;
+namespace Ui
+{
+	class PasswordGeneratorWidget;
 }
 
 class PasswordGenerator;
 
-class PasswordGeneratorWidget : public QWidget
+class PasswordGeneratorWidget final:public QWidget
 {
-    Q_OBJECT
-
-public:
-    explicit PasswordGeneratorWidget(QWidget* parent = nullptr);
-    ~PasswordGeneratorWidget();
-    void loadSettings();
-    void reset();
-    void regeneratePassword();
-
+	Q_OBJECT public:
+	explicit PasswordGeneratorWidget(
+		QWidget* parent = nullptr
+	);
+	virtual ~PasswordGeneratorWidget() override;
+	void loadSettings() const;
+	void reset();
+	void regeneratePassword() const;
 Q_SIGNALS:
-    void newPassword(const QString& password);
-
+	void sig_newPassword(
+		const QString &password
+	);
 private Q_SLOTS:
-    void updateApplyEnabled(const QString& password);
-
-    void emitNewPassword();
-    void saveSettings();
-    void sliderMoved();
-    void spinBoxChanged();
-
-    void updateGenerator();
-
+	void do_updateApplyEnabled(
+		const QString &password
+	) const;
+	void do_emitNewPassword();
+	void do_saveSettings() const;
+	void do_sliderMoved();
+	void do_spinBoxChanged();
+	void do_updateGenerator();
 private:
-    bool m_updatingSpinBox;
-
-    PasswordGenerator::CharClasses charClasses();
-    PasswordGenerator::GeneratorFlags generatorFlags();
-
-    const QScopedPointer<PasswordGenerator> m_generator;
-    const QScopedPointer<Ui::PasswordGeneratorWidget> m_ui;
+	bool updatingSpinBox;
+	PasswordGenerator::CharClasses charClasses() const;
+	PasswordGenerator::GeneratorFlags generatorFlags() const;
+	const QScopedPointer<PasswordGenerator> generator;
+	const QScopedPointer<Ui::PasswordGeneratorWidget> ui;
 };
-
 #endif // KEEPASSX_PASSWORDGENERATORWIDGET_H

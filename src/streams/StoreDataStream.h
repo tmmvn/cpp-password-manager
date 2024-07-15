@@ -14,26 +14,30 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_STOREDATASTREAM_H
 #define KEEPASSX_STOREDATASTREAM_H
-
 #include "streams/LayeredStream.h"
 
-class StoreDataStream : public LayeredStream
+class StoreDataStream final:public LayeredStream
 {
-    Q_OBJECT
+	Q_OBJECT public:
+	explicit StoreDataStream(
+		QIODevice* baseDevice
+	);
+	virtual bool open(
+		OpenMode mode
+	) override;
 
-public:
-    explicit StoreDataStream(QIODevice* baseDevice);
-    bool open(QIODevice::OpenMode mode) override;
-    QByteArray storedData() const;
-
+	QByteArray getStoredData() const
+	{
+		return storedData;
+	};
 protected:
-    qint64 readData(char* data, qint64 maxSize) override;
-
+	virtual qint64 readData(
+		char* data,
+		qint64 maxSize
+	) override;
 private:
-    QByteArray m_storedData;
+	QByteArray storedData;
 };
-
 #endif // KEEPASSX_STOREDATASTREAM_H

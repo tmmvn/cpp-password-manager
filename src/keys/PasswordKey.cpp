@@ -14,31 +14,40 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "PasswordKey.h"
-
 #include "crypto/CryptoHash.h"
 
 PasswordKey::PasswordKey()
 {
 }
 
-PasswordKey::PasswordKey(const QString& password)
+PasswordKey::PasswordKey(
+	const QString &password
+)
 {
-    setPassword(password);
+	this->setPassword(
+		password
+	);
 }
 
 QByteArray PasswordKey::rawKey() const
 {
-    return m_key;
+	return this->key;
 }
 
-void PasswordKey::setPassword(const QString& password)
+void PasswordKey::setPassword(
+	const QString &password
+)
 {
-    m_key = CryptoHash::hash(password.toUtf8(), CryptoHash::Sha256);
+	this->key = CryptoHash::hash(
+		password.toUtf8(),
+		CryptoHash::Sha256
+	);
 }
 
 PasswordKey* PasswordKey::clone() const
 {
-    return new PasswordKey(*this);
+	return new PasswordKey(
+		*this
+	);
 }

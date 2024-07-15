@@ -14,214 +14,344 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "FilePath.h"
-
 #include <QCoreApplication>
 #include <QDir>
 #include <QLibrary>
-
 #include "config-keepassx.h"
 #include "core/Global.h"
+FilePath* FilePath::instance(
+	nullptr
+);
 
-FilePath* FilePath::m_instance(nullptr);
-
-QString FilePath::dataPath(const QString& name)
+QString FilePath::getDataPath(
+	const QString &name
+) const
 {
-    if (name.isEmpty() || name.startsWith('/')) {
-        return m_dataPath + name;
-    }
-    else {
-        return m_dataPath + "/" + name;
-    }
+	if(name.isEmpty() || name.startsWith(
+		'/'
+	))
+	{
+		return this->dataPath + name;
+	}
+	return this->dataPath + "/" + name;
 }
 
-QString FilePath::pluginPath(const QString& name)
+QString FilePath::getPluginPath(
+	const QString &name
+)
 {
-    QStringList pluginPaths;
-
-    QDir buildDir(QCoreApplication::applicationDirPath() + "/autotype");
-    const QStringList buildDirEntryList = buildDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const QString& dir : buildDirEntryList) {
-        pluginPaths << QCoreApplication::applicationDirPath() + "/autotype/" + dir;
-    }
-
-    // for TestAutoType
-    pluginPaths << QCoreApplication::applicationDirPath() + "/../src/autotype/test";
-
-    pluginPaths << QCoreApplication::applicationDirPath();
-
-    QString configuredPluginDir = KEEPASSX_PLUGIN_DIR;
-    if (configuredPluginDir != ".") {
-        if (QDir(configuredPluginDir).isAbsolute()) {
-            pluginPaths << configuredPluginDir;
-        }
-        else {
-            QString relativePluginDir = QString("%1/../%2")
-                    .arg(QCoreApplication::applicationDirPath(), configuredPluginDir);
-            pluginPaths << QDir(relativePluginDir).canonicalPath();
-
-            QString absolutePluginDir = QString("%1/%2")
-                    .arg(KEEPASSX_PREFIX_DIR, configuredPluginDir);
-            pluginPaths << QDir(absolutePluginDir).canonicalPath();
-        }
-    }
-
-    QStringList dirFilter;
-    dirFilter << QString("*%1*").arg(name);
-
-    for (const QString& path : asConst(pluginPaths)) {
-        const QStringList fileCandidates = QDir(path).entryList(dirFilter, QDir::Files);
-
-        for (const QString& file : fileCandidates) {
-            QString filePath = path + "/" + file;
-
-            if (QLibrary::isLibrary(filePath)) {
-                return filePath;
-            }
-        }
-    }
-
-    return QString();
+	QStringList pluginPaths_;
+	const QDir buildDir_(
+		QCoreApplication::applicationDirPath() + "/autotype"
+	);
+	const QStringList buildDirEntryList_ = buildDir_.entryList(
+		QDir::Dirs | QDir::NoDotAndDotDot
+	);
+	for(const QString &dir: buildDirEntryList_)
+	{
+		pluginPaths_ << QCoreApplication::applicationDirPath() + "/autotype/" +
+			dir;
+	}
+	// for TestAutoType
+	pluginPaths_ << QCoreApplication::applicationDirPath() +
+		"/../src/autotype/test";
+	pluginPaths_ << QCoreApplication::applicationDirPath();
+	if(QString configuredPluginDir_ = KEEPASSX_PLUGIN_DIR;
+		configuredPluginDir_ != ".")
+	{
+		if(QDir(
+			configuredPluginDir_
+		).isAbsolute())
+		{
+			pluginPaths_ << configuredPluginDir_;
+		}
+		else
+		{
+			const QString relativePluginDir_ = QString(
+				"%1/../%2"
+			).arg(
+				QCoreApplication::applicationDirPath(),
+				configuredPluginDir_
+			);
+			pluginPaths_ << QDir(
+				relativePluginDir_
+			).canonicalPath();
+			const QString absolutePluginDir_ = QString(
+				"%1/%2"
+			).arg(
+				KEEPASSX_PREFIX_DIR,
+				configuredPluginDir_
+			);
+			pluginPaths_ << QDir(
+				absolutePluginDir_
+			).canonicalPath();
+		}
+	}
+	QStringList dirFilter_;
+	dirFilter_ << QString(
+		"*%1*"
+	).arg(
+		name
+	);
+	for(const QString &path: asConst(
+			pluginPaths_
+		))
+	{
+		const QStringList fileCandidates_ = QDir(
+			path
+		).entryList(
+			dirFilter_,
+			QDir::Files
+		);
+		for(const QString &file: fileCandidates_)
+		{
+			if(QString filePath_ = path + "/" + file;
+				QLibrary::isLibrary(
+					filePath_
+				))
+			{
+				return filePath_;
+			}
+		}
+	}
+	return QString();
 }
 
-QIcon FilePath::applicationIcon()
+QIcon FilePath::getApplicationIcon()
 {
-    return icon("apps", "keepassx");
+	return this->getIcon(
+		"apps",
+		"keepassx"
+	);
 }
 
-QIcon FilePath::icon(const QString& category, const QString& name, bool fromTheme)
+QIcon FilePath::getIcon(
+	const QString &category,
+	const QString &name,
+	const bool fromTheme
+)
 {
-    QString combinedName = category + "/" + name;
-
-    QIcon icon = m_iconCache.value(combinedName);
-
-    if (!icon.isNull()) {
-        return icon;
-    }
-
-    if (fromTheme) {
-        icon = QIcon::fromTheme(name);
-    }
-
-    if (icon.isNull()) {
-        const QList<int> pngSizes = { 16, 22, 24, 32, 48, 64, 128 };
-        QString filename;
-        for (int size : pngSizes) {
-            filename = QString("%1/icons/application/%2x%2/%3.png").arg(m_dataPath, QString::number(size),
-                                                                        combinedName);
-            if (QFile::exists(filename)) {
-                icon.addFile(filename, QSize(size, size));
-            }
-        }
-        filename = QString("%1/icons/application/scalable/%2.svgz").arg(m_dataPath, combinedName);
-        if (QFile::exists(filename)) {
-            icon.addFile(filename);
-        }
-    }
-
-    m_iconCache.insert(combinedName, icon);
-
-    return icon;
+	QString combinedName_ = category + "/" + name;
+	QIcon icon_ = this->iconCache.value(
+		combinedName_
+	);
+	if(!icon_.isNull())
+	{
+		return icon_;
+	}
+	if(fromTheme)
+	{
+		icon_ = QIcon::fromTheme(
+			name
+		);
+	}
+	if(icon_.isNull())
+	{
+		const QList<int> pngSizes_ = {16, 22, 24, 32, 48, 64, 128};
+		QString filename_;
+		for(const int size_: pngSizes_)
+		{
+			filename_ = QString(
+				"%1/icons/application/%2x%2/%3.png"
+			).arg(
+				this->dataPath,
+				QString::number(
+					size_
+				),
+				combinedName_
+			);
+			if(QFile::exists(
+				filename_
+			))
+			{
+				icon_.addFile(
+					filename_,
+					QSize(
+						size_,
+						size_
+					)
+				);
+			}
+		}
+		filename_ = QString(
+			"%1/icons/application/scalable/%2.svgz"
+		).arg(
+			this->dataPath,
+			combinedName_
+		);
+		if(QFile::exists(
+			filename_
+		))
+		{
+			icon_.addFile(
+				filename_
+			);
+		}
+	}
+	this->iconCache.insert(
+		combinedName_,
+		icon_
+	);
+	return icon_;
 }
 
-QIcon FilePath::onOffIcon(const QString& category, const QString& name)
+QIcon FilePath::getOnOffIcon(
+	const QString &category,
+	const QString &name
+)
 {
-    QString combinedName = category + "/" + name;
-    QString cacheName = "onoff/" + combinedName;
-
-    QIcon icon = m_iconCache.value(cacheName);
-
-    if (!icon.isNull()) {
-        return icon;
-    }
-
-    for (int i = 0; i < 2; i++) {
-        QIcon::State state;
-        QString stateName;
-
-        if (i == 0) {
-            state = QIcon::Off;
-            stateName = "off";
-        }
-        else {
-            state = QIcon::On;
-            stateName = "on";
-        }
-
-        const QList<int> pngSizes = { 16, 22, 24, 32, 48, 64, 128 };
-        QString filename;
-        for (int size : pngSizes) {
-            filename = QString("%1/icons/application/%2x%2/%3-%4.png").arg(m_dataPath, QString::number(size),
-                                                                           combinedName, stateName);
-            if (QFile::exists(filename)) {
-                icon.addFile(filename, QSize(size, size), QIcon::Normal, state);
-            }
-        }
-        filename = QString("%1/icons/application/scalable/%2-%3.svgz").arg(m_dataPath, combinedName, stateName);
-        if (QFile::exists(filename)) {
-            icon.addFile(filename, QSize(), QIcon::Normal, state);
-        }
-    }
-
-    m_iconCache.insert(cacheName, icon);
-
-    return icon;
+	QString combinedName_ = category + "/" + name;
+	const QString cacheName_ = "onoff/" + combinedName_;
+	QIcon icon_ = this->iconCache.value(
+		cacheName_
+	);
+	if(!icon_.isNull())
+	{
+		return icon_;
+	}
+	for(auto i_ = 0; i_ < 2; i_++)
+	{
+		QIcon::State state_;
+		QString stateName_;
+		if(i_ == 0)
+		{
+			state_ = QIcon::Off;
+			stateName_ = "off";
+		}
+		else
+		{
+			state_ = QIcon::On;
+			stateName_ = "on";
+		}
+		const QList pngSizes_ = {16, 22, 24, 32, 48, 64, 128};
+		QString filename_;
+		for(const int size_: pngSizes_)
+		{
+			filename_ = QString(
+				"%1/icons/application/%2x%2/%3-%4.png"
+			).arg(
+				this->dataPath,
+				QString::number(
+					size_
+				),
+				combinedName_,
+				stateName_
+			);
+			if(QFile::exists(
+				filename_
+			))
+			{
+				icon_.addFile(
+					filename_,
+					QSize(
+						size_,
+						size_
+					),
+					QIcon::Normal,
+					state_
+				);
+			}
+		}
+		filename_ = QString(
+			"%1/icons/application/scalable/%2-%3.svgz"
+		).arg(
+			this->dataPath,
+			combinedName_,
+			stateName_
+		);
+		if(QFile::exists(
+			filename_
+		))
+		{
+			icon_.addFile(
+				filename_,
+				QSize(),
+				QIcon::Normal,
+				state_
+			);
+		}
+	}
+	this->iconCache.insert(
+		cacheName_,
+		icon_
+	);
+	return icon_;
 }
 
 FilePath::FilePath()
 {
-    const QString appDirPath = QCoreApplication::applicationDirPath();
-    bool isDataDirAbsolute = QDir::isAbsolutePath(KEEPASSX_DATA_DIR);
-    Q_UNUSED(isDataDirAbsolute);
-
-    if (false) {
-    }
+	const QString appDirPath_ = QCoreApplication::applicationDirPath();
+	const bool isDataDirAbsolute_ = QDir::isAbsolutePath(
+		KEEPASSX_DATA_DIR
+	);
+	Q_UNUSED(
+		isDataDirAbsolute_
+	);
+	if constexpr(false)
+	{
+	}
 #ifdef QT_DEBUG
-    else if (testSetDir(QString(KEEPASSX_SOURCE_DIR) + "/share")) {
-    }
+	if(this->testSetDir(
+		QString(
+			KEEPASSX_SOURCE_DIR
+		) + "/share"
+	))
+	{
+	}
 #endif
 #if defined(Q_OS_UNIX) && !defined(Q_OS_MAC)
-    else if (isDataDirAbsolute && testSetDir(KEEPASSX_DATA_DIR)) {
+    else if (this->isDataDirAbsolute && this->testSetDir(KEEPASSX_DATA_DIR)) {
     }
-    else if (!isDataDirAbsolute && testSetDir(QString("%1/../%2").arg(appDirPath, KEEPASSX_DATA_DIR))) {
+    else if (!this->isDataDirAbsolute && this->testSetDir(QString("%1/../%2").arg(appDirPath_, KEEPASSX_DATA_DIR))) {
     }
-    else if (!isDataDirAbsolute && testSetDir(QString("%1/%2").arg(KEEPASSX_PREFIX_DIR, KEEPASSX_DATA_DIR))) {
+    else if (!this->isDataDirAbsolute && this->testSetDir(QString("%1/%2").arg(KEEPASSX_PREFIX_DIR, KEEPASSX_DATA_DIR))) {
     }
 #endif
 #ifdef Q_OS_MAC
-    else if (testSetDir(appDirPath + "/../Resources")) {
-    }
+	else if(this->testSetDir(
+		appDirPath_ + "/../Resources"
+	))
+	{
+	}
 #endif
 #ifdef Q_OS_WIN
-    else if (testSetDir(appDirPath + "/share")) {
+    else if (this->testSetDir(appDirPath_ + "/share")) {
     }
 #endif
-
-    if (m_dataPath.isEmpty()) {
-        qWarning("FilePath::DataPath: can't find data dir");
-    }
-    else {
-        m_dataPath = QDir::cleanPath(m_dataPath);
-    }
+	if(this->dataPath.isEmpty())
+	{
+		qWarning(
+			"FilePath::DataPath: can't find data dir"
+		);
+	}
+	else
+	{
+		this->dataPath = QDir::cleanPath(
+			this->dataPath
+		);
+	}
 }
 
-bool FilePath::testSetDir(const QString& dir)
+bool FilePath::testSetDir(
+	const QString &dir
+)
 {
-    if (QFile::exists(dir + "/icons/database/C00_Password.png")) {
-        m_dataPath = dir;
-        return true;
-    }
-    else {
-        return false;
-    }
+	if(QFile::exists(
+		dir + "/icons/database/C00_Password.png"
+	))
+	{
+		this->dataPath = dir;
+		return true;
+	}
+	return false;
 }
 
-FilePath* FilePath::instance()
+FilePath* FilePath::getInstance()
 {
-    if (!m_instance) {
-        m_instance = new FilePath();
-    }
-
-    return m_instance;
+	if(!instance)
+	{
+		instance = new FilePath();
+	}
+	return instance;
 }

@@ -14,29 +14,52 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "EditWidgetProperties.h"
 #include "ui_EditWidgetProperties.h"
 
-EditWidgetProperties::EditWidgetProperties(QWidget* parent)
-    : QWidget(parent)
-    , m_ui(new Ui::EditWidgetProperties())
+EditWidgetProperties::EditWidgetProperties(
+	QWidget* parent
+)
+	: QWidget(
+		parent
+	),
+	ui(
+		new Ui::EditWidgetProperties()
+	)
 {
-    m_ui->setupUi(this);
+	this->ui->setupUi(
+		this
+	);
 }
 
 EditWidgetProperties::~EditWidgetProperties()
 {
 }
 
-void EditWidgetProperties::setFields(TimeInfo timeInfo, Uuid uuid)
+void EditWidgetProperties::setFields(
+	const TimeInfo &timeInfo,
+	const UUID &uuid
+) const
 {
-    QString timeFormat("d MMM yyyy HH:mm:ss");
-    m_ui->modifiedEdit->setText(
-                timeInfo.lastModificationTime().toLocalTime().toString(timeFormat));
-    m_ui->createdEdit->setText(
-                timeInfo.creationTime().toLocalTime().toString(timeFormat));
-    m_ui->accessedEdit->setText(
-                timeInfo.lastAccessTime().toLocalTime().toString(timeFormat));
-    m_ui->uuidEdit->setText(uuid.toHex());
+	const QString timeFormat_(
+		"d MMM yyyy HH:mm:ss"
+	);
+	this->ui->modifiedEdit->setText(
+		timeInfo.getLastModificationTime().toLocalTime().toString(
+			timeFormat_
+		)
+	);
+	this->ui->createdEdit->setText(
+		timeInfo.getCreationTime().toLocalTime().toString(
+			timeFormat_
+		)
+	);
+	this->ui->accessedEdit->setText(
+		timeInfo.getLastAccessTime().toLocalTime().toString(
+			timeFormat_
+		)
+	);
+	this->ui->uuidEdit->setText(
+		uuid.toHex()
+	);
 }

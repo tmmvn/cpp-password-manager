@@ -14,123 +14,216 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "EntryAttachmentsModel.h"
-
+#include <algorithm>
 #include "core/Entry.h"
 #include "core/Tools.h"
 
-#include <algorithm>
-
-EntryAttachmentsModel::EntryAttachmentsModel(QObject* parent)
-    : QAbstractListModel(parent)
-    , m_entryAttachments(nullptr)
+EntryAttachmentsModel::EntryAttachmentsModel(
+	QObject* parent
+)
+	: QAbstractListModel(
+		parent
+	),
+	entryAttachments(
+		nullptr
+	)
 {
 }
 
-void EntryAttachmentsModel::setEntryAttachments(EntryAttachments* entryAttachments)
+void EntryAttachmentsModel::setEntryAttachments(
+	EntryAttachments* entryAttachments
+)
 {
-    beginResetModel();
-
-    if (m_entryAttachments) {
-        m_entryAttachments->disconnect(this);
-    }
-
-    m_entryAttachments = entryAttachments;
-
-    if (m_entryAttachments) {
-        connect(m_entryAttachments, SIGNAL(keyModified(QString)), SLOT(attachmentChange(QString)));
-        connect(m_entryAttachments, SIGNAL(aboutToBeAdded(QString)), SLOT(attachmentAboutToAdd(QString)));
-        connect(m_entryAttachments, SIGNAL(added(QString)), SLOT(attachmentAdd()));
-        connect(m_entryAttachments, SIGNAL(aboutToBeRemoved(QString)), SLOT(attachmentAboutToRemove(QString)));
-        connect(m_entryAttachments, SIGNAL(removed(QString)), SLOT(attachmentRemove()));
-        connect(m_entryAttachments, SIGNAL(aboutToBeReset()), SLOT(aboutToReset()));
-        connect(m_entryAttachments, SIGNAL(reset()), SLOT(reset()));
-    }
-
-    endResetModel();
+	this->beginResetModel();
+	if(this->entryAttachments)
+	{
+		this->entryAttachments->disconnect(
+			this
+		);
+	}
+	this->entryAttachments = entryAttachments;
+	if(this->entryAttachments)
+	{
+		this->connect(
+			this->entryAttachments,
+			&EntryAttachments::sig_keyModified,
+			this,
+			&EntryAttachmentsModel::do_attachmentChange
+		);
+		this->connect(
+			this->entryAttachments,
+			&EntryAttachments::sig_aboutToBeAdded,
+			this,
+			&EntryAttachmentsModel::do_attachmentAboutToAdd
+		);
+		this->connect(
+			this->entryAttachments,
+			&EntryAttachments::sig_added,
+			this,
+			&EntryAttachmentsModel::do_attachmentAdd
+		);
+		this->connect(
+			this->entryAttachments,
+			&EntryAttachments::sig_aboutToBeRemoved,
+			this,
+			&EntryAttachmentsModel::do_attachmentAboutToRemove
+		);
+		this->connect(
+			this->entryAttachments,
+			&EntryAttachments::sig_removed,
+			this,
+			&EntryAttachmentsModel::do_attachmentRemove
+		);
+		this->connect(
+			this->entryAttachments,
+			&EntryAttachments::sig_aboutToBeReset,
+			this,
+			&EntryAttachmentsModel::do_aboutToReset
+		);
+		this->connect(
+			this->entryAttachments,
+			&EntryAttachments::sig_reset,
+			this,
+			&EntryAttachmentsModel::do_reset
+		);
+	}
+	this->endResetModel();
 }
 
-int EntryAttachmentsModel::rowCount(const QModelIndex& parent) const
+int EntryAttachmentsModel::rowCount(
+	const QModelIndex &parent
+) const
 {
-    if (!m_entryAttachments || parent.isValid()) {
-        return 0;
-    }
-    else {
-        return m_entryAttachments->keys().size();
-    }
+	if(!this->entryAttachments || parent.isValid())
+	{
+		return 0;
+	}
+	return static_cast<int>(this->entryAttachments->getKeys().size());
 }
 
-int EntryAttachmentsModel::columnCount(const QModelIndex& parent) const
+int EntryAttachmentsModel::columnCount(
+	const QModelIndex &parent
+) const
 {
-    Q_UNUSED(parent);
-
-    return 1;
+	Q_UNUSED(
+		parent
+	);
+	return 1;
 }
 
-QVariant EntryAttachmentsModel::data(const QModelIndex& index, int role) const
+QVariant EntryAttachmentsModel::data(
+	const QModelIndex &index,
+	const int role
+) const
 {
-    if (!index.isValid()) {
-        return QVariant();
-    }
-
-    if (role == Qt::DisplayRole && index.column() == 0) {
-        QString key = keyByIndex(index);
-
-        return QString("%1 (%2)").arg(key,
-                Tools::humanReadableFileSize(m_entryAttachments->value(key).size()));
-    }
-    else {
-        return QVariant();
-    }
+	if(!index.isValid())
+	{
+		return QVariant();
+	}
+	if(role == Qt::DisplayRole && index.column() == 0)
+	{
+		QString key_ = keyByIndex(
+			index
+		);
+		return QString(
+			"%1 (%2)"
+		).arg(
+			key_,
+			Tools::humanReadableFileSize(
+				this->entryAttachments->getValue(
+					key_
+				).size()
+			)
+		);
+	}
+	return QVariant();
 }
 
-QString EntryAttachmentsModel::keyByIndex(const QModelIndex& index) const
+QString EntryAttachmentsModel::keyByIndex(
+	const QModelIndex &index
+) const
 {
-    if (!index.isValid()) {
-        return QString();
-    }
-
-    return m_entryAttachments->keys().at(index.row());
+	if(!index.isValid())
+	{
+		return QString();
+	}
+	return this->entryAttachments->getKeys().at(
+		index.row()
+	);
 }
 
-void EntryAttachmentsModel::attachmentChange(const QString& key)
+void EntryAttachmentsModel::do_attachmentChange(
+	const QString &key
+)
 {
-    int row = m_entryAttachments->keys().indexOf(key);
-    Q_EMIT dataChanged(index(row, 0), index(row, columnCount()-1));
+	const int row_ = static_cast<int>(this->entryAttachments->getKeys().indexOf(
+		key
+	));
+	this->dataChanged(
+		index(
+			row_,
+			0
+		),
+		index(
+			row_,
+			this->columnCount() - 1
+		)
+	);
 }
 
-void EntryAttachmentsModel::attachmentAboutToAdd(const QString& key)
+void EntryAttachmentsModel::do_attachmentAboutToAdd(
+	const QString &key
+)
 {
-    QList<QString> rows = m_entryAttachments->keys();
-    rows.append(key);
-    std::sort(rows.begin(), rows.end());
-    int row = rows.indexOf(key);
-    beginInsertRows(QModelIndex(), row, row);
+	QList<QString> rows_ = this->entryAttachments->getKeys();
+	rows_.append(
+		key
+	);
+	std::sort(
+		rows_.begin(),
+		rows_.end()
+	);
+	const int row_ = static_cast<int>(rows_.indexOf(
+		key
+	));
+	this->beginInsertRows(
+		QModelIndex(),
+		row_,
+		row_
+	);
 }
 
-void EntryAttachmentsModel::attachmentAdd()
+void EntryAttachmentsModel::do_attachmentAdd()
 {
-    endInsertRows();
+	this->endInsertRows();
 }
 
-void EntryAttachmentsModel::attachmentAboutToRemove(const QString& key)
+void EntryAttachmentsModel::do_attachmentAboutToRemove(
+	const QString &key
+)
 {
-    int row = m_entryAttachments->keys().indexOf(key);
-    beginRemoveRows(QModelIndex(), row, row);
+	const int row_ = static_cast<int>(this->entryAttachments->getKeys().indexOf(
+		key
+	));
+	this->beginRemoveRows(
+		QModelIndex(),
+		row_,
+		row_
+	);
 }
 
-void EntryAttachmentsModel::attachmentRemove()
+void EntryAttachmentsModel::do_attachmentRemove()
 {
-    endRemoveRows();
+	this->endRemoveRows();
 }
 
-void EntryAttachmentsModel::aboutToReset()
+void EntryAttachmentsModel::do_aboutToReset()
 {
-    beginResetModel();
+	this->beginResetModel();
 }
 
-void EntryAttachmentsModel::reset()
+void EntryAttachmentsModel::do_reset()
 {
-    endResetModel();
+	this->endResetModel();
 }

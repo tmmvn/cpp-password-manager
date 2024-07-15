@@ -14,40 +14,28 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_CLIPBOARD_H
 #define KEEPASSX_CLIPBOARD_H
-
 #include <QObject>
-
 class QTimer;
 
-class Clipboard : public QObject
+class Clipboard final:public QObject
 {
-    Q_OBJECT
-
-public:
-    void setText(const QString& text);
-
-    static Clipboard* instance();
-
+	Q_OBJECT public:
+	void setText(
+		const QString &text
+	);
+	static Clipboard* getInstance();
 public Q_SLOTS:
-    void clearCopiedText();
-
+	void do_clearCopiedText();
 private Q_SLOTS:
-    void clearClipboard();
-
+	void do_clearClipboard();
 private:
-    explicit Clipboard(QObject* parent = nullptr);
-
-    static Clipboard* m_instance;
-
-    QTimer* m_timer;
-    QString m_lastCopied;
+	explicit Clipboard(
+		QObject* parent = nullptr
+	);
+	static Clipboard* instance;
+	QTimer* timer;
+	QString lastCopied;
 };
-
-inline Clipboard* clipboard() {
-    return Clipboard::instance();
-}
-
 #endif // KEEPASSX_CLIPBOARD_H

@@ -29,71 +29,63 @@
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE.BOOST-1.0 or copy at
 # http://www.boost.org/LICENSE_1_0.txt)
-
-if(__get_git_revision_description)
-	return()
-endif()
-set(__get_git_revision_description YES)
-
+IF(__get_git_revision_description)
+	RETURN()
+ENDIF()
+SET(__get_git_revision_description YES)
 # We must run the following at "include" time, not at function call time,
 # to find the path to this module rather than the path to a calling list file
-get_filename_component(_gitdescmoddir ${CMAKE_CURRENT_LIST_FILE} PATH)
-
-function(get_git_head_revision _refspecvar _hashvar)
-	set(GIT_PARENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-	set(GIT_DIR "${GIT_PARENT_DIR}/.git")
-	while(NOT EXISTS "${GIT_DIR}")	# .git dir not found, search parent directories
-		set(GIT_PREVIOUS_PARENT "${GIT_PARENT_DIR}")
-		get_filename_component(GIT_PARENT_DIR ${GIT_PARENT_DIR} PATH)
-		if(GIT_PARENT_DIR STREQUAL GIT_PREVIOUS_PARENT)
+GET_FILENAME_COMPONENT(_gitdescmoddir ${CMAKE_CURRENT_LIST_FILE} PATH)
+FUNCTION(GET_GIT_HEAD_REVISION _refspecvar _hashvar)
+	SET(GIT_PARENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+	SET(GIT_DIR "${GIT_PARENT_DIR}/.git")
+	WHILE(NOT EXISTS "${GIT_DIR}") # .git dir not found, search parent directories
+		SET(GIT_PREVIOUS_PARENT "${GIT_PARENT_DIR}")
+		GET_FILENAME_COMPONENT(GIT_PARENT_DIR ${GIT_PARENT_DIR} PATH)
+		IF(GIT_PARENT_DIR STREQUAL GIT_PREVIOUS_PARENT)
 			# We have reached the root directory, we are not in git
-			set(${_refspecvar} "GITDIR-NOTFOUND" PARENT_SCOPE)
-			set(${_hashvar} "GITDIR-NOTFOUND" PARENT_SCOPE)
-			return()
-		endif()
-		set(GIT_DIR "${GIT_PARENT_DIR}/.git")
-	endwhile()
+			SET(${_refspecvar} "GITDIR-NOTFOUND" PARENT_SCOPE)
+			SET(${_hashvar} "GITDIR-NOTFOUND" PARENT_SCOPE)
+			RETURN()
+		ENDIF()
+		SET(GIT_DIR "${GIT_PARENT_DIR}/.git")
+	ENDWHILE()
 	# check if this is a submodule
-	if(NOT IS_DIRECTORY ${GIT_DIR})
-		file(READ ${GIT_DIR} submodule)
-		string(REGEX REPLACE "gitdir: (.*)\n$" "\\1" GIT_DIR_RELATIVE ${submodule})
-		get_filename_component(SUBMODULE_DIR ${GIT_DIR} PATH)
-		get_filename_component(GIT_DIR ${SUBMODULE_DIR}/${GIT_DIR_RELATIVE} ABSOLUTE)
-	endif()
-	set(GIT_DATA "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/git-data")
-	if(NOT EXISTS "${GIT_DATA}")
-		file(MAKE_DIRECTORY "${GIT_DATA}")
-	endif()
-
-	if(NOT EXISTS "${GIT_DIR}/HEAD")
-		return()
-	endif()
-	set(HEAD_FILE "${GIT_DATA}/HEAD")
-	configure_file("${GIT_DIR}/HEAD" "${HEAD_FILE}" COPYONLY)
-
-	configure_file("${_gitdescmoddir}/GetGitRevisionDescription.cmake.in"
+	IF(NOT IS_DIRECTORY ${GIT_DIR})
+		FILE(READ ${GIT_DIR} submodule)
+		STRING(REGEX REPLACE "gitdir: (.*)\n$" "\\1" GIT_DIR_RELATIVE ${submodule})
+		GET_FILENAME_COMPONENT(SUBMODULE_DIR ${GIT_DIR} PATH)
+		GET_FILENAME_COMPONENT(GIT_DIR ${SUBMODULE_DIR}/${GIT_DIR_RELATIVE} ABSOLUTE)
+	ENDIF()
+	SET(GIT_DATA "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/git-data")
+	IF(NOT EXISTS "${GIT_DATA}")
+		FILE(MAKE_DIRECTORY "${GIT_DATA}")
+	ENDIF()
+	IF(NOT EXISTS "${GIT_DIR}/HEAD")
+		RETURN()
+	ENDIF()
+	SET(HEAD_FILE "${GIT_DATA}/HEAD")
+	CONFIGURE_FILE("${GIT_DIR}/HEAD" "${HEAD_FILE}" COPYONLY)
+	CONFIGURE_FILE("${_gitdescmoddir}/GetGitRevisionDescription.cmake.in"
 		"${GIT_DATA}/grabRef.cmake"
 		@ONLY)
-	include("${GIT_DATA}/grabRef.cmake")
-
-	set(${_refspecvar} "${HEAD_REF}" PARENT_SCOPE)
-	set(${_hashvar} "${HEAD_HASH}" PARENT_SCOPE)
-endfunction()
-
-function(git_describe _var)
-	if(NOT GIT_FOUND)
-		find_package(Git QUIET)
-	endif()
-	get_git_head_revision(refspec hash)
-	if(NOT GIT_FOUND)
-		set(${_var} "GIT-NOTFOUND" PARENT_SCOPE)
-		return()
-	endif()
-	if(NOT hash)
-		set(${_var} "HEAD-HASH-NOTFOUND" PARENT_SCOPE)
-		return()
-	endif()
-
+	INCLUDE("${GIT_DATA}/grabRef.cmake")
+	SET(${_refspecvar} "${HEAD_REF}" PARENT_SCOPE)
+	SET(${_hashvar} "${HEAD_HASH}" PARENT_SCOPE)
+ENDFUNCTION()
+FUNCTION(GIT_DESCRIBE _var)
+	IF(NOT GIT_FOUND)
+		FIND_PACKAGE(Git QUIET)
+	ENDIF()
+	GET_GIT_HEAD_REVISION(refspec hash)
+	IF(NOT GIT_FOUND)
+		SET(${_var} "GIT-NOTFOUND" PARENT_SCOPE)
+		RETURN()
+	ENDIF()
+	IF(NOT hash)
+		SET(${_var} "HEAD-HASH-NOTFOUND" PARENT_SCOPE)
+		RETURN()
+	ENDIF()
 	# TODO sanitize
 	#if((${ARGN}" MATCHES "&&") OR
 	#	(ARGN MATCHES "||") OR
@@ -101,10 +93,8 @@ function(git_describe _var)
 	#	message("Please report the following error to the project!")
 	#	message(FATAL_ERROR "Looks like someone's doing something nefarious with git_describe! Passed arguments ${ARGN}")
 	#endif()
-
 	#message(STATUS "Arguments to execute_process: ${ARGN}")
-
-	execute_process(COMMAND
+	EXECUTE_PROCESS(COMMAND
 		"${GIT_EXECUTABLE}"
 		describe
 		${hash}
@@ -117,14 +107,12 @@ function(git_describe _var)
 		out
 		ERROR_QUIET
 		OUTPUT_STRIP_TRAILING_WHITESPACE)
-	if(NOT res EQUAL 0)
-		set(out "${out}-${res}-NOTFOUND")
-	endif()
-
-	set(${_var} "${out}" PARENT_SCOPE)
-endfunction()
-
-function(git_get_exact_tag _var)
-	git_describe(out --exact-match ${ARGN})
-	set(${_var} "${out}" PARENT_SCOPE)
-endfunction()
+	IF(NOT res EQUAL 0)
+		SET(out "${out}-${res}-NOTFOUND")
+	ENDIF()
+	SET(${_var} "${out}" PARENT_SCOPE)
+ENDFUNCTION()
+FUNCTION(GIT_GET_EXACT_TAG _var)
+	GIT_DESCRIBE(out --exact-match ${ARGN})
+	SET(${_var} "${out}" PARENT_SCOPE)
+ENDFUNCTION()

@@ -14,55 +14,54 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_DATABASEOPENWIDGET_H
 #define KEEPASSX_DATABASEOPENWIDGET_H
-
 #include <QScopedPointer>
-
-#include "gui/DialogyWidget.h"
+#include "gui/DialogWidget.h"
 #include "keys/CompositeKey.h"
-
 class Database;
 class QFile;
 
-namespace Ui {
-    class DatabaseOpenWidget;
+namespace Ui
+{
+	class DatabaseOpenWidget;
 }
 
-class DatabaseOpenWidget : public DialogyWidget
+class DatabaseOpenWidget:public DialogWidget
 {
-    Q_OBJECT
-
-public:
-    explicit DatabaseOpenWidget(QWidget* parent = nullptr);
-    ~DatabaseOpenWidget();
-    void load(const QString& filename);
-    void enterKey(const QString& pw, const QString& keyFile);
-    Database* database();
-
+	Q_OBJECT public:
+	explicit DatabaseOpenWidget(
+		QWidget* parent = nullptr
+	);
+	virtual ~DatabaseOpenWidget() override;
+	void load(
+		const QString &filename
+	);
+	void enterKey(
+		const QString &pw,
+		const QString &keyFile
+	);
+	Database* database() const;
 Q_SIGNALS:
-    void editFinished(bool accepted);
-
+	void sig_editFinished(
+		bool accepted
+	);
 protected:
-    CompositeKey databaseKey();
-
+	CompositeKey databaseKey();
 protected Q_SLOTS:
-    virtual void openDatabase();
-    void reject();
-
+	virtual void do_openDatabase();
+	void do_reject();
 private Q_SLOTS:
-    void activatePassword();
-    void activateKeyFile();
-    void browseKeyFile();
-
+	void do_activatePassword() const;
+	void do_activateKeyFile() const;
+	void do_browseKeyFile();
 protected:
-    const QScopedPointer<Ui::DatabaseOpenWidget> m_ui;
-    Database* m_db;
-    QString m_filename;
-
+	const QScopedPointer<Ui::DatabaseOpenWidget> ui;
+	Database* db;
+	QString filename;
 private:
-    Q_DISABLE_COPY(DatabaseOpenWidget)
+	Q_DISABLE_COPY(
+		DatabaseOpenWidget
+	)
 };
-
 #endif // KEEPASSX_DATABASEOPENWIDGET_H

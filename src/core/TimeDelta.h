@@ -14,37 +14,44 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TIMEDELTA_H
 #define KEEPASSX_TIMEDELTA_H
-
 #include <QMetaType>
-
 class QDateTime;
 class TimeDelta;
-
-QDateTime operator+(const QDateTime& dateTime, const TimeDelta& delta);
+QDateTime operator+(
+	const QDateTime &dateTime,
+	const TimeDelta &delta
+);
 
 class TimeDelta
 {
 public:
-    static TimeDelta fromDays(int days);
-    static TimeDelta fromMonths(int months);
-    static TimeDelta fromYears(int years);
-
-    TimeDelta();
-    TimeDelta(int days, int months, int years);
-
-    int getDays() const;
-    int getMonths() const;
-    int getYears() const;
-
+	static TimeDelta fromDays(
+		int days
+	);
+	static TimeDelta fromMonths(
+		int months
+	);
+	static TimeDelta fromYears(
+		int years
+	);
+	TimeDelta();
+	TimeDelta(
+		int days,
+		int months,
+		int years
+	);
+	int getDays() const;
+	int getMonths() const;
+	int getYears() const;
 private:
-    int m_days;
-    int m_months;
-    int m_years;
+	int days;
+	int months;
+	int years;
 };
 
-Q_DECLARE_METATYPE(TimeDelta)
-
+Q_DECLARE_METATYPE(
+	TimeDelta
+)
 #endif // KEEPASSX_TIMEDELTA_H

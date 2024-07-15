@@ -15,140 +15,223 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "DatabaseWidgetStateSync.h"
-
+#include <gui/DatabaseTabWidget.h>
 #include "core/Config.h"
 
-DatabaseWidgetStateSync::DatabaseWidgetStateSync(QObject* parent)
-    : QObject(parent)
-    , m_activeDbWidget(nullptr)
-    , m_blockUpdates(false)
+DatabaseWidgetStateSync::DatabaseWidgetStateSync(
+	QObject* parent
+)
+	: QObject(
+		parent
+	),
+	activeDbWidget(
+		nullptr
+	),
+	blockUpdates(
+		false
+	)
 {
-    m_splitterSizes = variantToIntList(config()->get("GUI/SplitterState"));
-    m_columnSizesList = variantToIntList(config()->get("GUI/EntryListColumnSizes"));
-    m_columnSizesSearch = variantToIntList(config()->get("GUI/EntrySearchColumnSizes"));
+	this->splitterSizes = this->variantToIntList(
+		Config::getInstance()->get(
+			"GUI/SplitterState"
+		)
+	);
+	this->columnSizesList = this->variantToIntList(
+		Config::getInstance()->get(
+			"GUI/EntryListColumnSizes"
+		)
+	);
+	this->columnSizesSearch = this->variantToIntList(
+		Config::getInstance()->get(
+			"GUI/EntrySearchColumnSizes"
+		)
+	);
 }
 
 DatabaseWidgetStateSync::~DatabaseWidgetStateSync()
 {
-    config()->set("GUI/SplitterState", intListToVariant(m_splitterSizes));
-    config()->set("GUI/EntryListColumnSizes", intListToVariant(m_columnSizesList));
-    config()->set("GUI/EntrySearchColumnSizes", intListToVariant(m_columnSizesSearch));
+	Config::getInstance()->set(
+		"GUI/SplitterState",
+		this->intListToVariant(
+			this->splitterSizes
+		)
+	);
+	Config::getInstance()->set(
+		"GUI/EntryListColumnSizes",
+		this->intListToVariant(
+			this->columnSizesList
+		)
+	);
+	Config::getInstance()->set(
+		"GUI/EntrySearchColumnSizes",
+		this->intListToVariant(
+			this->columnSizesSearch
+		)
+	);
 }
 
-void DatabaseWidgetStateSync::setActive(DatabaseWidget* dbWidget)
+void DatabaseWidgetStateSync::do_setActive(
+	DatabaseWidget* dbWidget
+)
 {
-    if (m_activeDbWidget) {
-        disconnect(m_activeDbWidget, 0, this, 0);
-    }
-
-    m_activeDbWidget = dbWidget;
-
-    if (m_activeDbWidget) {
-        m_blockUpdates = true;
-
-        if (!m_splitterSizes.isEmpty()) {
-            m_activeDbWidget->setSplitterSizes(m_splitterSizes);
-        }
-
-        if (m_activeDbWidget->isGroupSelected()) {
-            restoreListView();
-        }
-        else {
-            restoreSearchView();
-        }
-
-        m_blockUpdates = false;
-
-        connect(m_activeDbWidget, SIGNAL(splitterSizesChanged()),
-                SLOT(updateSplitterSizes()));
-        connect(m_activeDbWidget, SIGNAL(entryColumnSizesChanged()),
-                SLOT(updateColumnSizes()));
-        connect(m_activeDbWidget, SIGNAL(listModeActivated()),
-                SLOT(restoreListView()));
-        connect(m_activeDbWidget, SIGNAL(searchModeActivated()),
-                SLOT(restoreSearchView()));
-        connect(m_activeDbWidget, SIGNAL(listModeAboutToActivate()),
-                SLOT(blockUpdates()));
-        connect(m_activeDbWidget, SIGNAL(searchModeAboutToActivate()),
-                SLOT(blockUpdates()));
-    }
+	if(this->activeDbWidget)
+	{
+		this->disconnect(
+			this->activeDbWidget,
+			nullptr,
+			this,
+			nullptr
+		);
+	}
+	this->activeDbWidget = dbWidget;
+	if(this->activeDbWidget)
+	{
+		this->blockUpdates = true;
+		if(!this->splitterSizes.isEmpty())
+		{
+			this->activeDbWidget->setSplitterSizes(
+				this->splitterSizes
+			);
+		}
+		if(this->activeDbWidget->isGroupSelected())
+		{
+			this->do_restoreListView();
+		}
+		else
+		{
+			this->do_restoreSearchView();
+		}
+		this->blockUpdates = false;
+		this->connect(
+			this->activeDbWidget,
+			&DatabaseWidget::sig_splitterSizesChanged,
+			this,
+			&DatabaseWidgetStateSync::do_updateSplitterSizes
+		);
+		this->connect(
+			this->activeDbWidget,
+			&DatabaseWidget::sig_entryColumnSizesChanged,
+			this,
+			&DatabaseWidgetStateSync::do_updateColumnSizes
+		);
+		this->connect(
+			this->activeDbWidget,
+			&DatabaseWidget::sig_listModeActivated,
+			this,
+			&DatabaseWidgetStateSync::do_restoreListView
+		);
+		this->connect(
+			this->activeDbWidget,
+			&DatabaseWidget::sig_searchModeActivated,
+			this,
+			&DatabaseWidgetStateSync::do_restoreSearchView
+		);
+		this->connect(
+			this->activeDbWidget,
+			&DatabaseWidget::sig_listModeAboutToActivate,
+			this,
+			&DatabaseWidgetStateSync::do_getBlockUpdates
+		);
+		this->connect(
+			this->activeDbWidget,
+			&DatabaseWidget::sig_searchModeAboutToActivate,
+			this,
+			&DatabaseWidgetStateSync::do_getBlockUpdates
+		);
+	}
 }
 
-void DatabaseWidgetStateSync::restoreListView()
+void DatabaseWidgetStateSync::do_restoreListView()
 {
-    if (!m_columnSizesList.isEmpty()) {
-        m_activeDbWidget->setEntryViewHeaderSizes(m_columnSizesList);
-    }
-
-    m_blockUpdates = false;
+	if(!this->columnSizesList.isEmpty())
+	{
+		this->activeDbWidget->setEntryViewHeaderSizes(
+			this->columnSizesList
+		);
+	}
+	this->blockUpdates = false;
 }
 
-void DatabaseWidgetStateSync::restoreSearchView()
+void DatabaseWidgetStateSync::do_restoreSearchView()
 {
-    if (!m_columnSizesSearch.isEmpty()) {
-        m_activeDbWidget->setEntryViewHeaderSizes(m_columnSizesSearch);
-    }
-
-    m_blockUpdates = false;
+	if(!this->columnSizesSearch.isEmpty())
+	{
+		this->activeDbWidget->setEntryViewHeaderSizes(
+			this->columnSizesSearch
+		);
+	}
+	this->blockUpdates = false;
 }
 
-void DatabaseWidgetStateSync::blockUpdates()
+void DatabaseWidgetStateSync::do_getBlockUpdates()
 {
-    m_blockUpdates = true;
+	this->blockUpdates = true;
 }
 
-void DatabaseWidgetStateSync::updateSplitterSizes()
+void DatabaseWidgetStateSync::do_updateSplitterSizes()
 {
-    if (m_blockUpdates) {
-        return;
-    }
-
-    m_splitterSizes = m_activeDbWidget->splitterSizes();
+	if(this->blockUpdates)
+	{
+		return;
+	}
+	this->splitterSizes = this->activeDbWidget->getSplitterSizes();
 }
 
-void DatabaseWidgetStateSync::updateColumnSizes()
+void DatabaseWidgetStateSync::do_updateColumnSizes()
 {
-    if (m_blockUpdates) {
-        return;
-    }
-
-    if (m_activeDbWidget->isGroupSelected()) {
-        m_columnSizesList = m_activeDbWidget->entryHeaderViewSizes();
-    }
-    else {
-        m_columnSizesSearch = m_activeDbWidget->entryHeaderViewSizes();
-    }
+	if(this->blockUpdates)
+	{
+		return;
+	}
+	if(this->activeDbWidget->isGroupSelected())
+	{
+		this->columnSizesList = this->activeDbWidget->getEntryHeaderViewSizes();
+	}
+	else
+	{
+		this->columnSizesSearch = this->activeDbWidget->
+			getEntryHeaderViewSizes();
+	}
 }
 
-QList<int> DatabaseWidgetStateSync::variantToIntList(const QVariant& variant)
+QList<int> DatabaseWidgetStateSync::variantToIntList(
+	const QVariant &variant
+)
 {
-    const QVariantList list = variant.toList();
-    QList<int> result;
-
-    for (const QVariant& var : list) {
-        bool ok;
-        int size = var.toInt(&ok);
-        if (ok) {
-            result.append(size);
-        }
-        else {
-            result.clear();
-            break;
-        }
-    }
-
-    return result;
+	const QVariantList list_ = variant.toList();
+	QList<int> result_;
+	for(const QVariant &var_: list_)
+	{
+		bool ok_;
+		const int size_ = var_.toInt(
+			&ok_
+		);
+		if(ok_)
+		{
+			result_.append(
+				size_
+			);
+		}
+		else
+		{
+			result_.clear();
+			break;
+		}
+	}
+	return result_;
 }
 
-QVariant DatabaseWidgetStateSync::intListToVariant(const QList<int>& list)
+QVariant DatabaseWidgetStateSync::intListToVariant(
+	const QList<int> &list
+)
 {
-    QVariantList result;
-
-    for (int value : list) {
-        result.append(value);
-    }
-
-    return result;
+	QVariantList result_;
+	for(const int value_: list)
+	{
+		result_.append(
+			value_
+		);
+	}
+	return result_;
 }

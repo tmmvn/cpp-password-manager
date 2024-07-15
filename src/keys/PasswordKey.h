@@ -14,25 +14,24 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_PASSWORDKEY_H
 #define KEEPASSX_PASSWORDKEY_H
-
 #include <QString>
-
 #include "keys/Key.h"
 
-class PasswordKey : public Key
+class PasswordKey final:public Key
 {
 public:
-    PasswordKey();
-    explicit PasswordKey(const QString& password);
-    QByteArray rawKey() const;
-    void setPassword(const QString& password);
-    PasswordKey* clone() const;
-
+	PasswordKey();
+	explicit PasswordKey(
+		const QString &password
+	);
+	virtual QByteArray rawKey() const override;
+	void setPassword(
+		const QString &password
+	);
+	virtual PasswordKey* clone() const override;
 private:
-    QByteArray m_key;
+	QByteArray key;
 };
-
 #endif // KEEPASSX_PASSWORDKEY_H

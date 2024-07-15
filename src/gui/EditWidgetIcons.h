@@ -14,58 +14,59 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_EDITWIDGETICONS_H
 #define KEEPASSX_EDITWIDGETICONS_H
-
 #include <QWidget>
-
-#include "core/Uuid.h"
-
+#include "core/UUID.h"
 class Database;
 class DefaultIconModel;
 class CustomIconModel;
 
-namespace Ui {
-    class EditWidgetIcons;
+namespace Ui
+{
+	class EditWidgetIcons;
 }
 
 struct IconStruct
 {
-    IconStruct();
-
-    Uuid uuid;
-    int number;
+	IconStruct();
+	UUID uuid;
+	int number;
 };
 
-class EditWidgetIcons : public QWidget
+class EditWidgetIcons final:public QWidget
 {
-    Q_OBJECT
-
-public:
-    explicit EditWidgetIcons(QWidget* parent = nullptr);
-    ~EditWidgetIcons();
-
-    IconStruct state() const;
-    void reset();
-    void load(Uuid currentUuid, Database* database, IconStruct iconStruct);
-
+	Q_OBJECT public:
+	explicit EditWidgetIcons(
+		QWidget* parent = nullptr
+	);
+	virtual ~EditWidgetIcons() override;
+	IconStruct state() const;
+	void reset();
+	void load(
+		const UUID &currentUuid,
+		Database* database,
+		const IconStruct &iconStruct
+	);
 private Q_SLOTS:
-    void addCustomIcon();
-    void removeCustomIcon();
-    void updateWidgetsDefaultIcons(bool checked);
-    void updateWidgetsCustomIcons(bool checked);
-    void updateRadioButtonDefaultIcons();
-    void updateRadioButtonCustomIcons();
-
+	void do_addCustomIcon();
+	void do_removeCustomIcon();
+	void do_updateWidgetsDefaultIcons(
+		bool checked
+	) const;
+	void do_updateWidgetsCustomIcons(
+		bool checked
+	) const;
+	void do_updateRadioButtonDefaultIcons() const;
+	void do_updateRadioButtonCustomIcons() const;
 private:
-    const QScopedPointer<Ui::EditWidgetIcons> m_ui;
-    Database* m_database;
-    Uuid m_currentUuid;
-    DefaultIconModel* const m_defaultIconModel;
-    CustomIconModel* const m_customIconModel;
-
-    Q_DISABLE_COPY(EditWidgetIcons)
+	const QScopedPointer<Ui::EditWidgetIcons> ui;
+	Database* database;
+	UUID currentUUID;
+	DefaultIconModel* const defaultIconModel;
+	CustomIconModel* const customIconModel;
+	Q_DISABLE_COPY(
+		EditWidgetIcons
+	)
 };
-
 #endif // KEEPASSX_EDITWIDGETICONS_H

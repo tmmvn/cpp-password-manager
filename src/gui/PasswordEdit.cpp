@@ -14,65 +14,114 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "PasswordEdit.h"
+const QColor PasswordEdit::CorrectSoFarColor = QColor(
+	255,
+	205,
+	15
+);
+const QColor PasswordEdit::ErrorColor = QColor(
+	255,
+	125,
+	125
+);
 
-const QColor PasswordEdit::CorrectSoFarColor = QColor(255, 205, 15);
-const QColor PasswordEdit::ErrorColor = QColor(255, 125, 125);
-
-PasswordEdit::PasswordEdit(QWidget* parent)
-    : QLineEdit(parent)
-    , m_basePasswordEdit(nullptr)
+PasswordEdit::PasswordEdit(
+	QWidget* parent
+)
+	: QLineEdit(
+		parent
+	),
+	basePasswordEdit(
+		nullptr
+	)
 {
 }
 
-void PasswordEdit::enableVerifyMode(PasswordEdit* basePasswordEdit)
+void PasswordEdit::enableVerifyMode(
+	PasswordEdit* baseEdit
+)
 {
-    m_basePasswordEdit = basePasswordEdit;
-
-    updateStylesheet();
-    connect(m_basePasswordEdit, SIGNAL(textChanged(QString)), SLOT(updateStylesheet()));
-    connect(this, SIGNAL(textChanged(QString)), SLOT(updateStylesheet()));
-
-    connect(m_basePasswordEdit, SIGNAL(showPasswordChanged(bool)), SLOT(setShowPassword(bool)));
+	this->basePasswordEdit = baseEdit;
+	this->do_updateStylesheet();
+	this->connect(
+		this->basePasswordEdit,
+		&PasswordEdit::textChanged,
+		this,
+		&PasswordEdit::do_updateStylesheet
+	);
+	this->connect(
+		this,
+		&PasswordEdit::textChanged,
+		this,
+		&PasswordEdit::do_updateStylesheet
+	);
+	this->connect(
+		this->basePasswordEdit,
+		&PasswordEdit::sig_showPasswordChanged,
+		this,
+		&PasswordEdit::do_setShowPassword
+	);
 }
 
-void PasswordEdit::setShowPassword(bool show)
+void PasswordEdit::do_setShowPassword(
+	const bool show
+)
 {
-    setEchoMode(show ? QLineEdit::Normal : QLineEdit::Password);
-    updateStylesheet();
-    Q_EMIT showPasswordChanged(show);
+	this->setEchoMode(
+		show ? this->Normal : this->Password
+	);
+	this->do_updateStylesheet();
+	 this->sig_showPasswordChanged(
+		show
+	);
 }
 
 bool PasswordEdit::passwordsEqual() const
 {
-    return text() == m_basePasswordEdit->text();
+	return this->text() == this->basePasswordEdit->text();
 }
 
-void PasswordEdit::updateStylesheet()
+void PasswordEdit::do_updateStylesheet()
 {
-    QString stylesheet("QLineEdit { ");
-
-    if (echoMode() == QLineEdit::Normal) {
+	QString stylesheet_(
+		"QLineEdit { "
+	);
+	if(this->echoMode() == this->Normal)
+	{
 #ifdef Q_OS_MAC
-        // Qt on Mac OS doesn't seem to know the generic monospace family (tested with 4.8.6)
-        stylesheet.append("font-family: monospace,Menlo,Monaco; ");
+		// Qt on Mac OS doesn't seem to know the generic monospace family (tested with 4.8.6)
+		stylesheet_.append(
+			"font-family: monospace,Menlo,Monaco; "
+		);
 #else
-        stylesheet.append("font-family: monospace,Courier New; ");
+        stylesheet_.append("font-family: monospace,Courier New; ");
 #endif
-    }
-
-    if (m_basePasswordEdit && !passwordsEqual()) {
-        stylesheet.append("background: %1; ");
-
-        if (m_basePasswordEdit->text().startsWith(text())) {
-            stylesheet = stylesheet.arg(CorrectSoFarColor.name());
-        }
-        else {
-            stylesheet = stylesheet.arg(ErrorColor.name());
-        }
-    }
-
-    stylesheet.append("}");
-    setStyleSheet(stylesheet);
+	}
+	if(this->basePasswordEdit && !this->passwordsEqual())
+	{
+		stylesheet_.append(
+			"background: %1; "
+		);
+		if(this->basePasswordEdit->text().startsWith(
+			this->text()
+		))
+		{
+			stylesheet_ = stylesheet_.arg(
+				this->CorrectSoFarColor.name()
+			);
+		}
+		else
+		{
+			stylesheet_ = stylesheet_.arg(
+				this->ErrorColor.name()
+			);
+		}
+	}
+	stylesheet_.append(
+		"}"
+	);
+	this->setStyleSheet(
+		stylesheet_
+	);
 }

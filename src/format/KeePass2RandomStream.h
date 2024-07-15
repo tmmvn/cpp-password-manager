@@ -14,30 +14,34 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_KEEPASS2RANDOMSTREAM_H
 #define KEEPASSX_KEEPASS2RANDOMSTREAM_H
-
 #include <QByteArray>
-
 #include "crypto/SymmetricCipher.h"
 
 class KeePass2RandomStream
 {
 public:
-    KeePass2RandomStream();
-    bool init(const QByteArray& key);
-    QByteArray randomBytes(int size, bool* ok);
-    QByteArray process(const QByteArray& data, bool* ok);
-    Q_REQUIRED_RESULT bool processInPlace(QByteArray& data);
-    QString errorString() const;
-
+	KeePass2RandomStream();
+	bool init(
+		const QByteArray &key
+	);
+	QByteArray getRandomBytes(
+		int size,
+		bool* ok
+	);
+	QByteArray process(
+		const QByteArray &data,
+		bool* ok
+	);
+	Q_REQUIRED_RESULT bool processInPlace(
+		QByteArray &data
+	);
+	QString getErrorString() const;
 private:
-    bool loadBlock();
-
-    SymmetricCipher m_cipher;
-    QByteArray m_buffer;
-    int m_offset;
+	bool loadBlock();
+	SymmetricCipher cipher;
+	QByteArray buffer;
+	int offset;
 };
-
 #endif // KEEPASSX_KEEPASS2RANDOMSTREAM_H

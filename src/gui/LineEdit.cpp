@@ -16,62 +16,126 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "LineEdit.h"
-
 #include <QStyle>
 #include <QToolButton>
-
 #include "core/FilePath.h"
 
-LineEdit::LineEdit(QWidget* parent)
-    : QLineEdit(parent)
-    , m_clearButton(new QToolButton(this))
+LineEdit::LineEdit(
+	QWidget* parent
+)
+	: QLineEdit(
+		parent
+	),
+	clearButton(
+		new QToolButton(
+			this
+		)
+	)
 {
-    m_clearButton->setObjectName("clearButton");
-
-    QIcon icon;
-    QString iconNameDirected = QString("edit-clear-locationbar-").append(
-                (layoutDirection() == Qt::LeftToRight) ? "rtl" : "ltr");
-    icon = QIcon::fromTheme(iconNameDirected);
-    if (icon.isNull()) {
-        icon = QIcon::fromTheme("edit-clear");
-        if (icon.isNull()) {
-            icon = filePath()->icon("actions", iconNameDirected, false);
-        }
-    }
-
-    m_clearButton->setIcon(icon);
-    m_clearButton->setCursor(Qt::ArrowCursor);
-    m_clearButton->setStyleSheet("QToolButton { border: none; padding: 0px; }");
-    m_clearButton->hide();
-    connect(m_clearButton, SIGNAL(clicked()), this, SLOT(clear()));
-    connect(this, SIGNAL(textChanged(QString)), this, SLOT(updateCloseButton(QString)));
-    int frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
-    setStyleSheet(QString("QLineEdit { padding-right: %1px; } ")
-                  .arg(m_clearButton->sizeHint().width() + frameWidth + 1));
-    QSize msz = minimumSizeHint();
-    setMinimumSize(qMax(msz.width(), m_clearButton->sizeHint().height() + frameWidth * 2 + 2),
-                   qMax(msz.height(), m_clearButton->sizeHint().height() + frameWidth * 2 + 2));
+	this->clearButton->setObjectName(
+		"clearButton"
+	);
+	const QString iconNameDirected_ = QString(
+		"edit-clear-locationbar-"
+	).append(
+		(layoutDirection() == Qt::LeftToRight) ? "rtl" : "ltr"
+	);
+	QIcon icon_ = QIcon::fromTheme(
+		iconNameDirected_
+	);
+	if(icon_.isNull())
+	{
+		icon_ = QIcon::fromTheme(
+			"edit-clear"
+		);
+		if(icon_.isNull())
+		{
+			icon_ = FilePath::getInstance()->getIcon(
+				"actions",
+				iconNameDirected_,
+				false
+			);
+		}
+	}
+	this->clearButton->setIcon(
+		icon_
+	);
+	this->clearButton->setCursor(
+		Qt::ArrowCursor
+	);
+	this->clearButton->setStyleSheet(
+		"QToolButton { border: none; padding: 0px; }"
+	);
+	this->clearButton->hide();
+	this->connect(
+		this->clearButton,
+		&QToolButton::clicked,
+		this,
+		&LineEdit::clear
+	);
+	this->connect(
+		this,
+		&LineEdit::textChanged,
+		this,
+		&LineEdit::do_updateCloseButton
+	);
+	const int frameWidth_ = this->style()->pixelMetric(
+		QStyle::PM_DefaultFrameWidth
+	);
+	this->setStyleSheet(
+		QString(
+			"QLineEdit { padding-right: %1px; } "
+		).arg(
+			this->clearButton->sizeHint().width() + frameWidth_ + 1
+		)
+	);
+	const QSize msz_ = QLineEdit::minimumSizeHint();
+	this->setMinimumSize(
+		qMax(
+			msz_.width(),
+			this->clearButton->sizeHint().height() + frameWidth_ * 2 + 2
+		),
+		qMax(
+			msz_.height(),
+			this->clearButton->sizeHint().height() + frameWidth_ * 2 + 2
+		)
+	);
 }
 
-void LineEdit::resizeEvent(QResizeEvent* event)
+void LineEdit::resizeEvent(
+	QResizeEvent* event
+)
 {
-    QSize sz = m_clearButton->sizeHint();
-    int frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
-    int y = (rect().bottom() + 1 - sz.height()) / 2;
-
-    if (layoutDirection() == Qt::LeftToRight) {
-        m_clearButton->move(rect().right() - frameWidth - sz.width(), y);
-    }
-    else {
-        m_clearButton->move(rect().left() + frameWidth, y);
-    }
-
-    QLineEdit::resizeEvent(event);
+	const QSize sz_ = this->clearButton->sizeHint();
+	const int frameWidth_ = this->style()->pixelMetric(
+		QStyle::PM_DefaultFrameWidth
+	);
+	const int y_ = (this->rect().bottom() + 1 - sz_.height()) / 2;
+	if(this->layoutDirection() == Qt::LeftToRight)
+	{
+		this->clearButton->move(
+			rect().right() - frameWidth_ - sz_.width(),
+			y_
+		);
+	}
+	else
+	{
+		this->clearButton->move(
+			rect().left() + frameWidth_,
+			y_
+		);
+	}
+	QLineEdit::resizeEvent(
+		event
+	);
 }
 
-void LineEdit::updateCloseButton(const QString& text)
+void LineEdit::do_updateCloseButton(
+	const QString &text
+) const
 {
-    m_clearButton->setVisible(!text.isEmpty());
+	this->clearButton->setVisible(
+		!text.isEmpty()
+	);
 }

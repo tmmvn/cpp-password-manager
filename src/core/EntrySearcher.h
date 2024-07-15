@@ -14,25 +14,36 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_ENTRYSEARCHER_H
 #define KEEPASSX_ENTRYSEARCHER_H
-
+#include <QRegularExpression>
 #include <QString>
-
-
 class Group;
 class Entry;
 
 class EntrySearcher
 {
 public:
-    QList<Entry*> search(const QString& searchTerm, const Group* group, Qt::CaseSensitivity caseSensitivity);
-
+	QList<Entry*> search(
+		const QString &searchTerm,
+		const Group* group,
+		Qt::CaseSensitivity caseSensitivity
+	);
 private:
-    QList<Entry*> searchEntries(const QString& searchTerm, const Group* group, Qt::CaseSensitivity caseSensitivity);
-    QList<Entry*> matchEntry(const QString& searchTerm, Entry* entry, Qt::CaseSensitivity caseSensitivity);
-    bool wordMatch(const QString& word, Entry* entry, Qt::CaseSensitivity caseSensitivity);
+	QList<Entry*> searchEntries(
+		const QString &searchTerm,
+		const Group* group,
+		Qt::CaseSensitivity caseSensitivity
+	);
+	QList<Entry*> matchEntry(
+		const QString &searchTerm,
+		Entry* entry,
+		Qt::CaseSensitivity caseSensitivity
+	) const;
+	static bool wordMatch(
+		const QString &word,
+		const Entry* entry,
+		Qt::CaseSensitivity caseSensitivity
+	);
 };
-
 #endif // KEEPASSX_ENTRYSEARCHER_H

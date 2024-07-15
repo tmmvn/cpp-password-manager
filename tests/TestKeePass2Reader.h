@@ -14,24 +14,19 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTKEEPASS2READER_H
 #define KEEPASSX_TESTKEEPASS2READER_H
-
 #include <QObject>
 
-class TestKeePass2Reader : public QObject
+class TestKeePass2Reader:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testNonAscii();
-    void testCompressed();
-    void testProtectedStrings();
-    void testBrokenHeaderHash();
-    void testFormat200();
-    void testFormat300();
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testNonAscii();
+	void testCompressed();
+	void testProtectedStrings();
+	void testBrokenHeaderHash();
+	void testFormat200();
+	void testFormat300();
 };
-
 #endif // KEEPASSX_TESTKEEPASS2READER_H

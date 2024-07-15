@@ -14,39 +14,54 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_UUID_H
 #define KEEPASSX_UUID_H
-
 #include <QByteArray>
 #include <QString>
 
-class Uuid
+class UUID
 {
 public:
-    Uuid();
-    explicit Uuid(const QByteArray& data);
-    static Uuid random();
-    QString toBase64() const;
-    QString toHex() const;
-    QByteArray toByteArray() const;
-
-    bool isNull() const;
-    Uuid& operator=(const Uuid& other);
-    bool operator==(const Uuid& other) const;
-    bool operator!=(const Uuid& other) const;
-    static const int Length;
-    static Uuid fromBase64(const QString& str);
-
+	UUID();
+	explicit UUID(
+		const QByteArray &data
+	);
+	static UUID random();
+	QString toBase64() const;
+	QString toHex() const;
+	QByteArray toByteArray() const;
+	bool isNull() const;
+	// UUID &operator=(
+	// 	const UUID &other
+	// );
+	bool operator==(
+		const UUID &other
+	) const;
+	bool operator!=(
+		const UUID &other
+	) const;
+	static const int Length;
+	static UUID fromBase64(
+		const QString &str
+	);
 private:
-    QByteArray m_data;
+	QByteArray data;
 };
 
-Q_DECLARE_TYPEINFO(Uuid, Q_MOVABLE_TYPE);
+Q_DECLARE_TYPEINFO(
+	UUID,
+	Q_MOVABLE_TYPE
+);
 
-uint qHash(const Uuid& key);
-
-QDataStream& operator<<(QDataStream& stream, const Uuid& uuid);
-QDataStream& operator>>(QDataStream& stream, Uuid& uuid);
-
+uint qHash(
+	const UUID &key
+);
+QDataStream &operator<<(
+	QDataStream &stream,
+	const UUID &uuid
+);
+QDataStream &operator>>(
+	QDataStream &stream,
+	UUID &uuid
+);
 #endif // KEEPASSX_UUID_H

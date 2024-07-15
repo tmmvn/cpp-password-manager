@@ -14,85 +14,119 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "CryptoHash.h"
-
 #include <gcrypt.h>
-
 #include "crypto/Crypto.h"
 
 class CryptoHashPrivate
 {
 public:
-    gcry_md_hd_t ctx;
-    int hashLen;
+	gcry_md_hd_t ctx;
+	unsigned int hashLen;
 };
 
-CryptoHash::CryptoHash(CryptoHash::Algorithm algo)
-    : d_ptr(new CryptoHashPrivate())
+CryptoHash::CryptoHash(
+	const Algorithm algo
+)
+	: d_ptr(
+		new CryptoHashPrivate()
+	)
 {
-    Q_D(CryptoHash);
-
-    Q_ASSERT(Crypto::initalized());
-
-    int algoGcrypt;
-
-    switch (algo) {
-    case CryptoHash::Sha256:
-        algoGcrypt = GCRY_MD_SHA256;
-        break;
-
-    default:
-        Q_ASSERT(false);
-        break;
-    }
-
-    gcry_error_t error = gcry_md_open(&d->ctx, algoGcrypt, 0);
-    Q_ASSERT(error == 0); // TODO: error handling
-    Q_UNUSED(error);
-
-    d->hashLen = gcry_md_get_algo_dlen(algoGcrypt);
+	Q_D(
+		CryptoHash
+	);
+	if(!Crypto::getInitalized())
+	{
+		return;
+	}
+	int algoGcrypt_ = GCRY_MD_SHA256;
+	switch(algo)
+	{
+		case Sha256:
+			algoGcrypt_ = GCRY_MD_SHA256;
+			break;
+		default:
+			break;
+	}
+	const gcry_error_t error_ = gcry_md_open(
+		&d->ctx,
+		algoGcrypt_,
+		0
+	);
+	if(error_ != 0)
+	{
+		return;
+	}
+	d->hashLen = gcry_md_get_algo_dlen(
+		algoGcrypt_
+	);
 }
 
 CryptoHash::~CryptoHash()
 {
-    Q_D(CryptoHash);
-
-    gcry_md_close(d->ctx);
-
-    delete d_ptr;
+	Q_D(
+		CryptoHash
+	);
+	gcry_md_close(
+		d->ctx
+	);
+	delete this->d_ptr;
 }
 
-void CryptoHash::addData(const QByteArray& data)
+void CryptoHash::addData(
+	const QByteArray &data
+)
 {
-    Q_D(CryptoHash);
-
-    if (data.isEmpty()) {
-        return;
-    }
-
-    gcry_md_write(d->ctx, data.constData(), data.size());
+	Q_D(
+		CryptoHash
+	);
+	if(data.isEmpty())
+	{
+		return;
+	}
+	gcry_md_write(
+		d->ctx,
+		data.constData(),
+		data.size()
+	);
 }
 
 void CryptoHash::reset()
 {
-    Q_D(CryptoHash);
-
-    gcry_md_reset(d->ctx);
+	Q_D(
+		CryptoHash
+	);
+	gcry_md_reset(
+		d->ctx
+	);
 }
 
-QByteArray CryptoHash::result() const
+QByteArray CryptoHash::getResult() const
 {
-    Q_D(const CryptoHash);
-
-    const char* result = reinterpret_cast<const char*>(gcry_md_read(d->ctx, 0));
-    return QByteArray(result, d->hashLen);
+	Q_D(
+		const CryptoHash
+	);
+	const auto result_ = reinterpret_cast<const char*>(gcry_md_read(
+		d->ctx,
+		0
+	));
+	return QByteArray(
+		result_,
+		d->hashLen
+	);
 }
 
-QByteArray CryptoHash::hash(const QByteArray& data, CryptoHash::Algorithm algo)
+QByteArray CryptoHash::hash(
+	const QByteArray &data,
+	const Algorithm algo
+)
 {
-    // replace with gcry_md_hash_buffer()?
-    CryptoHash cryptoHash(algo);
-    cryptoHash.addData(data);
-    return cryptoHash.result();
+	// replace with gcry_md_hash_buffer()?
+	CryptoHash cryptoHash_(
+		algo
+	);
+	cryptoHash_.addData(
+		data
+	);
+	return cryptoHash_.getResult();
 }

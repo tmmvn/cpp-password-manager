@@ -14,198 +14,336 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "PasswordGeneratorWidget.h"
-#include "ui_PasswordGeneratorWidget.h"
-
 #include <QLineEdit>
-
+#include "ui_PasswordGeneratorWidget.h"
 #include "core/Config.h"
-#include "core/PasswordGenerator.h"
 #include "core/FilePath.h"
+#include "core/PasswordGenerator.h"
 
-PasswordGeneratorWidget::PasswordGeneratorWidget(QWidget* parent)
-    : QWidget(parent)
-    , m_updatingSpinBox(false)
-    , m_generator(new PasswordGenerator())
-    , m_ui(new Ui::PasswordGeneratorWidget())
+PasswordGeneratorWidget::PasswordGeneratorWidget(
+	QWidget* parent
+)
+	: QWidget(
+		parent
+	),
+	updatingSpinBox(
+		false
+	),
+	generator(
+		new PasswordGenerator()
+	),
+	ui(
+		new Ui::PasswordGeneratorWidget()
+	)
 {
-    m_ui->setupUi(this);
-
-    m_ui->togglePasswordButton->setIcon(filePath()->onOffIcon("actions", "password-show"));
-
-    connect(m_ui->editNewPassword->lineEdit(), SIGNAL(textChanged(QString)), SLOT(updateApplyEnabled(QString)));
-    connect(m_ui->togglePasswordButton, SIGNAL(toggled(bool)), m_ui->editNewPassword, SLOT(setEcho(bool)));
-    connect(m_ui->buttonApply, SIGNAL(clicked()), SLOT(emitNewPassword()));
-    connect(m_ui->buttonApply, SIGNAL(clicked()), SLOT(saveSettings()));
-
-    connect(m_ui->sliderLength, SIGNAL(valueChanged(int)), SLOT(sliderMoved()));
-    connect(m_ui->spinBoxLength, SIGNAL(valueChanged(int)), SLOT(spinBoxChanged()));
-
-    connect(m_ui->optionButtons, SIGNAL(buttonClicked(int)), SLOT(updateGenerator()));
-
-    m_ui->editNewPassword->setGenerator(m_generator.data());
-
-    loadSettings();
-    reset();
+	this->ui->setupUi(
+		this
+	);
+	this->ui->togglePasswordButton->setIcon(
+		FilePath::getInstance()->getOnOffIcon(
+			"actions",
+			"password-show"
+		)
+	);
+	this->connect(
+		this->ui->editNewPassword->lineEdit(),
+		&QLineEdit::textChanged,
+		this,
+		&PasswordGeneratorWidget::do_updateApplyEnabled
+	);
+	this->connect(
+		this->ui->togglePasswordButton,
+		&QToolButton::toggled,
+		this->ui->editNewPassword,
+		&PasswordComboBox::do_setEcho
+	);
+	this->connect(
+		this->ui->buttonApply,
+		&QPushButton::clicked,
+		this,
+		&PasswordGeneratorWidget::do_emitNewPassword
+	);
+	this->connect(
+		this->ui->buttonApply,
+		&QPushButton::clicked,
+		this,
+		&PasswordGeneratorWidget::do_saveSettings
+	);
+	this->connect(
+		this->ui->sliderLength,
+		&QSlider::valueChanged,
+		this,
+		&PasswordGeneratorWidget::do_sliderMoved
+	);
+	this->connect(
+		this->ui->spinBoxLength,
+		&QSpinBox::valueChanged,
+		this,
+		&PasswordGeneratorWidget::do_spinBoxChanged
+	);
+	this->connect(
+		this->ui->optionButtons,
+		&QButtonGroup::idClicked,
+		this,
+		&PasswordGeneratorWidget::do_updateGenerator
+	);
+	this->ui->editNewPassword->setGenerator(
+		this->generator.data()
+	);
+	this->loadSettings();
+	this->reset();
 }
 
 PasswordGeneratorWidget::~PasswordGeneratorWidget()
 {
 }
 
-void PasswordGeneratorWidget::loadSettings()
+void PasswordGeneratorWidget::loadSettings() const
 {
-    m_ui->checkBoxLower->setChecked(config()->get("generator/LowerCase", true).toBool());
-    m_ui->checkBoxUpper->setChecked(config()->get("generator/UpperCase", true).toBool());
-    m_ui->checkBoxNumbers->setChecked(config()->get("generator/Numbers", true).toBool());
-    m_ui->checkBoxSpecialChars->setChecked(config()->get("generator/SpecialChars", false).toBool());
-
-    m_ui->checkBoxExcludeAlike->setChecked(config()->get("generator/ExcludeAlike", true).toBool());
-    m_ui->checkBoxEnsureEvery->setChecked(config()->get("generator/EnsureEvery", true).toBool());
-
-    m_ui->spinBoxLength->setValue(config()->get("generator/Length", 16).toInt());
+	this->ui->checkBoxLower->setChecked(
+		Config::getInstance()->get(
+			"generator/LowerCase",
+			true
+		).toBool()
+	);
+	this->ui->checkBoxUpper->setChecked(
+		Config::getInstance()->get(
+			"generator/UpperCase",
+			true
+		).toBool()
+	);
+	this->ui->checkBoxNumbers->setChecked(
+		Config::getInstance()->get(
+			"generator/Numbers",
+			true
+		).toBool()
+	);
+	this->ui->checkBoxSpecialChars->setChecked(
+		Config::getInstance()->get(
+			"generator/SpecialChars",
+			false
+		).toBool()
+	);
+	this->ui->checkBoxExcludeAlike->setChecked(
+		Config::getInstance()->get(
+			"generator/ExcludeAlike",
+			true
+		).toBool()
+	);
+	this->ui->checkBoxEnsureEvery->setChecked(
+		Config::getInstance()->get(
+			"generator/EnsureEvery",
+			true
+		).toBool()
+	);
+	this->ui->spinBoxLength->setValue(
+		Config::getInstance()->get(
+			"generator/Length",
+			16
+		).toInt()
+	);
 }
 
-void PasswordGeneratorWidget::saveSettings()
+void PasswordGeneratorWidget::do_saveSettings() const
 {
-    config()->set("generator/LowerCase", m_ui->checkBoxLower->isChecked());
-    config()->set("generator/UpperCase", m_ui->checkBoxUpper->isChecked());
-    config()->set("generator/Numbers", m_ui->checkBoxNumbers->isChecked());
-    config()->set("generator/SpecialChars", m_ui->checkBoxSpecialChars->isChecked());
-
-    config()->set("generator/ExcludeAlike", m_ui->checkBoxExcludeAlike->isChecked());
-    config()->set("generator/EnsureEvery", m_ui->checkBoxEnsureEvery->isChecked());
-
-    config()->set("generator/Length", m_ui->spinBoxLength->value());
+	Config::getInstance()->set(
+		"generator/LowerCase",
+		this->ui->checkBoxLower->isChecked()
+	);
+	Config::getInstance()->set(
+		"generator/UpperCase",
+		this->ui->checkBoxUpper->isChecked()
+	);
+	Config::getInstance()->set(
+		"generator/Numbers",
+		this->ui->checkBoxNumbers->isChecked()
+	);
+	Config::getInstance()->set(
+		"generator/SpecialChars",
+		this->ui->checkBoxSpecialChars->isChecked()
+	);
+	Config::getInstance()->set(
+		"generator/ExcludeAlike",
+		this->ui->checkBoxExcludeAlike->isChecked()
+	);
+	Config::getInstance()->set(
+		"generator/EnsureEvery",
+		this->ui->checkBoxEnsureEvery->isChecked()
+	);
+	Config::getInstance()->set(
+		"generator/Length",
+		this->ui->spinBoxLength->value()
+	);
 }
 
 void PasswordGeneratorWidget::reset()
 {
-    m_ui->editNewPassword->lineEdit()->setText("");
-    m_ui->togglePasswordButton->setChecked(config()->get("security/passwordscleartext").toBool());
-
-    updateGenerator();
+	this->ui->editNewPassword->lineEdit()->setText(
+		""
+	);
+	this->ui->togglePasswordButton->setChecked(
+		Config::getInstance()->get(
+			"security/passwordscleartext"
+		).toBool()
+	);
+	this->do_updateGenerator();
 }
 
-void PasswordGeneratorWidget::regeneratePassword()
+void PasswordGeneratorWidget::regeneratePassword() const
 {
-    if (m_generator->isValid()) {
-        QString password = m_generator->generatePassword();
-        m_ui->editNewPassword->setEditText(password);
-    }
+	if(this->generator->isValid())
+	{
+		const QString password_ = this->generator->generatePassword();
+		this->ui->editNewPassword->setEditText(
+			password_
+		);
+	}
 }
 
-void PasswordGeneratorWidget::updateApplyEnabled(const QString& password)
+void PasswordGeneratorWidget::do_updateApplyEnabled(
+	const QString &password
+) const
 {
-    m_ui->buttonApply->setEnabled(!password.isEmpty());
+	this->ui->buttonApply->setEnabled(
+		!password.isEmpty()
+	);
 }
 
-void PasswordGeneratorWidget::emitNewPassword()
+void PasswordGeneratorWidget::do_emitNewPassword()
 {
-    Q_EMIT newPassword(m_ui->editNewPassword->lineEdit()->text());
+	this->sig_newPassword(
+		this->ui->editNewPassword->lineEdit()->text()
+	);
 }
 
-void PasswordGeneratorWidget::sliderMoved()
+void PasswordGeneratorWidget::do_sliderMoved()
 {
-    if (m_updatingSpinBox) {
-        return;
-    }
-
-    m_ui->spinBoxLength->setValue(m_ui->sliderLength->value());
-
-    updateGenerator();
+	if(this->updatingSpinBox)
+	{
+		return;
+	}
+	this->ui->spinBoxLength->setValue(
+		this->ui->sliderLength->value()
+	);
+	this->do_updateGenerator();
 }
 
-void PasswordGeneratorWidget::spinBoxChanged()
+void PasswordGeneratorWidget::do_spinBoxChanged()
 {
-    if (m_updatingSpinBox) {
-        return;
-    }
-
-    // Interlock so that we don't update twice - this causes issues as the spinbox can go higher than slider
-    m_updatingSpinBox = true;
-
-    m_ui->sliderLength->setValue(m_ui->spinBoxLength->value());
-
-    m_updatingSpinBox = false;
-
-    updateGenerator();
+	if(this->updatingSpinBox)
+	{
+		return;
+	}
+	// Interlock so that we don't update twice - this causes issues as the spinbox can go higher than slider
+	this->updatingSpinBox = true;
+	this->ui->sliderLength->setValue(
+		this->ui->spinBoxLength->value()
+	);
+	this->updatingSpinBox = false;
+	this->do_updateGenerator();
 }
 
-PasswordGenerator::CharClasses PasswordGeneratorWidget::charClasses()
+PasswordGenerator::CharClasses PasswordGeneratorWidget::charClasses() const
 {
-    PasswordGenerator::CharClasses classes;
-
-    if (m_ui->checkBoxLower->isChecked()) {
-        classes |= PasswordGenerator::LowerLetters;
-    }
-
-    if (m_ui->checkBoxUpper->isChecked()) {
-        classes |= PasswordGenerator::UpperLetters;
-    }
-
-    if (m_ui->checkBoxNumbers->isChecked()) {
-        classes |= PasswordGenerator::Numbers;
-    }
-
-    if (m_ui->checkBoxSpecialChars->isChecked()) {
-        classes |= PasswordGenerator::SpecialCharacters;
-    }
-
-    return classes;
+	PasswordGenerator::CharClasses classes_;
+	if(this->ui->checkBoxLower->isChecked())
+	{
+		classes_ |= PasswordGenerator::LowerLetters;
+	}
+	if(this->ui->checkBoxUpper->isChecked())
+	{
+		classes_ |= PasswordGenerator::UpperLetters;
+	}
+	if(this->ui->checkBoxNumbers->isChecked())
+	{
+		classes_ |= PasswordGenerator::Numbers;
+	}
+	if(this->ui->checkBoxSpecialChars->isChecked())
+	{
+		classes_ |= PasswordGenerator::SpecialCharacters;
+	}
+	return classes_;
 }
 
-PasswordGenerator::GeneratorFlags PasswordGeneratorWidget::generatorFlags()
+PasswordGenerator::GeneratorFlags
+PasswordGeneratorWidget::generatorFlags() const
 {
-    PasswordGenerator::GeneratorFlags flags;
-
-    if (m_ui->checkBoxExcludeAlike->isChecked()) {
-        flags |= PasswordGenerator::ExcludeLookAlike;
-    }
-
-    if (m_ui->checkBoxEnsureEvery->isChecked()) {
-        flags |= PasswordGenerator::CharFromEveryGroup;
-    }
-
-    return flags;
+	PasswordGenerator::GeneratorFlags flags_;
+	if(this->ui->checkBoxExcludeAlike->isChecked())
+	{
+		flags_ |= PasswordGenerator::ExcludeLookAlike;
+	}
+	if(this->ui->checkBoxEnsureEvery->isChecked())
+	{
+		flags_ |= PasswordGenerator::CharFromEveryGroup;
+	}
+	return flags_;
 }
 
-void PasswordGeneratorWidget::updateGenerator()
+void PasswordGeneratorWidget::do_updateGenerator()
 {
-    PasswordGenerator::CharClasses classes = charClasses();
-    PasswordGenerator::GeneratorFlags flags = generatorFlags();
-
-    int minLength = 0;
-    if (flags.testFlag(PasswordGenerator::CharFromEveryGroup)) {
-        if (classes.testFlag(PasswordGenerator::LowerLetters)) {
-            minLength++;
-        }
-        if (classes.testFlag(PasswordGenerator::UpperLetters)) {
-            minLength++;
-        }
-        if (classes.testFlag(PasswordGenerator::Numbers)) {
-            minLength++;
-        }
-        if (classes.testFlag(PasswordGenerator::SpecialCharacters)) {
-            minLength++;
-        }
-    }
-    minLength = qMax(minLength, 1);
-
-    if (m_ui->spinBoxLength->value() < minLength) {
-        m_updatingSpinBox = true;
-        m_ui->spinBoxLength->setValue(minLength);
-        m_ui->sliderLength->setValue(minLength);
-        m_updatingSpinBox = false;
-    }
-
-    m_ui->spinBoxLength->setMinimum(minLength);
-    m_ui->sliderLength->setMinimum(minLength);
-
-    m_generator->setLength(m_ui->spinBoxLength->value());
-    m_generator->setCharClasses(classes);
-    m_generator->setFlags(flags);
-
-    regeneratePassword();
+	const PasswordGenerator::CharClasses classes_ = this->charClasses();
+	const PasswordGenerator::GeneratorFlags flags_ = this->generatorFlags();
+	auto minLength_ = 0;
+	if(flags_.testFlag(
+		PasswordGenerator::CharFromEveryGroup
+	))
+	{
+		if(classes_.testFlag(
+			PasswordGenerator::LowerLetters
+		))
+		{
+			minLength_++;
+		}
+		if(classes_.testFlag(
+			PasswordGenerator::UpperLetters
+		))
+		{
+			minLength_++;
+		}
+		if(classes_.testFlag(
+			PasswordGenerator::Numbers
+		))
+		{
+			minLength_++;
+		}
+		if(classes_.testFlag(
+			PasswordGenerator::SpecialCharacters
+		))
+		{
+			minLength_++;
+		}
+	}
+	minLength_ = qMax(
+		minLength_,
+		1
+	);
+	if(this->ui->spinBoxLength->value() < minLength_)
+	{
+		this->updatingSpinBox = true;
+		this->ui->spinBoxLength->setValue(
+			minLength_
+		);
+		this->ui->sliderLength->setValue(
+			minLength_
+		);
+		this->updatingSpinBox = false;
+	}
+	this->ui->spinBoxLength->setMinimum(
+		minLength_
+	);
+	this->ui->sliderLength->setMinimum(
+		minLength_
+	);
+	this->generator->setLength(
+		this->ui->spinBoxLength->value()
+	);
+	this->generator->setCharClasses(
+		classes_
+	);
+	this->generator->setFlags(
+		flags_
+	);
+	this->regeneratePassword();
 }

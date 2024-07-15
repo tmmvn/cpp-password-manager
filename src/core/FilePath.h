@@ -14,10 +14,8 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_FILEPATH_H
 #define KEEPASSX_FILEPATH_H
-
 #include <QHash>
 #include <QIcon>
 #include <QString>
@@ -25,28 +23,33 @@
 class FilePath
 {
 public:
-    QString dataPath(const QString& name);
-    QString pluginPath(const QString& name);
-    QIcon applicationIcon();
-    QIcon icon(const QString& category, const QString& name, bool fromTheme = true);
-    QIcon onOffIcon(const QString& category, const QString& name);
-
-    static FilePath* instance();
-
+	QString getDataPath(
+		const QString &name
+	) const;
+	static QString getPluginPath(
+		const QString &name
+	);
+	QIcon getApplicationIcon();
+	QIcon getIcon(
+		const QString &category,
+		const QString &name,
+		bool fromTheme = true
+	);
+	QIcon getOnOffIcon(
+		const QString &category,
+		const QString &name
+	);
+	static FilePath* getInstance();
 private:
-    FilePath();
-    bool testSetDir(const QString& dir);
-
-    static FilePath* m_instance;
-
-    QString m_dataPath;
-    QHash<QString, QIcon> m_iconCache;
-
-    Q_DISABLE_COPY(FilePath)
+	FilePath();
+	bool testSetDir(
+		const QString &dir
+	);
+	static FilePath* instance;
+	QString dataPath;
+	QHash<QString, QIcon> iconCache;
+	Q_DISABLE_COPY(
+		FilePath
+	)
 };
-
-inline FilePath* filePath() {
-    return FilePath::instance();
-}
-
 #endif // KEEPASSX_FILEPATH_H

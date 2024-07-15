@@ -43,36 +43,58 @@
 ** contact Nokia at qt-info@nokia.com.
 **
 ****************************************************************************/
-
 #ifndef QTIOCOMPRESSOR_H
 #define QTIOCOMPRESSOR_H
-
 #include <QIODevice>
-
 class QtIOCompressorPrivate;
-class QtIOCompressor : public QIODevice
-{
-Q_OBJECT
-public:
-enum StreamFormat { ZlibFormat, GzipFormat, RawZipFormat };
-    QtIOCompressor(QIODevice *device, int compressionLevel = 6, int bufferSize = 65500);
-    ~QtIOCompressor();
-    void setStreamFormat(StreamFormat format);
-    StreamFormat streamFormat() const;
-    static bool isGzipSupported();
-    bool isSequential() const;
-    bool open(OpenMode mode);
-    void close();
-    void flush();
-    qint64 bytesAvailable() const;
-protected:
-    qint64 readData(char * data, qint64 maxSize);
-    qint64 writeData(const char * data, qint64 maxSize);
-private:
-    static bool checkGzipSupport(const char * const versionString);
-    QtIOCompressorPrivate *d_ptr;
-    Q_DECLARE_PRIVATE(QtIOCompressor)
-    Q_DISABLE_COPY(QtIOCompressor)
-};
 
+class QtIOCompressor final:public QIODevice
+{
+	Q_OBJECT public:
+	enum StreamFormat : uint8_t
+	{
+		ZlibFormat,
+		GzipFormat,
+		RawZipFormat
+	};
+
+	explicit QtIOCompressor(
+		QIODevice* device,
+		int compressionLevel = 6,
+		int bufferSize = 65500
+	);
+	virtual ~QtIOCompressor() override;
+	void setStreamFormat(
+		StreamFormat format
+	);
+	StreamFormat streamFormat() const;
+	static bool isGzipSupported();
+	virtual bool isSequential() const override;
+	virtual bool open(
+		OpenMode mode
+	) override;
+	virtual void close() override;
+	void flush();
+	virtual qint64 bytesAvailable() const override;
+protected:
+	virtual qint64 readData(
+		char* data,
+		qint64 maxSize
+	) override;
+	virtual qint64 writeData(
+		const char* data,
+		qint64 maxSize
+	) override;
+private:
+	static bool checkGzipSupport(
+		const char* versionString
+	);
+	QtIOCompressorPrivate* d_ptr;
+	Q_DECLARE_PRIVATE(
+		QtIOCompressor
+	)
+	Q_DISABLE_COPY(
+		QtIOCompressor
+	)
+};
 #endif

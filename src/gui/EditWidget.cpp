@@ -14,75 +14,133 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "EditWidget.h"
 #include "ui_EditWidget.h"
 
-EditWidget::EditWidget(QWidget* parent)
-    : DialogyWidget(parent)
-    , m_ui(new Ui::EditWidget())
+EditWidget::EditWidget(
+	QWidget* parent
+)
+	: DialogWidget(
+		parent
+	),
+	ui(
+		new Ui::EditWidget()
+	)
 {
-    m_ui->setupUi(this);
-    setReadOnly(false);
-
-    QFont headerLabelFont = m_ui->headerLabel->font();
-    headerLabelFont.setBold(true);
-    headerLabelFont.setPointSize(headerLabelFont.pointSize() + 2);
-    headlineLabel()->setFont(headerLabelFont);
-
-    connect(m_ui->categoryList, SIGNAL(currentRowChanged(int)),
-            m_ui->stackedWidget, SLOT(setCurrentIndex(int)));
-
-    connect(m_ui->buttonBox, SIGNAL(accepted()), SIGNAL(accepted()));
-    connect(m_ui->buttonBox, SIGNAL(rejected()), SIGNAL(rejected()));
+	this->ui->setupUi(
+		this
+	);
+	this->setReadOnly(
+		false
+	);
+	QFont headerLabelFont_ = this->ui->headerLabel->font();
+	headerLabelFont_.setBold(
+		true
+	);
+	headerLabelFont_.setPointSize(
+		headerLabelFont_.pointSize() + 2
+	);
+	this->headlineLabel()->setFont(
+		headerLabelFont_
+	);
+	this->connect(
+		this->ui->categoryList,
+		&CategoryListWidget::currentRowChanged,
+		this->ui->stackedWidget,
+		&QStackedWidget::setCurrentIndex
+	);
+	this->connect(
+		this->ui->buttonBox,
+		&QDialogButtonBox::accepted,
+		this,
+		&EditWidget::sig_accepted
+	);
+	this->connect(
+		this->ui->buttonBox,
+		&QDialogButtonBox::rejected,
+		this,
+		&EditWidget::sig_rejected
+	);
 }
 
 EditWidget::~EditWidget()
 {
 }
 
-void EditWidget::add(const QString& labelText, QWidget* widget)
+void EditWidget::add(
+	const QString &labelText,
+	QWidget* widget
+) const
 {
-    m_ui->categoryList->addItem(labelText);
-    m_ui->stackedWidget->addWidget(widget);
+	this->ui->categoryList->addItem(
+		labelText
+	);
+	this->ui->stackedWidget->addWidget(
+		widget
+	);
 }
 
-void EditWidget::setRowHidden(QWidget* widget, bool hide)
+void EditWidget::setRowHidden(
+	const QWidget* widget,
+	const bool hide
+) const
 {
-    int row = m_ui->stackedWidget->indexOf(widget);
-    if (row != -1) {
-        m_ui->categoryList->item(row)->setHidden(hide);
-    }
+	if(const int row_ = this->ui->stackedWidget->indexOf(
+			widget
+		);
+		row_ != -1)
+	{
+		this->ui->categoryList->item(
+			row_
+		)->setHidden(
+			hide
+		);
+	}
 }
 
-void EditWidget::setCurrentRow(int index)
+void EditWidget::setCurrentRow(
+	const int index
+) const
 {
-    m_ui->categoryList->setCurrentRow(index);
+	this->ui->categoryList->setCurrentRow(
+		index
+	);
 }
 
-void EditWidget::setHeadline(const QString& text)
+void EditWidget::setHeadline(
+	const QString &text
+) const
 {
-    m_ui->headerLabel->setText(text);
+	this->ui->headerLabel->setText(
+		text
+	);
 }
 
-QLabel* EditWidget::headlineLabel()
+QLabel* EditWidget::headlineLabel() const
 {
-    return m_ui->headerLabel;
+	return this->ui->headerLabel;
 }
 
-void EditWidget::setReadOnly(bool readOnly)
+void EditWidget::setReadOnly(
+	const bool readOnly
+)
 {
-    m_readOnly = readOnly;
-
-    if (readOnly) {
-        m_ui->buttonBox->setStandardButtons(QDialogButtonBox::Close);
-    }
-    else {
-        m_ui->buttonBox->setStandardButtons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    }
+	this->readOnly = readOnly;
+	if(readOnly)
+	{
+		this->ui->buttonBox->setStandardButtons(
+			QDialogButtonBox::Close
+		);
+	}
+	else
+	{
+		this->ui->buttonBox->setStandardButtons(
+			QDialogButtonBox::Ok | QDialogButtonBox::Cancel
+		);
+	}
 }
 
-bool EditWidget::readOnly() const
+bool EditWidget::isReadOnly() const
 {
-    return m_readOnly;
+	return readOnly;
 }

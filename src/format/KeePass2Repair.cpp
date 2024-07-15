@@ -14,94 +14,134 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "KeePass2Repair.h"
-
 #include <QBuffer>
-#include <QRegExp>
-
+#include <QRegularExpression>
 #include "format/KeePass2RandomStream.h"
 #include "format/KeePass2Reader.h"
 #include "format/KeePass2XmlReader.h"
 
 KeePass2Repair::KeePass2Repair()
-    : m_db(nullptr)
+	: db(
+		nullptr
+	)
 {
 }
 
-KeePass2Repair::RepairResult KeePass2Repair::repairDatabase(QIODevice* device, const CompositeKey& key)
+KeePass2Repair::RepairResult KeePass2Repair::repairDatabase(
+	QIODevice* device,
+	const CompositeKey &key
+)
 {
-    m_db = nullptr;
-    m_errorStr.clear();
-
-    KeePass2Reader reader;
-    reader.setSaveXml(true);
-
-    Database* db = reader.readDatabase(device, key, true);
-    if (!reader.hasError()) {
-        delete db;
-        return NothingTodo;
-    }
-
-    QByteArray xmlData = reader.xmlData();
-    if (!db || xmlData.isEmpty()) {
-        delete db;
-        m_errorStr = reader.errorString();
-        return UnableToOpen;
-    }
-
-    bool repairAction = false;
-
-    QString xmlStart = QString::fromLatin1(xmlData.constData(), qMin(100, xmlData.size()));
-    QRegExp encodingRegExp("encoding=\"([^\"]+)\"", Qt::CaseInsensitive, QRegExp::RegExp2);
-    if (encodingRegExp.indexIn(xmlStart) != -1) {
-        if (encodingRegExp.cap(1).compare("utf-8", Qt::CaseInsensitive) != 0
-                && encodingRegExp.cap(1).compare("utf8", Qt::CaseInsensitive) != 0)
-        {
-            // database is not utf-8 encoded, we don't support repairing that
-            delete db;
-            return RepairFailed;
-        }
-    }
-
-    // try to fix broken databases because of bug #392
-    for (int i = (xmlData.size() - 1); i >= 0; i--) {
-        quint8 ch = static_cast<quint8>(xmlData.at(i));
-        if (ch < 0x20 && ch != 0x09 && ch != 0x0A && ch != 0x0D) {
-            xmlData.remove(i, 1);
-            repairAction = true;
-        }
-    }
-
-    if (!repairAction) {
-        // we were unable to find the problem
-        delete db;
-        return RepairFailed;
-    }
-
-    KeePass2RandomStream randomStream;
-    randomStream.init(reader.streamKey());
-    KeePass2XmlReader xmlReader;
-    QBuffer buffer(&xmlData);
-    buffer.open(QIODevice::ReadOnly);
-    xmlReader.readDatabase(&buffer, db, &randomStream);
-
-    if (xmlReader.hasError()) {
-        delete db;
-        return RepairFailed;
-    }
-    else {
-        m_db = db;
-        return RepairSuccess;
-    }
+	this->db = nullptr;
+	this->errorStr.clear();
+	KeePass2Reader reader_;
+	reader_.setSaveXml(
+		true
+	);
+	Database* db_ = reader_.readDatabase(
+		device,
+		key,
+		true
+	);
+	if(!reader_.hasError())
+	{
+		delete db_;
+		return NothingTodo;
+	}
+	QByteArray xmlData_ = reader_.getXMLData();
+	if(!db_ || xmlData_.isEmpty())
+	{
+		delete db_;
+		this->errorStr = reader_.getErrorString();
+		return UnableToOpen;
+	}
+	auto repairAction_ = false;
+	QString xmlStart_ = QString::fromLatin1(
+		xmlData_.constData(),
+		qMin(
+			100,
+			xmlData_.size()
+		)
+	);
+	QRegularExpression encodingRegExp_(
+		"encoding=\"([^\"]+)\"",
+		QRegularExpression::CaseInsensitiveOption
+	);
+	if(QRegularExpressionMatch match_ = encodingRegExp_.match(
+			xmlStart_
+		);
+		match_.hasMatch())
+	{
+		if(match_.captured(
+			1
+		).compare(
+			"utf-8",
+			Qt::CaseInsensitive
+		) != 0 && match_.captured(
+			1
+		).compare(
+			"utf8",
+			Qt::CaseInsensitive
+		) != 0)
+		{
+			// database is not utf-8 encoded, we don't support repairing that
+			delete db_;
+			return RepairFailed;
+		}
+	}
+	// try to fix broken databases because of bug #392
+	for(qsizetype i_ = xmlData_.size() - 1; i_ >= 0; i_--)
+	{
+		if(auto ch_ = static_cast<quint8>(xmlData_.at(
+				i_
+			));
+			ch_ < 0x20 && ch_ != 0x09 && ch_ != 0x0A && ch_ != 0x0D)
+		{
+			xmlData_.remove(
+				i_,
+				1
+			);
+			repairAction_ = true;
+		}
+	}
+	if(!repairAction_)
+	{
+		// we were unable to find the problem
+		delete db_;
+		return RepairFailed;
+	}
+	KeePass2RandomStream randomStream_;
+	randomStream_.init(
+		reader_.getStreamKey()
+	);
+	KeePass2XmlReader xmlReader_;
+	QBuffer buffer_(
+		&xmlData_
+	);
+	buffer_.open(
+		QIODevice::ReadOnly
+	);
+	xmlReader_.readDatabase(
+		&buffer_,
+		db_,
+		&randomStream_
+	);
+	if(xmlReader_.hasError())
+	{
+		delete db_;
+		return RepairFailed;
+	}
+	this->db = db_;
+	return RepairSuccess;
 }
 
-Database* KeePass2Repair::database() const
+Database* KeePass2Repair::getDatabase() const
 {
-    return m_db;
+	return this->db;
 }
 
-QString KeePass2Repair::errorString() const
+QString KeePass2Repair::getErrorString() const
 {
-    return m_errorStr;
+	return this->errorStr;
 }

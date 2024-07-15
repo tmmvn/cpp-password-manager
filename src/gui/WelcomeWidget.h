@@ -14,26 +14,23 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_WELCOMEWIDGET_H
 #define KEEPASSX_WELCOMEWIDGET_H
-
 #include <QWidget>
 
-namespace Ui {
-    class WelcomeWidget;
+namespace Ui
+{
+	class WelcomeWidget;
 }
 
-class WelcomeWidget : public QWidget
+class WelcomeWidget final:public QWidget
 {
-    Q_OBJECT
-
-public:
-    explicit WelcomeWidget(QWidget* parent = nullptr);
-    ~WelcomeWidget();
-
+	Q_OBJECT public:
+	explicit WelcomeWidget(
+		QWidget* parent = nullptr
+	);
+	virtual ~WelcomeWidget() override;
 private:
-    const QScopedPointer<Ui::WelcomeWidget> m_ui;
+	const QScopedPointer<Ui::WelcomeWidget> ui;
 };
-
 #endif // KEEPASSX_WELCOMEWIDGET_H

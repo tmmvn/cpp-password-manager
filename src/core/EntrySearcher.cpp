@@ -14,58 +14,104 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "EntrySearcher.h"
-
 #include "core/Group.h"
 
-QList<Entry*> EntrySearcher::search(const QString& searchTerm, const Group* group,
-                                    Qt::CaseSensitivity caseSensitivity)
+QList<Entry*> EntrySearcher::search(
+	const QString &searchTerm,
+	const Group* group,
+	const Qt::CaseSensitivity caseSensitivity
+)
 {
-    if (!group->resolveSearchingEnabled()) {
-        return QList<Entry*>();
-    }
-
-    return searchEntries(searchTerm, group, caseSensitivity);
+	if(!group->isResolveSearchingEnabled())
+	{
+		return QList<Entry*>();
+	}
+	return this->searchEntries(
+		searchTerm,
+		group,
+		caseSensitivity
+	);
 }
 
-QList<Entry*> EntrySearcher::searchEntries(const QString& searchTerm, const Group* group,
-                                           Qt::CaseSensitivity caseSensitivity)
+QList<Entry*> EntrySearcher::searchEntries(
+	const QString &searchTerm,
+	const Group* group,
+	const Qt::CaseSensitivity caseSensitivity
+)
 {
-    QList<Entry*> searchResult;
-
-    const QList<Entry*> entryList = group->entries();
-    for (Entry* entry : entryList) {
-       searchResult.append(matchEntry(searchTerm, entry, caseSensitivity));
-    }
-
-    const QList<Group*> children = group->children();
-    for (Group* childGroup : children) {
-        if (childGroup->searchingEnabled() != Group::Disable) {
-            searchResult.append(searchEntries(searchTerm, childGroup, caseSensitivity));
-        }
-    }
-
-    return searchResult;
+	QList<Entry*> searchResult_;
+	const QList<Entry*> &entryList_ = group->getEntries();
+	for(Entry* entry_: entryList_)
+	{
+		searchResult_.append(
+			matchEntry(
+				searchTerm,
+				entry_,
+				caseSensitivity
+			)
+		);
+	}
+	const QList<Group*> &children_ = group->getChildren();
+	for(const Group* childGroup_: children_)
+	{
+		if(childGroup_->isSearchingEnabled() != Group::Disable)
+		{
+			searchResult_.append(
+				this->searchEntries(
+					searchTerm,
+					childGroup_,
+					caseSensitivity
+				)
+			);
+		}
+	}
+	return searchResult_;
 }
 
-QList<Entry*> EntrySearcher::matchEntry(const QString& searchTerm, Entry* entry,
-                                        Qt::CaseSensitivity caseSensitivity)
+QList<Entry*> EntrySearcher::matchEntry(
+	const QString &searchTerm,
+	Entry* entry,
+	const Qt::CaseSensitivity caseSensitivity
+) const
 {
-    const QStringList wordList = searchTerm.split(QRegExp("\\s"), QString::SkipEmptyParts);
-    for (const QString& word : wordList) {
-        if (!wordMatch(word, entry, caseSensitivity)) {
-            return QList<Entry*>();
-        }
-    }
-
-    return QList<Entry*>() << entry;
+	const QStringList wordList_ = searchTerm.split(
+		QRegularExpression(
+			"\\s"
+		),
+		Qt::SkipEmptyParts
+	);
+	for(const QString &word_: wordList_)
+	{
+		if(!this->wordMatch(
+			word_,
+			entry,
+			caseSensitivity
+		))
+		{
+			return QList<Entry*>();
+		}
+	}
+	return QList<Entry*>() << entry;
 }
 
-bool EntrySearcher::wordMatch(const QString& word, Entry* entry, Qt::CaseSensitivity caseSensitivity)
+bool EntrySearcher::wordMatch(
+	const QString &word,
+	const Entry* entry,
+	const Qt::CaseSensitivity caseSensitivity
+)
 {
-    return entry->title().contains(word, caseSensitivity) ||
-            entry->username().contains(word, caseSensitivity) ||
-            entry->url().contains(word, caseSensitivity) ||
-            entry->notes().contains(word, caseSensitivity);
+	return entry->getTitle().contains(
+		word,
+		caseSensitivity
+	) || entry->getUsername().contains(
+		word,
+		caseSensitivity
+	) || entry->getURL().contains(
+		word,
+		caseSensitivity
+	) || entry->getNotes().contains(
+		word,
+		caseSensitivity
+	);
 }

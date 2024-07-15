@@ -14,40 +14,31 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_DATABASEICONS_H
 #define KEEPASSX_DATABASEICONS_H
-
-#include <QImage>
-#include <QPixmap>
 #include <QPixmapCache>
 #include <QVector>
 
 class DatabaseIcons
 {
 public:
-    QImage icon(int index);
-    QPixmap iconPixmap(int index);
-
-    static DatabaseIcons* instance();
-
-    static const int IconCount;
-    static const int ExpiredIconIndex;
-
+	QImage icon(
+		int index
+	);
+	QPixmap iconPixmap(
+		int index
+	);
+	static DatabaseIcons* getInstance();
+	static const int IconCount;
+	static const int ExpiredIconIndex;
 private:
-    DatabaseIcons();
-
-    static DatabaseIcons* m_instance;
-
-    static const char* const m_indexToName[];
-    QVector<QImage> m_iconCache;
-    QVector<QPixmapCache::Key> m_pixmapCacheKeys;
-
-    Q_DISABLE_COPY(DatabaseIcons)
+	DatabaseIcons();
+	static DatabaseIcons* instance;
+	static const char* const indexToName[];
+	QVector<QImage> iconCache;
+	QVector<QPixmapCache::Key> pixmapCacheKeys;
+	Q_DISABLE_COPY(
+		DatabaseIcons
+	)
 };
-
-inline DatabaseIcons* databaseIcons() {
-    return DatabaseIcons::instance();
-}
-
 #endif // KEEPASSX_DATABASEICONS_H

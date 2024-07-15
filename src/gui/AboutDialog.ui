@@ -7,8 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>366</width>
-    <height>210</height>
+    <height>216</height>
    </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>B612</family>
+   </font>
   </property>
   <property name="windowTitle">
    <string>About KeePassX</string>

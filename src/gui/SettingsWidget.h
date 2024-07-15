@@ -14,41 +14,38 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_SETTINGSWIDGET_H
 #define KEEPASSX_SETTINGSWIDGET_H
-
 #include "gui/EditWidget.h"
 
-namespace Ui {
-    class SettingsWidgetGeneral;
-    class SettingsWidgetSecurity;
+namespace Ui
+{
+	class SettingsWidgetGeneral;
+	class SettingsWidgetSecurity;
 }
 
-class SettingsWidget : public EditWidget
+class SettingsWidget final:public EditWidget
 {
-    Q_OBJECT
-
-public:
-    explicit SettingsWidget(QWidget* parent = nullptr);
-    ~SettingsWidget();
-    void loadSettings();
-
+	Q_OBJECT public:
+	explicit SettingsWidget(
+		QWidget* parent = nullptr
+	);
+	virtual ~SettingsWidget() override;
+	void loadSettings();
 Q_SIGNALS:
-    void editFinished(bool accepted);
-
+	void sig_editFinished(
+		bool accepted
+	);
 private Q_SLOTS:
-    void saveSettings();
-    void reject();
-    void enableAutoSaveOnExit(bool checked);
-
+	void do_saveSettings();
+	void do_reject();
+	void do_enableAutoSaveOnExit(
+		bool checked
+	) const;
 private:
-    QWidget* const m_secWidget;
-    QWidget* const m_generalWidget;
-    const QScopedPointer<Ui::SettingsWidgetSecurity> m_secUi;
-    const QScopedPointer<Ui::SettingsWidgetGeneral> m_generalUi;
-    Qt::Key m_globalAutoTypeKey;
-    Qt::KeyboardModifiers m_globalAutoTypeModifiers;
+	QWidget* const secWidget;
+	QWidget* const generalWidget;
+	const QScopedPointer<Ui::SettingsWidgetSecurity> secUi;
+	const QScopedPointer<Ui::SettingsWidgetGeneral> generalUi;
 };
-
 #endif // KEEPASSX_SETTINGSWIDGET_H

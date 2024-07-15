@@ -15,65 +15,73 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "Application.h"
-
 #include <QAbstractNativeEventFilter>
 #include <QFileOpenEvent>
-
-#include "autotype/AutoType.h"
-
-#if defined(Q_OS_UNIX) && !defined(Q_OS_OSX)
+#include "gui/entry/EditEntryWidget_p.h"
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
 class XcbEventFilter : public QAbstractNativeEventFilter
 {
 public:
-    bool nativeEventFilter(const QByteArray& eventType, void* message, long* result) override
-    {
-        Q_UNUSED(result)
-
-        if (eventType == QByteArrayLiteral("xcb_generic_event_t")) {
-            int retCode = autoType()->callEventFilter(message);
-            if (retCode == 1) {
-                return true;
-            }
-        }
-
-        return false;
-    }
+	bool nativeEventFilter(const QByteArray& eventType, void* message, long* result) override
+	{
+		Q_UNUSED(result)
+		Q_UNUSED(message)
+		Q_UNUSED(eventType)
+		return false;
+	}
 };
 #endif
-
-Application::Application(int& argc, char** argv)
-    : QApplication(argc, argv)
-    , m_mainWindow(nullptr)
+Application::Application(
+	int &argc,
+	char** argv
+)
+	: QApplication(
+		argc,
+		argv
+	),
+	mainWindow(
+		nullptr
+	)
 {
-#if defined(Q_OS_UNIX) && !defined(Q_OS_OSX)
-    installNativeEventFilter(new XcbEventFilter());
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+	this->installNativeEventFilter(new XcbEventFilter());
 #endif
 }
 
-void Application::setMainWindow(QWidget* mainWindow)
+void Application::setMainWindow(
+	QWidget* mainWindow
+)
 {
-    m_mainWindow = mainWindow;
+	this->mainWindow = mainWindow;
 }
 
-bool Application::event(QEvent* event)
+bool Application::event(
+	QEvent* event
+)
 {
-    // Handle Apple QFileOpenEvent from finder (double click on .kdbx file)
-    if (event->type() == QEvent::FileOpen) {
-        Q_EMIT openFile(static_cast<QFileOpenEvent*>(event)->file());
-        return true;
-    }
+	// Handle Apple QFileOpenEvent from finder (double click on .kdbx file)
+	if(event->type() == QEvent::FileOpen)
+	{
+		this->sig_openFile(
+			static_cast<QFileOpenEvent*>(event)->file()
+		);
+		return true;
+	}
 #ifdef Q_OS_MAC
-    // restore main window when clicking on the docker icon
-    else if ((event->type() == QEvent::ApplicationActivate) && m_mainWindow) {
-        m_mainWindow->ensurePolished();
-        m_mainWindow->setWindowState(m_mainWindow->windowState() & ~Qt::WindowMinimized);
-        m_mainWindow->show();
-        m_mainWindow->raise();
-        m_mainWindow->activateWindow();
-    }
+	// restore main window when clicking on the docker icon
+	if((event->type() == QEvent::ApplicationActivate) && this->mainWindow)
+	{
+		this->mainWindow->ensurePolished();
+		this->mainWindow->setWindowState(
+			this->mainWindow->windowState() & ~Qt::WindowMinimized
+		);
+		this->mainWindow->show();
+		this->mainWindow->raise();
+		this->mainWindow->activateWindow();
+	}
 #endif
-
-    return QApplication::event(event);
+	return QApplication::event(
+		event
+	);
 }

@@ -15,19 +15,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTEXPORTER_H
 #define KEEPASSX_TESTEXPORTER_H
-
 #include <QObject>
 
-class TestExporter : public QObject
+class TestExporter:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testToDbExporter();
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testToDbExporter();
 };
-
 #endif // KEEPASSX_TESTEXPORTER_H

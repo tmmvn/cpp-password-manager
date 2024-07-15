@@ -14,239 +14,346 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "SymmetricCipherStream.h"
 
-SymmetricCipherStream::SymmetricCipherStream(QIODevice* baseDevice, SymmetricCipher::Algorithm algo,
-                                             SymmetricCipher::Mode mode, SymmetricCipher::Direction direction)
-    : LayeredStream(baseDevice)
-    , m_cipher(new SymmetricCipher(algo, mode, direction))
-    , m_bufferPos(0)
-    , m_bufferFilling(false)
-    , m_error(false)
-    , m_isInitalized(false)
-    , m_dataWritten(false)
+SymmetricCipherStream::SymmetricCipherStream(
+	QIODevice* baseDevice,
+	const SymmetricCipher::Algorithm algo,
+	const SymmetricCipher::Mode mode,
+	const SymmetricCipher::Direction direction
+)
+	: LayeredStream(
+		baseDevice
+	),
+	cipher(
+		new SymmetricCipher(
+			algo,
+			mode,
+			direction
+		)
+	),
+	bufferPos(
+		0
+	),
+	bufferFilling(
+		false
+	),
+	error(
+		false
+	),
+	isInitalized(
+		false
+	),
+	dataWritten(
+		false
+	)
 {
 }
 
 SymmetricCipherStream::~SymmetricCipherStream()
 {
-    close();
+	this->close();
 }
 
-bool SymmetricCipherStream::init(const QByteArray& key, const QByteArray& iv)
+bool SymmetricCipherStream::init(
+	const QByteArray &key,
+	const QByteArray &iv
+)
 {
-    m_isInitalized = m_cipher->init(key, iv);
-    if (!m_isInitalized) {
-        setErrorString(m_cipher->errorString());
-    }
-
-    return m_isInitalized;
+	this->isInitalized = this->cipher->init(
+		key,
+		iv
+	);
+	if(!this->isInitalized)
+	{
+		this->setErrorString(
+			this->cipher->getErrorString()
+		);
+	}
+	return this->isInitalized;
 }
 
 void SymmetricCipherStream::resetInternalState()
 {
-    m_buffer.clear();
-    m_bufferPos = 0;
-    m_bufferFilling = false;
-    m_error = false;
-    m_dataWritten = false;
-    m_cipher->reset();
+	this->buffer.clear();
+	this->bufferPos = 0;
+	this->bufferFilling = false;
+	this->error = false;
+	this->dataWritten = false;
+	if(const auto resetSuccesfully_ = this->cipher->reset();
+		!resetSuccesfully_)
+	{
+		this->setErrorString(
+			"Failed to reset cypher."
+		);
+	}
 }
 
-bool SymmetricCipherStream::open(QIODevice::OpenMode mode)
+bool SymmetricCipherStream::open(
+	const OpenMode mode
+)
 {
-    if (!m_isInitalized) {
-        return false;
-    }
-
-    return LayeredStream::open(mode);
+	if(!this->isInitalized)
+	{
+		return false;
+	}
+	return LayeredStream::open(
+		mode
+	);
 }
 
 bool SymmetricCipherStream::reset()
 {
-    if (isWritable() && m_dataWritten) {
-        if (!writeBlock(true)) {
-            return false;
-        }
-    }
-
-    resetInternalState();
-
-    return true;
+	if(this->isWritable() && this->dataWritten)
+	{
+		if(!this->writeBlock(
+			true
+		))
+		{
+			return false;
+		}
+	}
+	this->resetInternalState();
+	return true;
 }
 
 void SymmetricCipherStream::close()
 {
-    if (isWritable() && m_dataWritten) {
-        writeBlock(true);
-    }
-
-    resetInternalState();
-
-    LayeredStream::close();
+	if(this->isWritable() && this->dataWritten)
+	{
+		this->writeBlock(
+			true
+		);
+	}
+	this->resetInternalState();
+	LayeredStream::close();
 }
 
-qint64 SymmetricCipherStream::readData(char* data, qint64 maxSize)
+qint64 SymmetricCipherStream::readData(
+	char* data,
+	const qint64 maxSize
+)
 {
-    Q_ASSERT(maxSize >= 0);
-
-    if (m_error) {
-        return -1;
-    }
-
-    qint64 bytesRemaining = maxSize;
-    qint64 offset = 0;
-
-    while (bytesRemaining > 0) {
-        if ((m_bufferPos == m_buffer.size()) || m_bufferFilling) {
-            if (!readBlock()) {
-                if (m_error) {
-                    return -1;
-                }
-                else {
-                    return maxSize - bytesRemaining;
-                }
-            }
-        }
-
-        int bytesToCopy = qMin(bytesRemaining, static_cast<qint64>(m_buffer.size() - m_bufferPos));
-
-        memcpy(data + offset, m_buffer.constData() + m_bufferPos, bytesToCopy);
-
-        offset += bytesToCopy;
-        m_bufferPos += bytesToCopy;
-        bytesRemaining -= bytesToCopy;
-    }
-
-    return maxSize;
+	if(maxSize <= 0)
+	{
+		return 0;
+	}
+	if(this->error)
+	{
+		return -1;
+	}
+	qint64 bytesRemaining_ = maxSize;
+	qint64 offset_ = 0;
+	while(bytesRemaining_ > 0)
+	{
+		if((this->bufferPos == this->buffer.size()) || this->bufferFilling)
+		{
+			if(!this->readBlock())
+			{
+				if(this->error)
+				{
+					return -1;
+				}
+				return maxSize - bytesRemaining_;
+			}
+		}
+		const int bytesToCopy_ = qMin(
+			static_cast<int>(bytesRemaining_),
+			static_cast<int>(this->buffer.size() - this->bufferPos)
+		);
+		memcpy(
+			data + offset_,
+			this->buffer.constData() + this->bufferPos,
+			bytesToCopy_
+		);
+		offset_ += bytesToCopy_;
+		this->bufferPos += bytesToCopy_;
+		bytesRemaining_ -= bytesToCopy_;
+	}
+	return maxSize;
 }
 
 bool SymmetricCipherStream::readBlock()
 {
-    QByteArray newData;
-
-    if (m_bufferFilling) {
-        newData.resize(m_cipher->blockSize() - m_buffer.size());
-    }
-    else {
-        m_buffer.clear();
-        newData.resize(m_cipher->blockSize());
-    }
-
-    int readResult = m_baseDevice->read(newData.data(), newData.size());
-
-    if (readResult == -1) {
-        m_error = true;
-        setErrorString(m_baseDevice->errorString());
-        return false;
-    }
-    else {
-        m_buffer.append(newData.left(readResult));
-    }
-
-    if (m_buffer.size() != m_cipher->blockSize()) {
-        m_bufferFilling = true;
-        return false;
-    }
-    else {
-        if (!m_cipher->processInPlace(m_buffer)) {
-            m_error = true;
-            setErrorString(m_cipher->errorString());
-            return false;
-        }
-        m_bufferPos = 0;
-        m_bufferFilling = false;
-
-        if (m_baseDevice->atEnd()) {
-            // PKCS7 padding
-            quint8 padLength = m_buffer.at(m_buffer.size() - 1);
-
-            if (padLength == m_cipher->blockSize()) {
-                Q_ASSERT(m_buffer == QByteArray(m_cipher->blockSize(), m_cipher->blockSize()));
-                // full block with just padding: discard
-                m_buffer.clear();
-                return false;
-            }
-            else if (padLength > m_cipher->blockSize()) {
-                // invalid padding
-                m_error = true;
-                setErrorString("Invalid padding.");
-                return false;
-            }
-            else {
-                Q_ASSERT(m_buffer.right(padLength) == QByteArray(padLength, padLength));
-                // resize buffer to strip padding
-                m_buffer.resize(m_cipher->blockSize() - padLength);
-                return true;
-            }
-        }
-        else {
-            return true;
-        }
-    }
+	QByteArray newData_;
+	if(this->bufferFilling)
+	{
+		newData_.resize(
+			this->cipher->getBlockSize() - this->buffer.size()
+		);
+	}
+	else
+	{
+		this->buffer.clear();
+		newData_.resize(
+			this->cipher->getBlockSize()
+		);
+	}
+	const auto readResult_ = static_cast<int>(this->getBaseDevice()->read(
+		newData_.data(),
+		newData_.size()
+	));
+	if(readResult_ == -1)
+	{
+		this->error = true;
+		this->setErrorString(
+			this->getBaseDevice()->errorString()
+		);
+		return false;
+	}
+	this->buffer.append(
+		newData_.left(
+			readResult_
+		)
+	);
+	if(this->buffer.size() != this->cipher->getBlockSize())
+	{
+		this->bufferFilling = true;
+		return false;
+	}
+	if(!this->cipher->processInPlace(
+		this->buffer
+	))
+	{
+		this->error = true;
+		this->setErrorString(
+			this->cipher->getErrorString()
+		);
+		return false;
+	}
+	this->bufferPos = 0;
+	this->bufferFilling = false;
+	if(this->getBaseDevice()->atEnd())
+	{
+		const quint8 padLength_ = this->buffer.at(
+			this->buffer.size() - 1
+		);
+		// PKCS7 padding
+		if(padLength_ == this->cipher->getBlockSize())
+		{
+			if(this->buffer != QByteArray(
+				this->cipher->getBlockSize(),
+				static_cast<char>(this->cipher->getBlockSize())
+			))
+			{
+				this->error = true;
+				this->setErrorString(
+					"Invalid block size."
+				);
+				return false; // Or return an error code
+			}
+			// full block with just padding: discard
+			this->buffer.clear();
+			return false;
+		}
+		if(padLength_ > this->cipher->getBlockSize())
+		{
+			// invalid padding
+			this->error = true;
+			this->setErrorString(
+				"Invalid padding."
+			);
+			return false;
+		}
+		if(this->buffer.right(
+			padLength_
+		) != QByteArray(
+			padLength_,
+			static_cast<char>(padLength_)
+		))
+		{
+			return false;
+		};
+		// resize buffer to strip padding
+		this->buffer.resize(
+			this->cipher->getBlockSize() - padLength_
+		);
+		return true;
+	}
+	return true;
 }
 
-qint64 SymmetricCipherStream::writeData(const char* data, qint64 maxSize)
+qint64 SymmetricCipherStream::writeData(
+	const char* data,
+	const qint64 maxSize
+)
 {
-    Q_ASSERT(maxSize >= 0);
-
-    if (m_error) {
-        return -1;
-    }
-
-    m_dataWritten = true;
-    qint64 bytesRemaining = maxSize;
-    qint64 offset = 0;
-
-    while (bytesRemaining > 0) {
-        int bytesToCopy = qMin(bytesRemaining, static_cast<qint64>(m_cipher->blockSize() - m_buffer.size()));
-
-        m_buffer.append(data + offset, bytesToCopy);
-
-        offset += bytesToCopy;
-        bytesRemaining -= bytesToCopy;
-
-        if (m_buffer.size() == m_cipher->blockSize()) {
-            if (!writeBlock(false)) {
-                if (m_error) {
-                    return -1;
-                }
-                else {
-                    return maxSize - bytesRemaining;
-                }
-            }
-        }
-    }
-
-    return maxSize;
+	if(maxSize <= 0)
+	{
+		return 0;
+	}
+	if(this->error)
+	{
+		return -1;
+	}
+	this->dataWritten = true;
+	qint64 bytesRemaining_ = maxSize;
+	qint64 offset_ = 0;
+	while(bytesRemaining_ > 0)
+	{
+		const int bytesToCopy_ = qMin(
+			static_cast<int>(bytesRemaining_),
+			static_cast<int>(this->cipher->getBlockSize() - this->buffer.size())
+		);
+		this->buffer.append(
+			data + offset_,
+			bytesToCopy_
+		);
+		offset_ += bytesToCopy_;
+		bytesRemaining_ -= bytesToCopy_;
+		if(this->buffer.size() == this->cipher->getBlockSize())
+		{
+			if(!writeBlock(
+				false
+			))
+			{
+				if(this->error)
+				{
+					return -1;
+				}
+				return maxSize - bytesRemaining_;
+			}
+		}
+	}
+	return maxSize;
 }
 
-bool SymmetricCipherStream::writeBlock(bool lastBlock)
+bool SymmetricCipherStream::writeBlock(
+	const bool lastBlock
+)
 {
-    Q_ASSERT(lastBlock || (m_buffer.size() == m_cipher->blockSize()));
-
-    if (lastBlock) {
-        // PKCS7 padding
-        int padLen = m_cipher->blockSize() - m_buffer.size();
-        for (int i = 0; i < padLen; i++) {
-            m_buffer.append(static_cast<char>(padLen));
-        }
-    }
-
-    if (!m_cipher->processInPlace(m_buffer)) {
-        m_error = true;
-        setErrorString(m_cipher->errorString());
-        return false;
-    }
-
-    if (m_baseDevice->write(m_buffer) != m_buffer.size()) {
-        m_error = true;
-        setErrorString(m_baseDevice->errorString());
-        return false;
-    }
-    else {
-        m_buffer.clear();
-        return true;
-    }
+	if(lastBlock)
+	{
+		// PKCS7 padding
+		const auto padLen_ = static_cast<int>(this->cipher->getBlockSize() -
+			this->buffer.size());
+		for(auto i_ = 0; i_ < padLen_; i_++)
+		{
+			this->buffer.append(
+				static_cast<char>(padLen_)
+			);
+		}
+	}
+	if(!this->cipher->processInPlace(
+		this->buffer
+	))
+	{
+		this->error = true;
+		this->setErrorString(
+			this->cipher->getErrorString()
+		);
+		return false;
+	}
+	if(this->getBaseDevice()->write(
+		this->buffer
+	) != this->buffer.size())
+	{
+		this->error = true;
+		this->setErrorString(
+			this->getBaseDevice()->errorString()
+		);
+		return false;
+	}
+	this->buffer.clear();
+	return true;
 }

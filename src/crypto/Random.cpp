@@ -14,85 +14,134 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "Random.h"
-
 #include <gcrypt.h>
-
 #include "core/Global.h"
 #include "crypto/Crypto.h"
 
-class RandomBackendGcrypt : public RandomBackend
+class RandomBackendGcrypt final:public RandomBackend
 {
 public:
-    void randomize(void* data, int len) override;
+	virtual void randomize(
+		void* data,
+		int len
+	) override;
 };
 
-Random* Random::m_instance(nullptr);
+Random* Random::instance(
+	nullptr
+);
 
-void Random::randomize(QByteArray& ba)
+void Random::randomize(
+	QByteArray &ba
+) const
 {
-    m_backend->randomize(ba.data(), ba.size());
+	this->backend->randomize(
+		ba.data(),
+		static_cast<int>(ba.size())
+	);
 }
 
-QByteArray Random::randomArray(int len)
+QByteArray Random::getRandomArray(
+	const int len
+) const
 {
-    QByteArray ba;
-    ba.resize(len);
-
-    randomize(ba);
-
-    return ba;
+	QByteArray ba_;
+	ba_.resize(
+		len
+	);
+	this->randomize(
+		ba_
+	);
+	return ba_;
 }
 
-quint32 Random::randomUInt(quint32 limit)
+quint32 Random::getRandomUInt(
+	const quint32 limit
+) const
 {
-    Q_ASSERT(limit != 0);
-    Q_ASSERT(limit <= QUINT32_MAX);
-
-    quint32 rand;
-    const quint32 ceil = QUINT32_MAX - (QUINT32_MAX % limit) - 1;
-
-    // To avoid modulo bias:
-    // Make sure rand is below the largest number where rand%limit==0
-    do {
-        m_backend->randomize(&rand, 4);
-    } while (rand > ceil);
-
-    return (rand % limit);
+	if(limit == 0)
+	{
+		return 0;
+	}
+	if(limit == QUINT32_MAX)
+	{
+		return 0;
+	}
+	quint32 rand_;
+	const quint32 ceil_ = QUINT32_MAX - (QUINT32_MAX % limit) - 1;
+	// To avoid modulo bias:
+	// Make sure rand is below the largest number where rand%limit==0
+	do
+	{
+		this->backend->randomize(
+			&rand_,
+			4
+		);
+	}
+	while(rand_ > ceil_);
+	return (rand_ % limit);
 }
 
-quint32 Random::randomUIntRange(quint32 min, quint32 max)
+quint32 Random::getRandomUIntRange(
+	const quint32 min,
+	const quint32 max
+) const
 {
-    return min + randomUInt(max - min);
+	return min + getRandomUInt(
+		max - min
+	);
 }
 
-Random* Random::instance()
+Random* Random::getInstance()
 {
-    if (!m_instance) {
-        m_instance = new Random(new RandomBackendGcrypt());
-    }
-
-    return m_instance;
+	if(!instance)
+	{
+		instance = new Random(
+			new RandomBackendGcrypt()
+		);
+	}
+	return instance;
 }
 
-void Random::createWithBackend(RandomBackend* backend)
+void Random::createWithBackend(
+	RandomBackend* backend
+)
 {
-    Q_ASSERT(backend);
-    Q_ASSERT(!m_instance);
-
-    m_instance = new Random(backend);
+	if(backend == nullptr)
+	{
+		return;
+	}
+	if(instance != nullptr)
+	{
+		return;
+	}
+	instance = new Random(
+		backend
+	);
 }
 
-Random::Random(RandomBackend* backend)
-    : m_backend(backend)
+Random::Random(
+	RandomBackend* backend
+)
+	: backend(
+		backend
+	)
 {
 }
 
-
-void RandomBackendGcrypt::randomize(void* data, int len)
+void RandomBackendGcrypt::randomize(
+	void* data,
+	const int len
+)
 {
-    Q_ASSERT(Crypto::initalized());
-
-    gcry_randomize(data, len, GCRY_STRONG_RANDOM);
+	if(!Crypto::getInitalized())
+	{
+		return;
+	}
+	gcry_randomize(
+		data,
+		len,
+		GCRY_STRONG_RANDOM
+	);
 }

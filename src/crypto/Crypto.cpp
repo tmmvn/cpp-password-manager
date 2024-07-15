@@ -14,20 +14,16 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "Crypto.h"
-
-#include <QMutex>
-
 #include <gcrypt.h>
-
-#include "config-keepassx.h"
+#include <QMutex>
 #include "crypto/CryptoHash.h"
 #include "crypto/SymmetricCipher.h"
-
-bool Crypto::m_initalized(false);
-QString Crypto::m_errorStr;
-QString Crypto::m_backendVersion;
+bool Crypto::initalized(
+	false
+);
+QString Crypto::errorStr;
+QString Crypto::backendVersion;
 
 Crypto::Crypto()
 {
@@ -35,253 +31,475 @@ Crypto::Crypto()
 
 bool Crypto::init()
 {
-    if (m_initalized) {
-        qWarning("Crypto::init: already initalized");
-        return true;
-    }
-
-    m_backendVersion = QString::fromLocal8Bit(gcry_check_version(0));
-    gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
-
-    if (!checkAlgorithms()) {
-        return false;
-    }
-
-    // has to be set before testing Crypto classes
-    m_initalized = true;
-
-    if (!selfTest()) {
-        m_initalized = false;
-        return false;
-    }
-
-    return true;
-}
-
-bool Crypto::initalized()
-{
-    return m_initalized;
-}
-
-QString Crypto::errorString()
-{
-    return m_errorStr;
-}
-
-QString Crypto::backendVersion()
-{
-    return QString("libgcrypt ").append(m_backendVersion);
+	if(initalized)
+	{
+		qWarning(
+			"Crypto::init: already initalized"
+		);
+		return true;
+	}
+	backendVersion = QString::fromLocal8Bit(
+		gcry_check_version(
+			nullptr
+		)
+	);
+	gcry_control(
+		GCRYCTL_INITIALIZATION_FINISHED,
+		0
+	);
+	if(!checkAlgorithms())
+	{
+		return false;
+	}
+	// has to be set before testing Crypto classes
+	initalized = true;
+	if(!selfTest())
+	{
+		initalized = false;
+		return false;
+	}
+	return true;
 }
 
 bool Crypto::backendSelfTest()
 {
-    return (gcry_control(GCRYCTL_SELFTEST) == 0);
+	return (gcry_control(
+		GCRYCTL_SELFTEST
+	) == 0);
 }
 
 bool Crypto::checkAlgorithms()
 {
-    if (gcry_cipher_algo_info(GCRY_CIPHER_AES256, GCRYCTL_TEST_ALGO, nullptr, nullptr) != 0) {
-        m_errorStr = "GCRY_CIPHER_AES256 not found.";
-        qWarning("Crypto::checkAlgorithms: %s", qPrintable(m_errorStr));
-        return false;
-    }
-    if (gcry_cipher_algo_info(GCRY_CIPHER_TWOFISH, GCRYCTL_TEST_ALGO, nullptr, nullptr) != 0) {
-        m_errorStr = "GCRY_CIPHER_TWOFISH not found.";
-        qWarning("Crypto::checkAlgorithms: %s", qPrintable(m_errorStr));
-        return false;
-    }
-    if (gcry_cipher_algo_info(GCRY_CIPHER_SALSA20, GCRYCTL_TEST_ALGO, nullptr, nullptr) != 0) {
-        m_errorStr = "GCRY_CIPHER_SALSA20 not found.";
-        qWarning("Crypto::checkAlgorithms: %s", qPrintable(m_errorStr));
-        return false;
-    }
-    if (gcry_md_test_algo(GCRY_MD_SHA256) != 0) {
-        m_errorStr = "GCRY_MD_SHA256 not found.";
-        qWarning("Crypto::checkAlgorithms: %s", qPrintable(m_errorStr));
-        return false;
-    }
-
-    return true;
+	if(gcry_cipher_algo_info(
+		GCRY_CIPHER_AES256,
+		GCRYCTL_TEST_ALGO,
+		nullptr,
+		nullptr
+	) != 0)
+	{
+		errorStr = "GCRY_CIPHER_AES256 not found.";
+		qWarning(
+			"Crypto::checkAlgorithms: %s",
+			qPrintable(
+				errorStr
+			)
+		);
+		return false;
+	}
+	if(gcry_cipher_algo_info(
+		GCRY_CIPHER_TWOFISH,
+		GCRYCTL_TEST_ALGO,
+		nullptr,
+		nullptr
+	) != 0)
+	{
+		errorStr = "GCRY_CIPHER_TWOFISH not found.";
+		qWarning(
+			"Crypto::checkAlgorithms: %s",
+			qPrintable(
+				errorStr
+			)
+		);
+		return false;
+	}
+	if(gcry_cipher_algo_info(
+		GCRY_CIPHER_SALSA20,
+		GCRYCTL_TEST_ALGO,
+		nullptr,
+		nullptr
+	) != 0)
+	{
+		errorStr = "GCRY_CIPHER_SALSA20 not found.";
+		qWarning(
+			"Crypto::checkAlgorithms: %s",
+			qPrintable(
+				errorStr
+			)
+		);
+		return false;
+	}
+	if(gcry_md_test_algo(
+		GCRY_MD_SHA256
+	) != 0)
+	{
+		errorStr = "GCRY_MD_SHA256 not found.";
+		qWarning(
+			"Crypto::checkAlgorithms: %s",
+			qPrintable(
+				errorStr
+			)
+		);
+		return false;
+	}
+	return true;
 }
 
 bool Crypto::selfTest()
 {
-    return testSha256() && testAes256Cbc() && testAes256Ecb() && testTwofish() && testSalsa20();
+	return testSha256() && testAes256Cbc() && testAes256Ecb() && testTwofish()
+		&& testSalsa20();
 }
 
-void Crypto::raiseError(const QString& str)
+void Crypto::raiseError(
+	const QString &str
+)
 {
-    m_errorStr = str;
-    qWarning("Crypto::selfTest: %s", qPrintable(m_errorStr));
+	errorStr = str;
+	qWarning(
+		"Crypto::selfTest: %s",
+		qPrintable(
+			errorStr
+		)
+	);
 }
 
 bool Crypto::testSha256()
 {
-    QByteArray sha256Test = CryptoHash::hash("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
-                                             CryptoHash::Sha256);
-
-    if (sha256Test != QByteArray::fromHex("248D6A61D20638B8E5C026930C3E6039A33CE45964FF2167F6ECEDD419DB06C1")) {
-        raiseError("SHA-256 mismatch.");
-        return false;
-    }
-
-    return true;
+	if(const QByteArray sha256Test_ = CryptoHash::hash(
+			"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+			CryptoHash::Sha256
+		);
+		sha256Test_ != QByteArray::fromHex(
+			"248D6A61D20638B8E5C026930C3E6039A33CE45964FF2167F6ECEDD419DB06C1"
+		))
+	{
+		raiseError(
+			"SHA-256 mismatch."
+		);
+		return false;
+	}
+	return true;
 }
 
 bool Crypto::testAes256Cbc()
 {
-    QByteArray key = QByteArray::fromHex("603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4");
-    QByteArray iv = QByteArray::fromHex("000102030405060708090a0b0c0d0e0f");
-    QByteArray plainText = QByteArray::fromHex("6bc1bee22e409f96e93d7e117393172a");
-    plainText.append(QByteArray::fromHex("ae2d8a571e03ac9c9eb76fac45af8e51"));
-    QByteArray cipherText = QByteArray::fromHex("f58c4c04d6e5f1ba779eabfb5f7bfbd6");
-    cipherText.append(QByteArray::fromHex("9cfc4e967edb808d679f777bc6702c7d"));
-    bool ok;
-
-    SymmetricCipher aes256Encrypt(SymmetricCipher::Aes256, SymmetricCipher::Cbc, SymmetricCipher::Encrypt);
-    if (!aes256Encrypt.init(key, iv)) {
-        raiseError(aes256Encrypt.errorString());
-        return false;
-    }
-    QByteArray encryptedText = aes256Encrypt.process(plainText, &ok);
-    if (!ok) {
-        raiseError(aes256Encrypt.errorString());
-        return false;
-    }
-    if (encryptedText != cipherText) {
-        raiseError("AES-256 CBC encryption mismatch.");
-        return false;
-    }
-
-    SymmetricCipher aes256Descrypt(SymmetricCipher::Aes256, SymmetricCipher::Cbc, SymmetricCipher::Decrypt);
-    if (!aes256Descrypt.init(key, iv)) {
-        raiseError(aes256Descrypt.errorString());
-        return false;
-    }
-    QByteArray decryptedText = aes256Descrypt.process(cipherText, &ok);
-    if (!ok) {
-        raiseError(aes256Descrypt.errorString());
-        return false;
-    }
-    if (decryptedText != plainText) {
-        raiseError("AES-256 CBC decryption mismatch.");
-        return false;
-    }
-
-    return true;
+	const QByteArray key_ = QByteArray::fromHex(
+		"603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4"
+	);
+	const QByteArray iv_ = QByteArray::fromHex(
+		"000102030405060708090a0b0c0d0e0f"
+	);
+	QByteArray plainText_ = QByteArray::fromHex(
+		"6bc1bee22e409f96e93d7e117393172a"
+	);
+	plainText_.append(
+		QByteArray::fromHex(
+			"ae2d8a571e03ac9c9eb76fac45af8e51"
+		)
+	);
+	QByteArray cipherText_ = QByteArray::fromHex(
+		"f58c4c04d6e5f1ba779eabfb5f7bfbd6"
+	);
+	cipherText_.append(
+		QByteArray::fromHex(
+			"9cfc4e967edb808d679f777bc6702c7d"
+		)
+	);
+	bool ok_;
+	SymmetricCipher aes256Encrypt_(
+		SymmetricCipher::Aes256,
+		SymmetricCipher::Cbc,
+		SymmetricCipher::Encrypt
+	);
+	if(!aes256Encrypt_.init(
+		key_,
+		iv_
+	))
+	{
+		raiseError(
+			aes256Encrypt_.getErrorString()
+		);
+		return false;
+	}
+	const QByteArray encryptedText_ = aes256Encrypt_.process(
+		plainText_,
+		&ok_
+	);
+	if(!ok_)
+	{
+		raiseError(
+			aes256Encrypt_.getErrorString()
+		);
+		return false;
+	}
+	if(encryptedText_ != cipherText_)
+	{
+		raiseError(
+			"AES-256 CBC encryption mismatch."
+		);
+		return false;
+	}
+	SymmetricCipher aes256Decrypt_(
+		SymmetricCipher::Aes256,
+		SymmetricCipher::Cbc,
+		SymmetricCipher::Decrypt
+	);
+	if(!aes256Decrypt_.init(
+		key_,
+		iv_
+	))
+	{
+		raiseError(
+			aes256Decrypt_.getErrorString()
+		);
+		return false;
+	}
+	const QByteArray decryptedText_ = aes256Decrypt_.process(
+		cipherText_,
+		&ok_
+	);
+	if(!ok_)
+	{
+		raiseError(
+			aes256Decrypt_.getErrorString()
+		);
+		return false;
+	}
+	if(decryptedText_ != plainText_)
+	{
+		raiseError(
+			"AES-256 CBC decryption mismatch."
+		);
+		return false;
+	}
+	return true;
 }
 
 bool Crypto::testAes256Ecb()
 {
-    QByteArray key = QByteArray::fromHex("000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F");
-    QByteArray iv = QByteArray::fromHex("00000000000000000000000000000000");
-    QByteArray plainText = QByteArray::fromHex("00112233445566778899AABBCCDDEEFF");
-    plainText.append(QByteArray::fromHex("00112233445566778899AABBCCDDEEFF"));
-    QByteArray cipherText = QByteArray::fromHex("8EA2B7CA516745BFEAFC49904B496089");
-    cipherText.append(QByteArray::fromHex("8EA2B7CA516745BFEAFC49904B496089"));
-    bool ok;
-
-    SymmetricCipher aes256Encrypt(SymmetricCipher::Aes256, SymmetricCipher::Ecb, SymmetricCipher::Encrypt);
-    if (!aes256Encrypt.init(key, iv)) {
-        raiseError(aes256Encrypt.errorString());
-        return false;
-    }
-    QByteArray encryptedText = aes256Encrypt.process(plainText, &ok);
-    if (!ok) {
-        raiseError(aes256Encrypt.errorString());
-        return false;
-    }
-    if (encryptedText != cipherText) {
-        raiseError("AES-256 ECB encryption mismatch.");
-        return false;
-    }
-
-    SymmetricCipher aes256Descrypt(SymmetricCipher::Aes256, SymmetricCipher::Ecb, SymmetricCipher::Decrypt);
-    if (!aes256Descrypt.init(key, iv)) {
-        raiseError(aes256Descrypt.errorString());
-        return false;
-    }
-    QByteArray decryptedText = aes256Descrypt.process(cipherText, &ok);
-    if (!ok) {
-        raiseError(aes256Descrypt.errorString());
-        return false;
-    }
-    if (decryptedText != plainText) {
-        raiseError("AES-256 ECB decryption mismatch.");
-        return false;
-    }
-
-    return true;
+	const QByteArray key_ = QByteArray::fromHex(
+		"000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F"
+	);
+	const QByteArray iv_ = QByteArray::fromHex(
+		"00000000000000000000000000000000"
+	);
+	QByteArray plainText_ = QByteArray::fromHex(
+		"00112233445566778899AABBCCDDEEFF"
+	);
+	plainText_.append(
+		QByteArray::fromHex(
+			"00112233445566778899AABBCCDDEEFF"
+		)
+	);
+	QByteArray cipherText_ = QByteArray::fromHex(
+		"8EA2B7CA516745BFEAFC49904B496089"
+	);
+	cipherText_.append(
+		QByteArray::fromHex(
+			"8EA2B7CA516745BFEAFC49904B496089"
+		)
+	);
+	bool ok_;
+	SymmetricCipher aes256Encrypt_(
+		SymmetricCipher::Aes256,
+		SymmetricCipher::Ecb,
+		SymmetricCipher::Encrypt
+	);
+	if(!aes256Encrypt_.init(
+		key_,
+		iv_
+	))
+	{
+		raiseError(
+			aes256Encrypt_.getErrorString()
+		);
+		return false;
+	}
+	const QByteArray encryptedText_ = aes256Encrypt_.process(
+		plainText_,
+		&ok_
+	);
+	if(!ok_)
+	{
+		raiseError(
+			aes256Encrypt_.getErrorString()
+		);
+		return false;
+	}
+	if(encryptedText_ != cipherText_)
+	{
+		raiseError(
+			"AES-256 ECB encryption mismatch."
+		);
+		return false;
+	}
+	SymmetricCipher aes256Decrypt_(
+		SymmetricCipher::Aes256,
+		SymmetricCipher::Ecb,
+		SymmetricCipher::Decrypt
+	);
+	if(!aes256Decrypt_.init(
+		key_,
+		iv_
+	))
+	{
+		raiseError(
+			aes256Decrypt_.getErrorString()
+		);
+		return false;
+	}
+	const QByteArray decryptedText_ = aes256Decrypt_.process(
+		cipherText_,
+		&ok_
+	);
+	if(!ok_)
+	{
+		raiseError(
+			aes256Decrypt_.getErrorString()
+		);
+		return false;
+	}
+	if(decryptedText_ != plainText_)
+	{
+		raiseError(
+			"AES-256 ECB decryption mismatch."
+		);
+		return false;
+	}
+	return true;
 }
 
 bool Crypto::testTwofish()
 {
-    QByteArray key = QByteArray::fromHex("603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4");
-    QByteArray iv = QByteArray::fromHex("000102030405060708090a0b0c0d0e0f");
-    QByteArray plainText = QByteArray::fromHex("6bc1bee22e409f96e93d7e117393172a");
-    plainText.append(QByteArray::fromHex("ae2d8a571e03ac9c9eb76fac45af8e51"));
-    QByteArray cipherText = QByteArray::fromHex("e0227c3cc80f3cb1b2ed847cc6f57d3c");
-    cipherText.append(QByteArray::fromHex("657b1e7960b30fb7c8d62e72ae37c3a0"));
-    bool ok;
-
-    SymmetricCipher twofishEncrypt(SymmetricCipher::Twofish, SymmetricCipher::Cbc, SymmetricCipher::Encrypt);
-    if (!twofishEncrypt.init(key, iv)) {
-        raiseError(twofishEncrypt.errorString());
-        return false;
-    }
-    QByteArray encryptedText = twofishEncrypt.process(plainText, &ok);
-    if (!ok) {
-        raiseError(twofishEncrypt.errorString());
-        return false;
-    }
-    if (encryptedText != cipherText) {
-        raiseError("Twofish encryption mismatch.");
-        return false;
-    }
-
-
-    SymmetricCipher twofishDecrypt(SymmetricCipher::Twofish, SymmetricCipher::Cbc, SymmetricCipher::Decrypt);
-    if (!twofishDecrypt.init(key, iv)) {
-        raiseError(twofishEncrypt.errorString());
-        return false;
-    }
-    QByteArray decryptedText = twofishDecrypt.process(cipherText, &ok);
-    if (!ok) {
-        raiseError(twofishDecrypt.errorString());
-        return false;
-    }
-    if (decryptedText != plainText) {
-        raiseError("Twofish encryption mismatch.");
-        return false;
-    }
-
-    return true;
+	const QByteArray key_ = QByteArray::fromHex(
+		"603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4"
+	);
+	const QByteArray iv_ = QByteArray::fromHex(
+		"000102030405060708090a0b0c0d0e0f"
+	);
+	QByteArray plainText_ = QByteArray::fromHex(
+		"6bc1bee22e409f96e93d7e117393172a"
+	);
+	plainText_.append(
+		QByteArray::fromHex(
+			"ae2d8a571e03ac9c9eb76fac45af8e51"
+		)
+	);
+	QByteArray cipherText_ = QByteArray::fromHex(
+		"e0227c3cc80f3cb1b2ed847cc6f57d3c"
+	);
+	cipherText_.append(
+		QByteArray::fromHex(
+			"657b1e7960b30fb7c8d62e72ae37c3a0"
+		)
+	);
+	bool ok_;
+	SymmetricCipher twofishEncrypt_(
+		SymmetricCipher::Twofish,
+		SymmetricCipher::Cbc,
+		SymmetricCipher::Encrypt
+	);
+	if(!twofishEncrypt_.init(
+		key_,
+		iv_
+	))
+	{
+		raiseError(
+			twofishEncrypt_.getErrorString()
+		);
+		return false;
+	}
+	const QByteArray encryptedText_ = twofishEncrypt_.process(
+		plainText_,
+		&ok_
+	);
+	if(!ok_)
+	{
+		raiseError(
+			twofishEncrypt_.getErrorString()
+		);
+		return false;
+	}
+	if(encryptedText_ != cipherText_)
+	{
+		raiseError(
+			"Twofish encryption mismatch."
+		);
+		return false;
+	}
+	SymmetricCipher twofishDecrypt_(
+		SymmetricCipher::Twofish,
+		SymmetricCipher::Cbc,
+		SymmetricCipher::Decrypt
+	);
+	if(!twofishDecrypt_.init(
+		key_,
+		iv_
+	))
+	{
+		raiseError(
+			twofishEncrypt_.getErrorString()
+		);
+		return false;
+	}
+	const QByteArray decryptedText_ = twofishDecrypt_.process(
+		cipherText_,
+		&ok_
+	);
+	if(!ok_)
+	{
+		raiseError(
+			twofishDecrypt_.getErrorString()
+		);
+		return false;
+	}
+	if(decryptedText_ != plainText_)
+	{
+		raiseError(
+			"Twofish encryption mismatch."
+		);
+		return false;
+	}
+	return true;
 }
 
 bool Crypto::testSalsa20()
 {
-    QByteArray salsa20Key = QByteArray::fromHex("F3F4F5F6F7F8F9FAFBFCFDFEFF000102030405060708090A0B0C0D0E0F101112");
-    QByteArray salsa20iv = QByteArray::fromHex("0000000000000000");
-    QByteArray salsa20Plain = QByteArray::fromHex("00000000000000000000000000000000");
-    QByteArray salsa20Cipher = QByteArray::fromHex("B4C0AFA503BE7FC29A62058166D56F8F");
-    bool ok;
-
-    SymmetricCipher salsa20Stream(SymmetricCipher::Salsa20, SymmetricCipher::Stream,
-                                  SymmetricCipher::Encrypt);
-    if (!salsa20Stream.init(salsa20Key, salsa20iv)) {
-        raiseError(salsa20Stream.errorString());
-        return false;
-    }
-
-    QByteArray salsaProcessed = salsa20Stream.process(salsa20Plain, &ok);
-    if (!ok) {
-        raiseError(salsa20Stream.errorString());
-        return false;
-    }
-    if (salsaProcessed != salsa20Cipher) {
-        raiseError("Salsa20 stream cipher mismatch.");
-        return false;
-    }
-
-    return true;
+	const QByteArray salsa20Key_ = QByteArray::fromHex(
+		"F3F4F5F6F7F8F9FAFBFCFDFEFF000102030405060708090A0B0C0D0E0F101112"
+	);
+	const QByteArray salsa20iv_ = QByteArray::fromHex(
+		"0000000000000000"
+	);
+	const QByteArray salsa20Plain_ = QByteArray::fromHex(
+		"00000000000000000000000000000000"
+	);
+	const QByteArray salsa20Cipher_ = QByteArray::fromHex(
+		"B4C0AFA503BE7FC29A62058166D56F8F"
+	);
+	bool ok_;
+	SymmetricCipher salsa20Stream_(
+		SymmetricCipher::Salsa20,
+		SymmetricCipher::Stream,
+		SymmetricCipher::Encrypt
+	);
+	if(!salsa20Stream_.init(
+		salsa20Key_,
+		salsa20iv_
+	))
+	{
+		raiseError(
+			salsa20Stream_.getErrorString()
+		);
+		return false;
+	}
+	const QByteArray salsaProcessed_ = salsa20Stream_.process(
+		salsa20Plain_,
+		&ok_
+	);
+	if(!ok_)
+	{
+		raiseError(
+			salsa20Stream_.getErrorString()
+		);
+		return false;
+	}
+	if(salsaProcessed_ != salsa20Cipher_)
+	{
+		raiseError(
+			"Salsa20 stream cipher mismatch."
+		);
+		return false;
+	}
+	return true;
 }

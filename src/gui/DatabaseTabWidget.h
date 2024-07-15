@@ -14,16 +14,12 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_DATABASETABWIDGET_H
 #define KEEPASSX_DATABASETABWIDGET_H
-
 #include <QHash>
 #include <QTabWidget>
-
 #include "format/KeePass2Writer.h"
 #include "gui/DatabaseWidget.h"
-
 class DatabaseWidget;
 class DatabaseWidgetStateSync;
 class DatabaseOpenWidget;
@@ -32,80 +28,117 @@ class QLockFile;
 
 struct DatabaseManagerStruct
 {
-    DatabaseManagerStruct();
-
-    DatabaseWidget* dbWidget;
-    QLockFile* lockFile;
-    QString filePath;
-    QString canonicalFilePath;
-    QString fileName;
-    bool saveToFilename;
-    bool modified;
-    bool readOnly;
+	DatabaseManagerStruct();
+	DatabaseWidget* dbWidget;
+	QLockFile* lockFile;
+	QString filePath;
+	QString canonicalFilePath;
+	QString fileName;
+	bool saveToFilename;
+	bool modified;
+	bool readOnly;
 };
 
-Q_DECLARE_TYPEINFO(DatabaseManagerStruct, Q_MOVABLE_TYPE);
+Q_DECLARE_TYPEINFO(
+	DatabaseManagerStruct,
+	Q_MOVABLE_TYPE
+);
 
-class DatabaseTabWidget : public QTabWidget
+class DatabaseTabWidget:public QTabWidget
 {
-    Q_OBJECT
-
-public:
-    explicit DatabaseTabWidget(QWidget* parent = nullptr);
-    ~DatabaseTabWidget();
-    void openDatabase(const QString& fileName, const QString& pw = QString(),
-                      const QString& keyFile = QString());
-    DatabaseWidget* currentDatabaseWidget();
-    bool hasLockableDatabases() const;
-
-    static const int LastDatabasesCount;
-
+	Q_OBJECT public:
+	explicit DatabaseTabWidget(
+		QWidget* parent = nullptr
+	);
+	virtual ~DatabaseTabWidget() override;
+	void openDatabase(
+		const QString &fileName,
+		const QString &pw = QString(),
+		const QString &keyFile = QString()
+	);
+	DatabaseWidget* getCurrentDatabaseWidget();
+	bool hasLockableDatabases() const;
+	static const int LastDatabasesCount;
 public Q_SLOTS:
-    void newDatabase();
-    void openDatabase();
-    void importKeePass1Database();
-    bool saveDatabase(int index = -1);
-    bool saveDatabaseAs(int index = -1);
-    void exportToCsv();
-    bool closeDatabase(int index = -1);
-    void closeDatabaseFromSender();
-    bool closeAllDatabases();
-    void changeMasterKey();
-    void changeDatabaseSettings();
-    bool readOnly(int index = -1);
-    void performGlobalAutoType();
-    void lockDatabases();
-
+	void do_newDatabase();
+	void do_openDatabase();
+	void do_importKeePass1Database();
+	bool do_saveDatabase(
+		int index = -1
+	);
+	bool do_saveDatabaseAs(
+		int index = -1
+	);
+	void do_exportToCsv();
+	bool do_closeDatabase(
+		int index = -1
+	);
+	void do_closeDatabaseFromSender();
+	bool do_closeAllDatabases();
+	void do_changeMasterKey();
+	void do_changeDatabaseSettings();
+	bool do_readOnly(
+		int index = -1
+	) const;
+	void do_lockDatabases();
 Q_SIGNALS:
-    void tabNameChanged();
-    void databaseWithFileClosed(QString filePath);
-    void activateDatabaseChanged(DatabaseWidget* dbWidget);
-
+	void sig_tabNameChanged();
+	void sig_databaseWithFileClosed(
+		QString filePath
+	);
+	void sig_activateDatabaseChanged(
+		DatabaseWidget* dbWidget
+	);
 private Q_SLOTS:
-    void updateTabName(Database* db);
-    void updateTabNameFromDbSender();
-    void updateTabNameFromDbWidgetSender();
-    void modified();
-    void toggleTabbar();
-    void changeDatabase(Database* newDb);
-    void emitActivateDatabaseChanged();
-
+	void do_updateTabName(
+		Database* db
+	);
+	void do_updateTabNameFromDbSender();
+	void do_updateTabNameFromDbWidgetSender();
+	void do_modified();
+	void do_toggleTabbar() const;
+	void do_changeDatabase(
+		Database* newDb
+	);
+	void do_emitActivateDatabaseChanged();
 private:
-    bool saveDatabase(Database* db);
-    bool saveDatabaseAs(Database* db);
-    bool closeDatabase(Database* db);
-    void deleteDatabase(Database* db);
-    int databaseIndex(Database* db);
-    Database* indexDatabase(int index);
-    DatabaseManagerStruct indexDatabaseManagerStruct(int index);
-    Database* databaseFromDatabaseWidget(DatabaseWidget* dbWidget);
-    void insertDatabase(Database* db, const DatabaseManagerStruct& dbStruct);
-    void updateLastDatabases(const QString& filename);
-    void connectDatabase(Database* newDb, Database* oldDb = nullptr);
-
-    KeePass2Writer m_writer;
-    QHash<Database*, DatabaseManagerStruct> m_dbList;
-    DatabaseWidgetStateSync* m_dbWidgetSateSync;
+	bool saveDatabase(
+		Database* db
+	);
+	bool saveDatabaseAs(
+		Database* db
+	);
+	bool closeDatabase(
+		Database* db
+	);
+	void deleteDatabase(
+		Database* db
+	);
+	int databaseIndex(
+		Database* db
+	) const;
+	Database* indexDatabase(
+		int index
+	) const;
+	DatabaseManagerStruct indexDatabaseManagerStruct(
+		int index
+	) const;
+	Database* databaseFromDatabaseWidget(
+		const DatabaseWidget* dbWidget
+	) const;
+	void insertDatabase(
+		Database* db,
+		const DatabaseManagerStruct &dbStruct
+	);
+	void updateLastDatabases(
+		const QString &filename
+	) const;
+	void connectDatabase(
+		Database* newDb,
+		const Database* oldDb = nullptr
+	) const;
+	KeePass2Writer writer;
+	QHash<Database*, DatabaseManagerStruct> dbList;
+	DatabaseWidgetStateSync* dbWidgetSateSync;
 };
-
 #endif // KEEPASSX_DATABASETABWIDGET_H

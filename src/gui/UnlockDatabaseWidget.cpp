@@ -14,25 +14,36 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "UnlockDatabaseWidget.h"
-
 #include "ui_DatabaseOpenWidget.h"
 #include "core/Database.h"
-#include "gui/MessageBox.h"
 
-UnlockDatabaseWidget::UnlockDatabaseWidget(QWidget* parent)
-    : DatabaseOpenWidget(parent)
+UnlockDatabaseWidget::UnlockDatabaseWidget(
+	QWidget* parent
+)
+	: DatabaseOpenWidget(
+		parent
+	)
 {
-    m_ui->labelHeadline->setText(tr("Unlock database"));
+	this->ui->labelHeadline->setText(
+		this->tr(
+			"Unlock database"
+		)
+	);
 }
 
 void UnlockDatabaseWidget::clearForms()
 {
-    m_ui->editPassword->clear();
-    m_ui->comboKeyFile->clear();
-    m_ui->checkPassword->setChecked(false);
-    m_ui->checkKeyFile->setChecked(false);
-    m_ui->buttonTogglePassword->setChecked(false);
-    m_db = nullptr;
+	this->ui->editPassword->clear();
+	this->ui->comboKeyFile->clear();
+	this->ui->checkPassword->setChecked(
+		false
+	);
+	this->ui->checkKeyFile->setChecked(
+		false
+	);
+	this->ui->buttonTogglePassword->setChecked(
+		false
+	);
+	this->db = nullptr;
 }

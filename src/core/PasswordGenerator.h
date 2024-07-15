@@ -14,59 +14,67 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_PASSWORDGENERATOR_H
 #define KEEPASSX_PASSWORDGENERATOR_H
-
-#include <QFlags>
 #include <QString>
 #include <QVector>
-
 typedef QVector<QChar> PasswordGroup;
 
 class PasswordGenerator
 {
 public:
-    enum CharClass
-    {
-        LowerLetters      = 0x1,
-        UpperLetters      = 0x2,
-        Numbers           = 0x4,
-        SpecialCharacters = 0x8
-    };
-    Q_DECLARE_FLAGS(CharClasses, CharClass)
+	enum CharClass: u_int8_t
+	{
+		LowerLetters = 0x1,
+		UpperLetters = 0x2,
+		Numbers = 0x4,
+		SpecialCharacters = 0x8
+	};
 
-    enum GeneratorFlag
-    {
-        ExcludeLookAlike   = 0x1,
-        CharFromEveryGroup = 0x2
-    };
-    Q_DECLARE_FLAGS(GeneratorFlags, GeneratorFlag)
+	Q_DECLARE_FLAGS(
+		CharClasses,
+		CharClass
+	)
 
+	enum GeneratorFlag: u_int8_t
+	{
+		ExcludeLookAlike = 0x1,
+		CharFromEveryGroup = 0x2
+	};
+
+	Q_DECLARE_FLAGS(
+		GeneratorFlags,
+		GeneratorFlag
+	)
 public:
-    PasswordGenerator();
-
-    void setLength(int length);
-    void setCharClasses(const CharClasses& classes);
-    void setFlags(const GeneratorFlags& flags);
-
-    bool isValid() const;
-
-    QString generatePassword() const;
-
+	PasswordGenerator();
+	void setLength(
+		int length
+	);
+	void setCharClasses(
+		const CharClasses &classes
+	);
+	void setFlags(
+		const GeneratorFlags &flags
+	);
+	bool isValid() const;
+	QString generatePassword() const;
 private:
-    QVector<PasswordGroup> passwordGroups() const;
-    int numCharClasses() const;
-
-    int m_length;
-    CharClasses m_classes;
-    GeneratorFlags m_flags;
-
-    Q_DISABLE_COPY(PasswordGenerator)
+	QVector<PasswordGroup> getPasswordGroups() const;
+	int numCharClasses() const;
+	int length;
+	CharClasses classes;
+	GeneratorFlags flags;
+	Q_DISABLE_COPY(
+		PasswordGenerator
+	)
 };
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(PasswordGenerator::CharClasses)
+Q_DECLARE_OPERATORS_FOR_FLAGS(
+	PasswordGenerator::CharClasses
+)
 
-Q_DECLARE_OPERATORS_FOR_FLAGS(PasswordGenerator::GeneratorFlags)
-
+Q_DECLARE_OPERATORS_FOR_FLAGS(
+	PasswordGenerator::GeneratorFlags
+)
 #endif // KEEPASSX_PASSWORDGENERATOR_H

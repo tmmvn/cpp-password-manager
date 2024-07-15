@@ -14,39 +14,54 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include "StoreDataStream.h"
 
-StoreDataStream::StoreDataStream(QIODevice* baseDevice)
-    : LayeredStream(baseDevice)
+StoreDataStream::StoreDataStream(
+	QIODevice* baseDevice
+)
+	: LayeredStream(
+		baseDevice
+	)
 {
 }
 
-bool StoreDataStream::open(QIODevice::OpenMode mode)
+bool StoreDataStream::open(
+	const OpenMode mode
+)
 {
-    bool result = LayeredStream::open(mode);
-
-    if (result) {
-        m_storedData.clear();
-    }
-
-    return result;
+	const bool result_ = LayeredStream::open(
+		mode
+	);
+	if(result_)
+	{
+		this->storedData.clear();
+	}
+	return result_;
 }
 
-QByteArray StoreDataStream::storedData() const
+qint64 StoreDataStream::readData(
+	char* data,
+	const qint64 maxSize
+)
 {
-    return m_storedData;
-}
-
-qint64 StoreDataStream::readData(char* data, qint64 maxSize)
-{
-    qint64 bytesRead = LayeredStream::readData(data, maxSize);
-    if (bytesRead == -1) {
-        setErrorString(m_baseDevice->errorString());
-        return -1;
-    }
-
-    m_storedData.append(data, bytesRead);
-
-    return bytesRead;
+	if(maxSize <= 0)
+	{
+		return 0;
+	}
+	const qint64 bytesRead_ = LayeredStream::readData(
+		data,
+		maxSize
+	);
+	if(bytesRead_ == -1)
+	{
+		this->setErrorString(
+			this->getBaseDevice()->errorString()
+		);
+		return -1;
+	}
+	this->storedData.append(
+		data,
+		bytesRead_
+	);
+	return bytesRead_;
 }

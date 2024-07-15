@@ -12,14 +12,12 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-include_directories(../src)
-
-add_executable(kdbx-extract kdbx-extract.cpp)
-target_link_libraries(kdbx-extract
-                      keepassx_core
-                      Qt5::Core
-                      Qt5::Concurrent
-                      Qt5::Widgets
-                      ${GCRYPT_LIBRARIES}
-                      ${ZLIB_LIBRARIES})
+INCLUDE_DIRECTORIES(../src)
+ADD_EXECUTABLE(kdbx-extract kdbx-extract.cpp)
+TARGET_LINK_LIBRARIES(kdbx-extract
+	keepassx_core
+	Qt6::Core
+	Qt6::Concurrent
+	Qt6::Widgets
+	${GCRYPT_LIBRARIES}
+	${ZLIB_LIBRARIES})

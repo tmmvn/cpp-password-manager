@@ -1,1 +1,4 @@
+#ifndef QTIOCOMPRESSOR
+#define QTIOCOMPRESSOR
 #include "qtiocompressor.h"
+#endif // QTIOCOMPRESSOR

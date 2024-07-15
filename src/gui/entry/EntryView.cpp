@@ -14,137 +14,267 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "EntryView.h"
-
 #include <QHeaderView>
 #include <QKeyEvent>
-
 #include "gui/SortFilterHideProxyModel.h"
 
-EntryView::EntryView(QWidget* parent)
-    : QTreeView(parent)
-    , m_model(new EntryModel(this))
-    , m_sortModel(new SortFilterHideProxyModel(this))
-    , m_inEntryListMode(false)
+EntryView::EntryView(
+	QWidget* parent
+)
+	: QTreeView(
+		parent
+	),
+	model(
+		new EntryModel(
+			this
+		)
+	),
+	sortModel(
+		new SortFilterHideProxyModel(
+			this
+		)
+	),
+	inEntryListMode(
+		false
+	)
 {
-    m_sortModel->setSourceModel(m_model);
-    m_sortModel->setDynamicSortFilter(true);
-    m_sortModel->setSortLocaleAware(true);
-    m_sortModel->setSortCaseSensitivity(Qt::CaseInsensitive);
-    QTreeView::setModel(m_sortModel);
-
-    setUniformRowHeights(true);
-    setRootIsDecorated(false);
-    setAlternatingRowColors(true);
-    setDragEnabled(true);
-    setSortingEnabled(true);
-    setSelectionMode(QAbstractItemView::ExtendedSelection);
-    header()->setDefaultSectionSize(150);
-
-    // QAbstractItemView::startDrag() uses this property as the default drag action
-    setDefaultDropAction(Qt::MoveAction);
-
-    connect(this, SIGNAL(doubleClicked(QModelIndex)), SLOT(emitEntryActivated(QModelIndex)));
-    connect(selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)), SIGNAL(entrySelectionChanged()));
-    connect(m_model, SIGNAL(switchedToEntryListMode()), SLOT(switchToEntryListMode()));
-    connect(m_model, SIGNAL(switchedToGroupMode()), SLOT(switchToGroupMode()));
+	this->sortModel->setSourceModel(
+		model
+	);
+	this->sortModel->setDynamicSortFilter(
+		true
+	);
+	this->sortModel->setSortLocaleAware(
+		true
+	);
+	this->sortModel->setSortCaseSensitivity(
+		Qt::CaseInsensitive
+	);
+	QTreeView::setModel(
+		this->sortModel
+	);
+	this->setUniformRowHeights(
+		true
+	);
+	this->setRootIsDecorated(
+		false
+	);
+	this->setAlternatingRowColors(
+		true
+	);
+	this->setDragEnabled(
+		true
+	);
+	this->setSortingEnabled(
+		true
+	);
+	this->setSelectionMode(
+		ExtendedSelection
+	);
+	this->header()->setDefaultSectionSize(
+		150
+	);
+	// QAbstractItemView::startDrag() uses this property as the default drag action
+	this->setDefaultDropAction(
+		Qt::MoveAction
+	);
+	this->connect(
+		this,
+		&EntryView::doubleClicked,
+		this,
+		&EntryView::do_emitEntryActivated
+	);
+	this->connect(
+		this->selectionModel(),
+		&QItemSelectionModel::selectionChanged,
+		this,
+		&EntryView::sig_entrySelectionChanged
+	);
+	this->connect(
+		this->model,
+		&EntryModel::sig_switchedToEntryListMode,
+		this,
+		&EntryView::do_switchToEntryListMode
+	);
+	this->connect(
+		this->model,
+		&EntryModel::sig_switchedToGroupMode,
+		this,
+		&EntryView::do_switchToGroupMode
+	);
 }
 
-void EntryView::keyPressEvent(QKeyEvent* event)
+void EntryView::keyPressEvent(
+	QKeyEvent* event
+)
 {
-    if ((event->key() == Qt::Key_Enter || event->key() == Qt::Key_Return) && currentIndex().isValid()) {
-        emitEntryActivated(currentIndex());
-    }
-
-    QTreeView::keyPressEvent(event);
+	if((event->key() == Qt::Key_Enter || event->key() == Qt::Key_Return) && this
+		->currentIndex().isValid())
+	{
+		this->do_emitEntryActivated(
+			this->currentIndex()
+		);
+	}
+	QTreeView::keyPressEvent(
+		event
+	);
 }
 
-void EntryView::setGroup(Group* group)
+void EntryView::do_setGroup(
+	Group* group
+)
 {
-    m_model->setGroup(group);
-    setFirstEntryActive();
+	this->model->do_setGroup(
+		group
+	);
+	this->setFirstEntryActive();
 }
 
-void EntryView::setEntryList(const QList<Entry*>& entries)
+void EntryView::setEntryList(
+	const QList<Entry*> &entries
+)
 {
-    m_model->setEntryList(entries);
-    setFirstEntryActive();
+	this->model->setEntryList(
+		entries
+	);
+	this->setFirstEntryActive();
 }
 
 void EntryView::setFirstEntryActive()
 {
-    if (m_model->rowCount() > 0) {
-        QModelIndex index = m_sortModel->mapToSource(m_sortModel->index(0, 0));
-        setCurrentEntry(m_model->entryFromIndex(index));
-    }
-    else {
-        Q_EMIT entrySelectionChanged();
-    }
+	if(this->model->rowCount() > 0)
+	{
+		const QModelIndex index_ = this->sortModel->mapToSource(
+			this->sortModel->index(
+				0,
+				0
+			)
+		);
+		this->setCurrentEntry(
+			this->model->entryFromIndex(
+				index_
+			)
+		);
+	}
+	else
+	{
+		 this->sig_entrySelectionChanged();
+	}
 }
 
-bool EntryView::inEntryListMode()
+bool EntryView::isInEntryListMode() const
 {
-    return m_inEntryListMode;
+	return this->inEntryListMode;
 }
 
-void EntryView::emitEntryActivated(const QModelIndex& index)
+void EntryView::do_emitEntryActivated(
+	const QModelIndex &index
+)
 {
-    Entry* entry = entryFromIndex(index);
-
-    Q_EMIT entryActivated(entry, static_cast<EntryModel::ModelColumn>(m_sortModel->mapToSource(index).column()));
+	Entry* entry_ = this->entryFromIndex(
+		index
+	);
+	 this->sig_entryActivated(
+		entry_,
+		static_cast<EntryModel::ModelColumn>(this->sortModel->mapToSource(
+			index
+		).column())
+	);
 }
 
-void EntryView::setModel(QAbstractItemModel* model)
+void EntryView::setModel(
+	QAbstractItemModel* model
+)
 {
-    Q_UNUSED(model);
-    Q_ASSERT(false);
+	Q_UNUSED(
+		model
+	);
 }
 
-Entry* EntryView::currentEntry()
+Entry* EntryView::getCurrentEntry() const
 {
-    QModelIndexList list = selectionModel()->selectedRows();
-    if (list.size() == 1) {
-        return m_model->entryFromIndex(m_sortModel->mapToSource(list.first()));
-    }
-    else {
-        return nullptr;
-    }
+	if(QModelIndexList list_ = this->selectionModel()->selectedRows();
+		list_.size() == 1)
+	{
+		return this->model->entryFromIndex(
+			this->sortModel->mapToSource(
+				list_.first()
+			)
+		);
+	}
+	return nullptr;
 }
 
-int EntryView::numberOfSelectedEntries()
+qsizetype EntryView::numberOfSelectedEntries() const
 {
-    return selectionModel()->selectedRows().size();
+	return this->selectionModel()->selectedRows().size();
 }
 
-void EntryView::setCurrentEntry(Entry* entry)
+void EntryView::setCurrentEntry(
+	Entry* entry
+) const
 {
-    selectionModel()->setCurrentIndex(m_sortModel->mapFromSource(m_model->indexFromEntry(entry)),
-                                      QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+	this->selectionModel()->setCurrentIndex(
+		this->sortModel->mapFromSource(
+			this->model->indexFromEntry(
+				entry
+			)
+		),
+		QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows
+	);
 }
 
-Entry* EntryView::entryFromIndex(const QModelIndex& index)
+Entry* EntryView::entryFromIndex(
+	const QModelIndex &index
+) const
 {
-    if (index.isValid()) {
-        return m_model->entryFromIndex(m_sortModel->mapToSource(index));
-    }
-    else {
-        return nullptr;
-    }
+	if(index.isValid())
+	{
+		return this->model->entryFromIndex(
+			this->sortModel->mapToSource(
+				index
+			)
+		);
+	}
+	return nullptr;
 }
 
-void EntryView::switchToEntryListMode()
+void EntryView::do_switchToEntryListMode()
 {
-    m_sortModel->hideColumn(0, false);
-    sortByColumn(1, Qt::AscendingOrder); // TODO: should probably be improved
-    sortByColumn(0, Qt::AscendingOrder);
-    m_inEntryListMode = true;
+	this->sortModel->hideColumn(
+		0,
+		false
+	);
+	this->sortByColumn(
+		1,
+		Qt::AscendingOrder
+	); // TODO: should probably be improved
+	this->sortByColumn(
+		0,
+		Qt::AscendingOrder
+	);
+	this->inEntryListMode = true;
 }
 
-void EntryView::switchToGroupMode()
+void EntryView::do_switchToGroupMode()
 {
-    m_sortModel->hideColumn(0, true);
-    sortByColumn(-1, Qt::AscendingOrder);
-    sortByColumn(0, Qt::AscendingOrder);
-    m_inEntryListMode = false;
+	this->sortModel->hideColumn(
+		0,
+		true
+	);
+	this->sortByColumn(
+		-1,
+		Qt::AscendingOrder
+	);
+	this->sortByColumn(
+		0,
+		Qt::AscendingOrder
+	);
+	this->inEntryListMode = false;
+}
+
+void EntryView::do_setFocus()
+{
+	this->setFocus();
 }

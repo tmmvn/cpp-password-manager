@@ -14,50 +14,78 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "FailDevice.h"
 
-FailDevice::FailDevice(int failAfter, QObject* parent)
-    : QBuffer(parent)
-    , m_failAfter(failAfter)
-    , m_readCount(0)
-    , m_writeCount(0)
+FailDevice::FailDevice(
+	const int failAfter,
+	QObject* parent
+)
+	: QBuffer(
+		parent
+	),
+	failAfter(
+		failAfter
+	),
+	readCount(
+		0
+	),
+	writeCount(
+		0
+	)
 {
 }
 
-bool FailDevice::open(QIODevice::OpenMode openMode)
+bool FailDevice::open(
+	const OpenMode openMode
+)
 {
-    return QBuffer::open(openMode | QIODevice::Unbuffered);
+	return QBuffer::open(
+		openMode | Unbuffered
+	);
 }
 
-qint64 FailDevice::readData(char* data, qint64 len)
+qint64 FailDevice::readData(
+	char* data,
+	const qint64 len
+)
 {
-    if (m_readCount >= m_failAfter) {
-        setErrorString("FAILDEVICE");
-        return -1;
-    }
-    else {
-        qint64 result = QBuffer::readData(data, len);
-        if (result != -1) {
-            m_readCount += result;
-        }
-
-        return result;
-    }
+	if(this->readCount >= this->failAfter)
+	{
+		this->setErrorString(
+			"FAILDEVICE"
+		);
+		return -1;
+	}
+	const qint64 result_ = QBuffer::readData(
+		data,
+		len
+	);
+	if(result_ != -1)
+	{
+		this->readCount += result_;
+	}
+	return result_;
 }
 
-qint64 FailDevice::writeData(const char* data, qint64 len)
+qint64 FailDevice::writeData(
+	const char* data,
+	const qint64 len
+)
 {
-    if (m_writeCount >= m_failAfter) {
-        setErrorString("FAILDEVICE");
-        return -1;
-    }
-    else {
-        qint64 result = QBuffer::writeData(data, len);
-        if (result != -1) {
-            m_writeCount += result;
-        }
-
-        return result;
-    }
+	if(this->writeCount >= this->failAfter)
+	{
+		this->setErrorString(
+			"FAILDEVICE"
+		);
+		return -1;
+	}
+	const qint64 result_ = QBuffer::writeData(
+		data,
+		len
+	);
+	if(result_ != -1)
+	{
+		this->writeCount += result_;
+	}
+	return result_;
 }

@@ -14,19 +14,14 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTCRYPTOHASH_H
 #define KEEPASSX_TESTCRYPTOHASH_H
-
 #include <QObject>
 
-class TestCryptoHash : public QObject
+class TestCryptoHash:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void test();
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void test();
 };
-
 #endif // KEEPASSX_TESTCRYPTOHASH_H

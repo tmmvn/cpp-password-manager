@@ -14,48 +14,59 @@
 *  You should have received a copy of the GNU General Public License
 *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifndef KEEPASSX_SYMMETRICCIPHERGCRYPT_H
 #define KEEPASSX_SYMMETRICCIPHERGCRYPT_H
-
 #include <gcrypt.h>
-
 #include "crypto/SymmetricCipher.h"
 #include "crypto/SymmetricCipherBackend.h"
 
-class SymmetricCipherGcrypt : public SymmetricCipherBackend
+class SymmetricCipherGcrypt final:public SymmetricCipherBackend
 {
 public:
-    SymmetricCipherGcrypt(SymmetricCipher::Algorithm algo, SymmetricCipher::Mode mode,
-                          SymmetricCipher::Direction direction);
-    ~SymmetricCipherGcrypt();
-
-    bool init();
-    bool setKey(const QByteArray& key);
-    bool setIv(const QByteArray& iv);
-
-    QByteArray process(const QByteArray& data, bool* ok);
-    Q_REQUIRED_RESULT bool processInPlace(QByteArray& data);
-    Q_REQUIRED_RESULT bool processInPlace(QByteArray& data, quint64 rounds);
-
-    bool reset();
-    int blockSize() const;
-
-    QString errorString() const;
-
+	SymmetricCipherGcrypt(
+		SymmetricCipher::Algorithm algo,
+		SymmetricCipher::Mode mode,
+		SymmetricCipher::Direction direction
+	);
+	virtual ~SymmetricCipherGcrypt() override;
+	virtual bool init() override;
+	virtual bool setKey(
+		const QByteArray &key
+	) override;
+	virtual bool setIv(
+		const QByteArray &iv
+	) override;
+	virtual QByteArray process(
+		const QByteArray &data,
+		bool* ok
+	) override;
+	Q_REQUIRED_RESULT virtual bool processInPlace(
+		QByteArray &data
+	) override;
+	Q_REQUIRED_RESULT virtual bool processInPlace(
+		QByteArray &data,
+		quint64 rounds
+	) override;
+	virtual bool reset() override;
+	virtual qint64 getBlockSize() const override;
+	virtual QString getErrorString() const override;
 private:
-    static int gcryptAlgo(SymmetricCipher::Algorithm algo);
-    static int gcryptMode(SymmetricCipher::Mode mode);
-    void setErrorString(gcry_error_t err);
-
-    gcry_cipher_hd_t m_ctx;
-    const int m_algo;
-    const int m_mode;
-    const SymmetricCipher::Direction m_direction;
-    QByteArray m_key;
-    QByteArray m_iv;
-    int m_blockSize;
-    QString m_errorString;
+	static int gcryptAlgo(
+		SymmetricCipher::Algorithm algo
+	);
+	static int gcryptMode(
+		SymmetricCipher::Mode mode
+	);
+	void setErrorString(
+		gcry_error_t err
+	);
+	gcry_cipher_hd_t ctx;
+	const int algo;
+	const int mode;
+	const SymmetricCipher::Direction direction;
+	QByteArray key;
+	QByteArray iv;
+	qint64 blockSize;
+	QString errorString;
 };
-
 #endif // KEEPASSX_SYMMETRICCIPHERGCRYPT_H

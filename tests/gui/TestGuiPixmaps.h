@@ -14,26 +14,23 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTGUIPIXMAPS_H
 #define KEEPASSX_TESTGUIPIXMAPS_H
-
 #include <QImage>
 #include <QObject>
 #include <QPixmap>
 
-class TestGuiPixmaps : public QObject
+class TestGuiPixmaps:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testDatabaseIcons();
-    void testEntryIcons();
-    void testGroupIcons();
-
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testDatabaseIcons();
+	void testEntryIcons();
+	void testGroupIcons();
 private:
-    void compareImages(const QPixmap& pixmap, const QImage& image);
+	void compareImages(
+		const QPixmap &pixmap,
+		const QImage &image
+	);
 };
-
 #endif // KEEPASSX_TESTGUIPIXMAPS_H

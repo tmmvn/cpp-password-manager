@@ -14,36 +14,46 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_ENTRYHISTORYMODEL_H
 #define KEEPASSX_ENTRYHISTORYMODEL_H
-
 #include <QAbstractTableModel>
-
 class Entry;
 
-class EntryHistoryModel : public QAbstractTableModel
+class EntryHistoryModel final:public QAbstractTableModel
 {
-    Q_OBJECT
-
-public:
-    explicit EntryHistoryModel(QObject* parent = nullptr);
-
-    Entry* entryFromIndex(const QModelIndex& index) const;
-    int columnCount(const QModelIndex& parent = QModelIndex()) const override;
-    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
-    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
-
-    void setEntries(const QList<Entry*>& entries);
-    void clear();
-    QList<Entry*> deletedEntries();
-    void deleteIndex(QModelIndex index);
-    void deleteAll();
-
+	Q_OBJECT public:
+	explicit EntryHistoryModel(
+		QObject* parent = nullptr
+	);
+	Entry* entryFromIndex(
+		const QModelIndex &index
+	) const;
+	virtual int columnCount(
+		const QModelIndex &parent = QModelIndex()
+	) const override;
+	virtual int rowCount(
+		const QModelIndex &parent = QModelIndex()
+	) const override;
+	virtual QVariant data(
+		const QModelIndex &index,
+		int role = Qt::DisplayRole
+	) const override;
+	virtual QVariant headerData(
+		int section,
+		Qt::Orientation orientation,
+		int role
+	) const override;
+	void setEntries(
+		const QList<Entry*> &entries
+	);
+	void clear();
+	QList<Entry*> deletedEntries();
+	void deleteIndex(
+		const QModelIndex &index
+	);
+	void deleteAll();
 private:
-    QList<Entry*> m_historyEntries;
-    QList<Entry*> m_deletedHistoryEntries;
+	QList<Entry*> historyEntries;
+	QList<Entry*> deletedHistoryEntries;
 };
-
 #endif // KEEPASSX_ENTRYHISTORYMODEL_H

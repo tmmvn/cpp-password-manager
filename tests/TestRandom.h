@@ -14,37 +14,34 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_TESTRANDOM_H
 #define KEEPASSX_TESTRANDOM_H
-
 #include "crypto/Random.h"
-
 #include <QObject>
 
-class RandomBackendTest : public RandomBackend
+class RandomBackendTest:public RandomBackend
 {
 public:
-    RandomBackendTest();
-    void randomize(void* data, int len) override;
-    void setNextBytes(const QByteArray& nextBytes);
-
+	RandomBackendTest();
+	void randomize(
+		void* data,
+		int len
+	) override;
+	void setNextBytes(
+		const QByteArray &nextBytes
+	);
 private:
-    QByteArray m_nextBytes;
-    int m_bytesIndex;
+	QByteArray m_nextBytes;
+	int m_bytesIndex;
 };
 
-class TestRandom : public QObject
+class TestRandom:public QObject
 {
-    Q_OBJECT
-
-private Q_SLOTS:
-    void initTestCase();
-    void testUInt();
-    void testUIntRange();
-
+	Q_OBJECT private Q_SLOTS:
+	void initTestCase();
+	void testUInt();
+	void testUIntRange();
 private:
-    RandomBackendTest* m_backend;
+	RandomBackendTest* m_backend;
 };
-
 #endif // KEEPASSX_TESTRANDOM_H

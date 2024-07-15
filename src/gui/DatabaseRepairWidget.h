@@ -14,28 +14,24 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #ifndef KEEPASSX_DATABASEREPAIRWIDGET_H
 #define KEEPASSX_DATABASEREPAIRWIDGET_H
-
 #include "gui/DatabaseOpenWidget.h"
 
-class DatabaseRepairWidget : public DatabaseOpenWidget
+class DatabaseRepairWidget final:public DatabaseOpenWidget
 {
-    Q_OBJECT
-
-public:
-    explicit DatabaseRepairWidget(QWidget* parent = nullptr);
-
+	Q_OBJECT public:
+	explicit DatabaseRepairWidget(
+		QWidget* parent = nullptr
+	);
 Q_SIGNALS:
-    void success();
-    void error();
-
+	void sig_success();
+	void sig_error();
 protected:
-    void openDatabase() override;
-
+	virtual void do_openDatabase() override;
 private Q_SLOTS:
-    void processEditFinished(bool result);
+	void do_processEditFinished(
+		bool result
+	);
 };
-
 #endif // KEEPASSX_DATABASEREPAIRWIDGET_H
